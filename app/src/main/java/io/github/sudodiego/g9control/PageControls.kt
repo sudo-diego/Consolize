@@ -66,6 +66,12 @@ private fun GuidePanel(a: MainActivity) {
                     row(AutoRules.Guide.LB_BACK).value) {
                     row(AutoRules.Guide.LB_BACK).value = it; AutoRules.setGuide(a, AutoRules.Guide.LB_BACK, it)
                 }
+                ShortcutRow(listOf(tr("Guía", "Guide"), "LT"), tr("En X-Input no", "Not in X-Input"), tr("Grabar o parar", "Record or stop"), row(AutoRules.Guide.LT_REC).value) {
+                    row(AutoRules.Guide.LT_REC).value = it; AutoRules.setGuide(a, AutoRules.Guide.LT_REC, it)
+                }
+                ShortcutRow(listOf(tr("Guía", "Guide"), "RT"), tr("En X-Input no", "Not in X-Input"), tr("Shadow Rec: guardar lo último", "Shadow Rec: save the latest"), row(AutoRules.Guide.RT_SHADOW).value) {
+                    row(AutoRules.Guide.RT_SHADOW).value = it; AutoRules.setGuide(a, AutoRules.Guide.RT_SHADOW, it)
+                }
             }
             SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip, tr("Panel, menú y capturas en Artemis o Moonlight", "Panel, menu and screenshots in Artemis or Moonlight")) {
                 streamTip = it; AutoRules.setStreamTip(a, it)

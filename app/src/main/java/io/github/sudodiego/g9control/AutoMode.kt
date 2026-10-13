@@ -835,7 +835,11 @@ class AutoModeService : AccessibilityService() {
         // todas partes): si la guía está apretada o se soltó hace un instante (el firmware la suelta al apretar RB).
         val passChord = (guideLive || android.os.SystemClock.uptimeMillis() - guideUpAt < 400) &&
             AutoRules.guideTap(this, lastPackage) == AutoRules.GuideTap.PASS
-        if (!legionChording && !(legionOwned && legionPending) && !passChord) return false
+        // LT y RT solo con la guía apretada de verdad: en la ventana de después de una combinación (pensada para varias
+        // capturas seguidas con RB) un LT suelto, segundos después, empezaba a grabar.
+        val guideNow = (legionOwned && legionPending) || passChord
+        if (trigger && !guideNow) return false
+        if (!legionChording && !guideNow) return false
         // La captura la saca el emulador: RB le llega (Guía + RB es su atajo) y aquí solo el aviso.
         if (passChord && k == KeyEvent.KEYCODE_BUTTON_R1 && AutoRules.shotByGame(this, lastPackage)) {
             Log.d(TAG, "Guía + RB: captura del emulador")
@@ -843,7 +847,12 @@ class AutoModeService : AccessibilityService() {
             return false
         }
         // Ese atajo apagado: RB o LB llegan normal.
-        if (!trigger && !AutoRules.guide(this, if (k == KeyEvent.KEYCODE_BUTTON_R1) AutoRules.Guide.RB_SHOT else AutoRules.Guide.LB_BACK)) return false
+        if (!AutoRules.guide(this, when (k) {
+                KeyEvent.KEYCODE_BUTTON_R1 -> AutoRules.Guide.RB_SHOT
+                KeyEvent.KEYCODE_BUTTON_L1 -> AutoRules.Guide.LB_BACK
+                KeyEvent.KEYCODE_BUTTON_L2 -> AutoRules.Guide.LT_REC
+                else -> AutoRules.Guide.RT_SHADOW
+            })) return false
         legionPending = false
         legionChording = true
         main.removeCallbacks(legionHold)

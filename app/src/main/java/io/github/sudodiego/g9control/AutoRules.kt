@@ -196,7 +196,7 @@ object AutoRules {
     fun legionKeys(ctx: Context) = sp(ctx).getBoolean("legion_keys", true)
 
     /** Cada atajo del botón guía, por separado (con el botón guía activado). */
-    enum class Guide(val key: String) { TAP_BACK("guide_tap_back"), HOLD_PANEL("guide_hold_panel"), RB_SHOT("guide_rb_shot"), LB_BACK("guide_lb_back"), HOLD_LOCK("guide_hold_lock") }
+    enum class Guide(val key: String) { TAP_BACK("guide_tap_back"), HOLD_PANEL("guide_hold_panel"), RB_SHOT("guide_rb_shot"), LB_BACK("guide_lb_back"), HOLD_LOCK("guide_hold_lock"), LT_REC("guide_lt_rec"), RT_SHADOW("guide_rt_shadow") }
 
     /**
      * Qué hace tocar la guía en una app: Atrás (lo normal), nada, o pasarla al juego (la app no la toma: el emulador
