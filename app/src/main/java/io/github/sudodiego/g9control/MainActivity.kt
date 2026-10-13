@@ -889,6 +889,12 @@ class MainActivity : ComponentActivity() {
     }
     fun pickBackground() = backgroundLauncher.launch(arrayOf("image/*"))
 
+    /** Abre un buscador de GIFs en el navegador (la app no se conecta a internet: se descargan allá). */
+    fun searchGifs() {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://giphy.com/"))) }
+            .onFailure { state.fail(tr("No hay un navegador para abrirlo.", "No browser to open it.")) }
+    }
+
     /** Fondo del panel de juego: su propia imagen o GIF. */
     private val panelBackgroundLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument()

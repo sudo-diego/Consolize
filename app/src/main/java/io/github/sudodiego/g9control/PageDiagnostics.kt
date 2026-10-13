@@ -51,7 +51,7 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                     else { ThemeState.background = it; Prefs.setBackground(a, it) }
                 }
                 if (ThemeState.background == AppBackground.IMAGE) {
-                    OutlinedButton(onClick = { a.pickBackground() }) { Text(tr("Cambiar imagen", "Change image")) }
+                    ImageButtons(a) { a.pickBackground() }
                     SliderRow(tr("Desenfoque", "Blur"), ThemeState.backgroundBlur, 0..100) {
                         ThemeState.backgroundBlur = it; Prefs.setBackgroundBlur(a, it)
                     }
@@ -476,7 +476,7 @@ internal fun PanelLookPanel(a: MainActivity) {
             SliderRow(tr("Transparencia", "Transparency"), ThemeState.panelSee, 0..100) { ThemeState.panelSee = it; Prefs.setPanelSee(a, it) }
         }
         if (ThemeState.panelBackground == PanelBackground.IMAGE) {
-            OutlinedButton(onClick = { a.pickPanelBackground() }) { Text(tr("Cambiar imagen", "Change image")) }
+            ImageButtons(a) { a.pickPanelBackground() }
             // Cómo se acomoda (como los fondos de Windows) y, al rellenar, qué parte queda a la vista.
             Text(tr("Ajuste", "Fit"), fontSize = 14.sp)
             ChoiceChips(ImageFit.entries.map { it to it.label }, ThemeState.panelFit) { ThemeState.panelFit = it; Prefs.setPanelFit(a, it) }
@@ -682,4 +682,18 @@ private fun SoundSettings(a: MainActivity) {
     }
     Hint(tr("Los sonidos no cortan la música de Cocoon. La música ambiental sí la pausa mientras TBF está abierta y la devuelve al salir.",
         "The sounds don't stop Cocoon's music. The background music does pause it while TBF is open, and gives it back when you leave."))
+}
+
+/**
+ * Elegir la imagen o GIF, y buscar GIFs en el navegador: la app no tiene permiso de internet, así que se buscan y
+ * descargan allá y después se eligen aquí como cualquier archivo.
+ */
+@Composable
+private fun ImageButtons(a: MainActivity, pick: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        OutlinedButton(onClick = pick) { Text(tr("Cambiar imagen", "Change image")) }
+        OutlinedButton(onClick = { a.searchGifs() }) { Text(tr("Buscar GIFs", "Find GIFs")) }
+    }
+    Hint(tr("«Buscar GIFs» abre el navegador: mantén presionado el GIF y descárgalo; después elígelo con «Cambiar imagen».",
+        "“Find GIFs” opens the browser: long-press the GIF and download it; then pick it with “Change image”."))
 }
