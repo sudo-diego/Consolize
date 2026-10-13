@@ -258,8 +258,8 @@ class AutoModeService : AccessibilityService() {
     /**
      * Pantalla de la tablet con un monitor en espejo. Oscura: una ventana invisible del servicio pide el brillo
      * "apagado", que Android deja en el mínimo (sin Shizuku; una app no puede apagar la luz del todo). Apagada: el
-     * panel entero, con Shizuku, como Extinguish (si no está, queda oscura). Sin luz: la ventana de Oscura (así el
-     * brillo automático no lo cambia) y, encima, el brillo en -1 con Shizuku, lo que hace Extinguish; al quitar la
+     * panel entero, con Shizuku (si no está, queda oscura). Sin luz: la ventana de Oscura (así el
+     * brillo automático no lo cambia) y, encima, el brillo en -1 con Shizuku; al quitar la
      * ventana Android vuelve a poner el brillo de siempre.
      */
     private fun applyTabletScreen(target: Monitor.Screen) {
@@ -1179,7 +1179,7 @@ class AutoModeService : AccessibilityService() {
     /**
      * Ventanas que no cuentan como "cambiar de app": esta app, la barra del sistema, el teclado y
      * superposiciones sin ícono en el menú de apps (por ejemplo la barra de juegos de ZUI, que aparece
-     * justo al abrir un juego). Las pantallas de inicio (Cocoon Shell) sí cuentan.
+     * justo al abrir un juego). Las pantallas de inicio (launchers) sí cuentan.
      */
     private fun isTransient(pkg: String): Boolean = transientCache.getOrPut(pkg) {
         if (pkg == packageName || pkg == "com.android.systemui") return@getOrPut true

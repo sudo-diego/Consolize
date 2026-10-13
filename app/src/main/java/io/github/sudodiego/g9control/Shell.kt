@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  *
  * Los corre el propio servidor de Shizuku (`newProcess`), no un servicio aparte (UserService): en ZUI el
  * servicio no arranca si la app de Shizuku no está abierta ("provider is null"; ZUI no deja al shell pedir
- * proveedores de una app sin proceso). Key Mapper usa lo mismo como respaldo. `newProcess` es privado desde
+ * proveedores de una app sin proceso). `newProcess` es privado desde
  * la API 13 de Shizuku: se llama por reflexión.
  */
 object Shell {
@@ -55,7 +55,7 @@ object Shell {
     fun sfLatency(layer: String) = "dumpsys SurfaceFlinger --latency $layer"
     private val SF_LATENCY = Regex("dumpsys SurfaceFlinger --latency \\S+")
     // Pantalla de la tablet con un monitor (ScreenPower, con esta misma APK): apagar o encender el panel, o apagar
-    // solo la luz (brillo -1, como Extinguish; vuelve sola cuando Android cambia el brillo).
+    // solo la luz (brillo -1; vuelve sola cuando Android cambia el brillo).
     fun screenPower(on: Boolean) = screenCmd("power ${if (on) 2 else 0}")
     val SCREEN_LIGHT_OFF get() = screenCmd("light -1")
     private fun screenCmd(args: String) =
@@ -85,8 +85,7 @@ object Shell {
     // guarda ni se registra, solo se mira si está).
     const val RA_CFG = "cat /storage/emulated/0/Android/data/com.retroarch/files/retroarch.cfg"
     const val RA64_CFG = "cat /storage/emulated/0/Android/data/com.retroarch.aarch64/files/retroarch.cfg"
-    const val DOLPHIN_RA_PATH = "/storage/emulated/0/Android/data/org.dolphinemu.dolphinemu/files/Config/RetroAchievements.ini"
-    const val DOLPHIN_RA = "cat $DOLPHIN_RA_PATH"
+    const val DOLPHIN_RA = "cat /storage/emulated/0/Android/data/org.dolphinemu.dolphinemu/files/Config/RetroAchievements.ini"
     // Administrador de tareas (Memoria): RAM y CPU de cada proceso, en dos pasadas de 2 s (la primera no tiene CPU; con
     // 1 s, top mide de a 1 % y casi todo salía 0).
     const val TOP = "top -b -n 2 -d 2 -m 500 -o USER,%CPU,RES,NAME"
@@ -178,25 +177,6 @@ object Shell {
             if (code != 0 && !(code == 137 && command.contains(ScreenPower::class.java.name))) error("salió con $code")
             synchronized(out) { out.toString() }
         }.onFailure { Log.w(AutoModeService.TAG, "Shizuku: $command falló", it) }.getOrNull()
-    }
-
-    /**
-     * Escribir un archivo con Shizuku (solo los de [WRITABLE]): el contenido va por la entrada del proceso (`cat > ruta`),
-     * nunca en el comando ni en el registro (puede llevar una contraseña). Devuelve si salió bien.
-     */
-    private val WRITABLE = setOf(DOLPHIN_RA_PATH)
-    suspend fun writeFile(path: String, content: String): Boolean = withContext(Dispatchers.IO) {
-        refresh()
-        if (state != State.READY || path !in WRITABLE) return@withContext false
-        val m = newProcess ?: return@withContext false
-        runCatching {
-            val p = m.invoke(null, arrayOf("sh", "-c", "cat > $path"), null, null) as Process
-            p.outputStream.use { it.write(content.toByteArray()) }
-            val waiter = Thread { runCatching { p.waitFor() } }
-            waiter.start(); waiter.join(4000)
-            if (waiter.isAlive) { p.destroy(); error("tardó demasiado") }
-            p.exitValue() == 0
-        }.onFailure { Log.w(AutoModeService.TAG, "Shizuku: escribir $path falló (${it.javaClass.simpleName})") }.getOrDefault(false)
     }
 
     // Eventos crudos de un dispositivo de entrada (el touchpad del G9, para M dos veces cuando una app captura el

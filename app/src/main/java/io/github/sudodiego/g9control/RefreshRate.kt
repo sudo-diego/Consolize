@@ -49,7 +49,7 @@ object RefreshRate {
     /** Lo que toca para esa app: su elección, o la de los juegos si es un juego. */
     fun wanted(ctx: Context, pkg: String?): Int? = forApp(ctx, pkg) ?: forGames(ctx)?.takeIf { ZuiGame.inGame(ctx) && !isHome(ctx, pkg) }
 
-    /** La pantalla de inicio no es un juego aunque ZUI siga un momento en modo juego al salir (Cocoon tomaba 165 Hz). */
+    /** La pantalla de inicio no es un juego aunque ZUI siga un momento en modo juego al salir (el launcher tomaba los Hz del juego). */
     private var homes: Set<String>? = null
     private fun isHome(ctx: Context, pkg: String?): Boolean {
         val h = homes ?: ctx.packageManager.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN)

@@ -27,7 +27,7 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <!-- Pantallas de inicio (por ejemplo Cocoon Shell): cuentan como "salir del juego". -->
+        <!-- Pantallas de inicio (launchers): cuentan como "salir del juego". -->
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.HOME" />

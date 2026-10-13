@@ -398,7 +398,7 @@ class PerfHud(private val svc: AutoModeService) {
         while (presentedSeen.isNotEmpty() && (presentedSeen.peekFirst() ?: now) < now - 4_000_000_000L) presentedSeen.pollFirst()
         frameTimes = presentedSeen.zipWithNext { a, b -> (b - a) / 1e6f }.filter { it in 0.5f..500f }
         // Del último segundo de cuadros, medido con ellos mismos: cuántos intervalos caben en el tiempo entre el primero
-        // y el último. Contar "los de después de ahora − 1 s" contaba de más (Wind Waker, fijo a 30, decía 34): `now` se
+        // y el último. Contar "los de después de ahora − 1 s" contaba de más (un juego fijo a 30 decía 34): `now` se
         // toma antes de la consulta a SurfaceFlinger, que tarda cientos de ms, y los cuadros de mientras también entraban.
         val newest = presentedSeen.peekLast() ?: return 0
         if (newest < now - 1_000_000_000L) return 0

@@ -977,7 +977,7 @@ class GamePanel(private val svc: AutoModeService) {
         nextShot = now + 1100
         // La ventana con el foco ahora (la del evento puede ser una pasajera que ya no existe).
         val id = focusedAppWindow().takeIf { it >= 0 } ?: svc.appWindowId
-        // Un launcher (Cocoon, el de ZUI) deja ver el fondo de pantalla, que es otra ventana: con solo la suya el
+        // Un launcher deja ver el fondo de pantalla, que es otra ventana: con solo la suya el
         // fondo sale negro. Ahí, toda la pantalla (el panel ya se quitó; el puntero puede salir).
         // Recién arrancado el servicio (al actualizar la app) no sabe qué app está al frente hasta que se cambia de app:
         // ahí se le pregunta a la ventana con el foco.

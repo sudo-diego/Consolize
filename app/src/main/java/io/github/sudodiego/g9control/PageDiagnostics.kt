@@ -376,46 +376,10 @@ private fun RaProxyPanel(s: AppState, a: MainActivity) {
         Hint(tr("«Preparar y abrir» cierra los emuladores y abre RAOfflineProxy para Start (después de reiniciar, abrirlo basta: se enciende solo). Apágalo con su Stop proxy, que deja todo como estaba.",
             "“Prepare and open” closes the emulators and opens RAOfflineProxy for Start (after a reboot, opening it is enough: it turns on by itself). Turn it off with its Stop proxy, which restores everything."))
         }
-        DolphinSignOutFix(a)
         SwitchRow(tr("Aviso sin internet", "Offline notice"), hint, tr("Al abrir un emulador sin internet y con el proxy apagado", "When opening an emulator offline with the proxy off")) {
             hint = it; AutoRules.setRaProxyHint(a, it)
         }
     }
-}
-
-/**
- * Workaround opcional de Dolphin (cierra la sesión de RetroAchievements solo): guardar la contraseña en su archivo de
- * configuración para que vuelva a iniciar sesión solo. Explica el riesgo; TBF no guarda la contraseña (ver
- * [RaProxy.setDolphinPassword]). Con Shizuku y Dolphin instalado.
- */
-@Composable
-private fun DolphinSignOutFix(a: MainActivity) {
-    val hasDolphin = remember { runCatching { a.packageManager.getApplicationInfo("org.dolphinemu.dolphinemu", 0) }.isSuccess }
-    if (!hasDolphin || Shell.state != Shell.State.READY) return
-    val scope = rememberCoroutineScope()
-    var saved by remember { mutableStateOf<Boolean?>(null) }
-    var pwd by remember { mutableStateOf("") }
-    var msg by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { saved = RaProxy.dolphinHasPassword() }
-    var open by remember { mutableStateOf(false) }
-    ExpandHeader(tr("Dolphin cierra la sesión solo (workaround)", "Dolphin keeps signing out (workaround)"), open || saved == true) { open = !open }
-    if (!open && saved != true) return
-    Hint(tr("Error de Dolphin en Android. A algunos les sirve guardar la contraseña en su configuración para que vuelva a iniciar sesión solo (en Dolphin 2609a no sirvió). Queda sin cifrar en su archivo; TBF no la guarda. Si está mal escrita, Dolphin cierra la sesión cada vez.",
-        "A Dolphin bug on Android. Saving the password in its config so it signs back in by itself helps some people (it didn't in Dolphin 2609a). It's stored unencrypted in its file; TBF doesn't keep it. If it's mistyped, Dolphin signs out every time."))
-    if (saved == true) {
-        InfoRow(tr("Contraseña en Dolphin", "Password in Dolphin"), tr("Guardada", "Saved"))
-        OutlinedButton(onClick = { scope.launch { msg = if (RaProxy.setDolphinPassword(null)) tr("Quitada", "Removed") else tr("No se pudo", "Couldn't"); saved = RaProxy.dolphinHasPassword() } }) {
-            Text(tr("Quitarla", "Remove it"))
-        }
-    } else {
-        OutlinedTextField(pwd, { pwd = it }, label = { Text(tr("Contraseña de RetroAchievements", "RetroAchievements password")) }, singleLine = true,
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-        Button(onClick = {
-            val p = pwd; pwd = ""
-            scope.launch { msg = if (RaProxy.setDolphinPassword(p)) tr("Guardada (Dolphin se cerró para aplicarla)", "Saved (Dolphin was closed to apply it)") else tr("No se pudo", "Couldn't"); saved = RaProxy.dolphinHasPassword() }
-        }, enabled = pwd.isNotBlank()) { Text(tr("Guardar en Dolphin", "Save to Dolphin")) }
-    }
-    msg?.let { Text(it, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary) }
 }
 
 /** Título que se toca para desplegar u ocultar una explicación (con flecha). */
@@ -651,7 +615,7 @@ private fun PosGrid(sel: NoticePos, onPick: (NoticePos) -> Unit) {
 
 /**
  * Sonidos de navegación y música ambiental (ver [UiSounds] y [AmbientMusic]). Los sonidos no cortan la música de
- * Cocoon (no piden el audio); la música sí la pausa mientras la app está adelante, y vuelve al salir.
+ * otras apps (no piden el audio); la música sí la pausa mientras la app está adelante, y vuelve al salir.
  */
 @Composable
 private fun SoundSettings(a: MainActivity) {
@@ -680,8 +644,8 @@ private fun SoundSettings(a: MainActivity) {
         }
         OutlinedButton(onClick = { a.pickMusic() }) { Text(tr("Cambiar música", "Change music")) }
     }
-    Hint(tr("Los sonidos no cortan la música de Cocoon. La música ambiental sí la pausa mientras TBF está abierta y la devuelve al salir.",
-        "The sounds don't stop Cocoon's music. The background music does pause it while TBF is open, and gives it back when you leave."))
+    Hint(tr("Los sonidos no cortan la música de otras apps. La música ambiental sí la pausa mientras TBF está abierta y la devuelve al salir.",
+        "The sounds don't stop other apps' music. The background music does pause it while TBF is open, and gives it back when you leave."))
 }
 
 /**

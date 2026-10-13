@@ -5,9 +5,9 @@ import android.os.Build
 import android.os.IBinder
 
 /**
- * Apaga o enciende el panel de la tablet sin apagar el sistema (lo que hacen scrcpy y Extinguish): el monitor sigue
+ * Apaga o enciende el panel de la tablet sin apagar el sistema: el monitor sigue
  * mostrando la imagen. Corre como proceso aparte con permisos de shell (Shizuku): `app_process` con esta APK.
- * Dos formas, como Extinguish: `power 0|2` apaga el panel o lo deja normal; `light -1|<0..1>` apaga solo la luz
+ * Dos formas: `power 0|2` apaga el panel o lo deja normal; `light -1|<0..1>` apaga solo la luz
  * (brillo -1) o la devuelve. El botón de encendido también lo vuelve a encender.
  */
 @SuppressLint("BlockedPrivateApi", "DiscouragedPrivateApi") // corre fuera de la app, como shell

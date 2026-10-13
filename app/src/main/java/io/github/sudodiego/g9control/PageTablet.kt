@@ -367,7 +367,7 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
                 when (screen) {
                     Monitor.Screen.NORMAL -> tr("La tablet sigue como siempre.", "The tablet stays as usual.")
                     Monitor.Screen.DIM -> tr("Brillo al mínimo. Sin Shizuku.", "Minimum brightness. No Shizuku needed.")
-                    Monitor.Screen.NO_LIGHT -> tr("Sin luz, con Shizuku (como Extinguish).", "Backlight off, with Shizuku (like Extinguish).")
+                    Monitor.Screen.NO_LIGHT -> tr("Sin luz: la pantalla queda apagada pero encendida. Necesita Shizuku.", "Backlight off: the panel stays on but dark. Needs Shizuku.")
                     Monitor.Screen.OFF -> tr("Panel apagado, con Shizuku.", "Panel off, with Shizuku.")
                 }, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
             )

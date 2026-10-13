@@ -13,7 +13,7 @@ import androidx.compose.runtime.setValue
 /**
  * Sonidos de navegación (moverse, elegir, volver, cambiar de pestaña): WAV de res/raw (nav_*.wav), hechos una vez en
  * el PC como los de captura (no se generan en la app). Van con SoundPool y **sin pedir el foco de audio**: se
- * mezclan encima de lo que suene, así Cocoon (que pausa su música cuando otra app pide el audio) no se corta. En la
+ * mezclan encima de lo que suene, así la música de un launcher (que la pausa cuando otra app pide el audio) no se corta. En la
  * app si están encendidos; en el panel de juego solo si además se pidió ([AutoRules]-like prefs en [Prefs]).
  */
 object UiSounds {
@@ -61,8 +61,8 @@ object UiSounds {
 
 /**
  * Música ambiental de la app: un archivo de audio que se elige (no se incluye música: derechos de autor), en bucle,
- * solo mientras la app está adelante. Pide el foco de audio al empezar (Cocoon, que queda detrás, pausa la suya) y
- * lo suelta al salir, para que la de Cocoon vuelva. Si otra app pide el audio, se pausa.
+ * solo mientras la app está adelante. Pide el foco de audio al empezar (lo que suene detrás se pausa) y
+ * lo suelta al salir, para que lo de detrás vuelva. Si otra app pide el audio, se pausa.
  */
 object AmbientMusic {
     /** Para Ajustes: encendida y con archivo (cambia al elegir uno, sin volver a abrir la página). */

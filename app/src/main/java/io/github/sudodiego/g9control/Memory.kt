@@ -21,7 +21,7 @@ object Memory {
         return Info(m.availMem, m.totalMem)
     }
 
-    /** Las pantallas de inicio (Cocoon, la de ZUI): no se cierran ni se detienen. */
+    /** Las pantallas de inicio (launchers): no se cierran ni se detienen. */
     private fun home(ctx: Context) = ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
         .map { it.activityInfo.packageName }.toSet()
 

@@ -62,7 +62,7 @@ object RecentApps {
 
     /**
      * Volver a la app como en Recientes de Android: su tarea al frente tal como quedó (moveTaskToFront, permiso
-     * REORDER_TASKS). Abrirla con la intención del cajón no sirve: si un launcher la abrió con otra (Cocoon abre Dolphin
+     * REORDER_TASKS). Abrirla con la intención del cajón no sirve: si un launcher la abrió con otra (un launcher abre el emulador
      * con VIEW), Android vuelve a su pantalla principal o reinicia el juego. Solo si no se conoce la tarea, se abre.
      */
     fun open(ctx: Context, pkg: String) {

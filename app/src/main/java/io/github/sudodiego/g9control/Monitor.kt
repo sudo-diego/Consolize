@@ -12,11 +12,11 @@ import android.view.Display
  * resolución y no hace falta. Hay una elección para todos los monitores y cada uno puede tener la suya; los que se
  * han conectado quedan en una lista (fabricante + modelo, de la propia pantalla).
  *
- * Con un monitor en espejo, la pantalla de la tablet puede quedar oscura o apagada (como Extinguish): el monitor
+ * Con un monitor en espejo, la pantalla de la tablet puede quedar oscura o apagada: el monitor
  * sigue mostrando la imagen.
  */
 object Monitor {
-    /** Un monitor: [key] lo identifica entre conexiones; [name] es el que reporta ("LG ULTRAGEAR"). */
+    /** Un monitor: [key] lo identifica entre conexiones; [name] es el que reporta (su nombre comercial). */
     data class Info(val key: String, val name: String)
 
     /** Proporción con un monitor: la de todos, o una propia. */
