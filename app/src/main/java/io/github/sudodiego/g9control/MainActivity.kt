@@ -997,7 +997,7 @@ class MainActivity : ComponentActivity() {
 }
 
 /**
- * Páginas. HOME…PROFILES y AUTO son del G9 (HOME = su inicio, AUTO = modo por juego, TEST = "Botones"); TABLET_HOME,
+ * Páginas. HOME…PROFILES y AUTO son del G9 (HOME = su inicio, AUTO = modo por app, TEST = "Botones"); TABLET_HOME,
  * BATTERY, SCREEN y GAMEPANEL son de la tablet (sirven sin el G9); DIAGNOSTICS = "Ajustes", en las dos secciones.
  */
 enum class Page { HOME, LIGHTS, STICKS, VIBRATION, TEST, BACK, PROFILES, AUTO, G9_PREFS, TABLET_HOME, BATTERY, SCREEN, GAMEPANEL, CONTROLS, DIAGNOSTICS, PANEL }

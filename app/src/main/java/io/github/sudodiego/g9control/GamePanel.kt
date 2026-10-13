@@ -1159,7 +1159,7 @@ class GamePanel(private val svc: AutoModeService) {
     /** Shadow Rec: encendido, guarda el clip; apagado, lo enciende. */
     fun shadowAction() {
         hide()
-        if (!ZuiGame.inGame(svc)) return toast(tr("Shadow Rec no está disponible aquí", "Shadow Rec isn't available here"), tr("Solo funciona en juegos.", "It only works in games."), NoteKind.FAIL)
+        if (!ZuiGame.inGame(svc)) return toast(tr("Shadow Rec no está disponible aquí", "Shadow Rec isn't available here"), tr("Solo en juegos. Agrega esta app en Game Assistant → Manage my games.", "Only in games. Add this app in Game Assistant → Manage my games."), NoteKind.FAIL)
         scope.launch {
             var msg: Note? = null
             covered(tr("Shadow Rec", "Shadow Rec"), tr("No se pudo usar Shadow Rec", "Couldn't use Shadow Rec"), tr("Prueba desde el panel de Game Assistant", "Try from Game Assistant's panel"), quick = true) {
@@ -1249,7 +1249,7 @@ class GamePanel(private val svc: AutoModeService) {
      * muestra; se vuelve a ocultar al cambiar de app ([onAppChanged]).
      */
     private fun openGameAssistant() {
-        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo aquí", "Game Assistant isn't active here"), tr("Solo funciona en juegos.", "It only works in games."), NoteKind.FAIL)
+        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo aquí", "Game Assistant isn't active here"), tr("Solo en juegos. Agrega esta app en Game Assistant → Manage my games.", "Only in games. Add this app in Game Assistant → Manage my games."), NoteKind.FAIL)
         scope.launch {
             if (keepGaHidden()) {
                 // Oculto y sin Shizuku: su panel se abriría invisible y parecería que no pasó nada.
@@ -1328,7 +1328,7 @@ class GamePanel(private val svc: AutoModeService) {
      */
     private fun setPerf(target: ZuiGame.PerfMode) {
         hide()
-        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo aquí", "Game Assistant isn't active here"), tr("Solo funciona en juegos.", "It only works in games."), NoteKind.FAIL)
+        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo aquí", "Game Assistant isn't active here"), tr("Solo en juegos. Agrega esta app en Game Assistant → Manage my games.", "Only in games. Add this app in Game Assistant → Manage my games."), NoteKind.FAIL)
         if (perfBusy) return
         perfBusy = true
         val cover = FreezeCover(svc)

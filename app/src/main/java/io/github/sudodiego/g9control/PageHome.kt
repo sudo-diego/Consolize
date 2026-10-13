@@ -103,7 +103,7 @@ private fun ModeTile(
 }
 
 /**
- * El servicio de accesibilidad está apagado y hay algo que lo usa (cambio por juego, panel de juego, botón Legion o
+ * El servicio de accesibilidad está apagado y hay algo que lo usa (cambio por app, panel de juego, botón Legion o
  * volumen invertido): por ejemplo, tras reiniciar o actualizar. El aviso dice lo que deja de funcionar.
  */
 @Composable

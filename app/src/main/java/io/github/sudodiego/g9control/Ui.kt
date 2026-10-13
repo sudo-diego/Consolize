@@ -128,7 +128,7 @@ private val NAV = listOf(
     NavItem(Page.CONTROLS, "Controles", "Controls", Icons.Outlined.VideogameAsset, Icons.Filled.VideogameAsset),
     // G9.
     NavItem(Page.HOME, "Inicio", "Home", Icons.Outlined.Home, Icons.Filled.Home),
-    NavItem(Page.AUTO, "Por juego", "Per game", Icons.Outlined.Apps, Icons.Filled.Apps),
+    NavItem(Page.AUTO, "Por app", "Per app", Icons.Outlined.Apps, Icons.Filled.Apps),
     NavItem(Page.LIGHTS, "Luces", "Lights", Icons.Outlined.Lightbulb, Icons.Filled.Lightbulb),
     NavItem(Page.STICKS, "Sticks", "Sticks", Icons.Outlined.Gamepad, Icons.Filled.Gamepad),
     NavItem(Page.VIBRATION, "Vibración", "Vibration", Icons.Outlined.Vibration, Icons.Filled.Vibration),

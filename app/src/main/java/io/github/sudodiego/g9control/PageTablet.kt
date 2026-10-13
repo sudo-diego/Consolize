@@ -47,8 +47,8 @@ private fun SessionsPanel(a: MainActivity) {
     Panel(tr("Sesiones de juego", "Game sessions"), trailing = {
         if (list.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { Sessions.reset(a); tick++ }
     }) {
-        if (list.isEmpty()) Hint(tr("Se anotan solas mientras juegas (modo, Hz, W, CPU y temperaturas). Para comparar modos: el mismo juego unos minutos en cada uno, desenchufada.",
-            "Logged while you play (mode, Hz, W, CPU and temperatures). To compare modes: the same game a few minutes in each, unplugged."))
+        if (list.isEmpty()) Hint(tr("Se anotan solas en los juegos (modo, Hz, W, CPU y temperaturas). Para comparar modos: el mismo juego unos minutos en cada uno, desenchufada.",
+            "Logged by themselves in games (mode, Hz, W, CPU and temperatures). To compare modes: the same game a few minutes in each, unplugged."))
         if (modes.isNotEmpty()) {
             Text(tr("Por modo", "By mode"), fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
             modes.forEach { m ->
@@ -443,6 +443,9 @@ fun GameAssistantSettings(s: AppState, a: MainActivity) {
         Panel("Game Assistant", trailing = {
             Text(if (game) tr("En un juego", "In a game") else tr("Sin juego", "No game"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }) {
+            // La única explicación de qué es "juego" en la app: lo que depende de Game Assistant (ZuiGame.inGame).
+            Hint(tr("«Juegos» son las apps que Game Assistant reconoce como juego. Para agregar o quitar una: Ajustes de Game Assistant → Manage my games.",
+                "“Games” are the apps Game Assistant treats as games. To add or remove one: Game Assistant settings → Manage my games."))
             CompositionLocalProvider(LocalEditable provides (ready && LocalGateOk.current)) {
                 SwitchRow(
                     tr("Ocultar Game Assistant", "Hide Game Assistant"), gaHidden == true

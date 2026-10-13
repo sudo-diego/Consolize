@@ -49,12 +49,12 @@ private data class AppEntry(val pkg: String, val label: String, val icon: ImageB
 private object AppCache { @Volatile var apps: List<AppEntry>? = null }
 
 /**
- * Página "Juegos": cada app con el modo en que se abre. Arriba las opciones y la búsqueda; abajo una
+ * Página "Por app": cada app con el modo del G9 en que se abre (cualquier app, no solo los juegos de Game Assistant). Arriba las opciones y la búsqueda; abajo una
  * cuadrícula de apps. Tocar una app pasa por Android → X-Input → DS5.
  */
 @Composable
 fun AutoPage(s: AppState, a: MainActivity) {
-    // El cambio por juego y sus avisos los hace el servicio de accesibilidad.
+    // El cambio por app y sus avisos los hace el servicio de accesibilidad.
     Gate(s.autoServiceOn) {
         AppPicker(s, a)
         NoticesPanel(s, a)

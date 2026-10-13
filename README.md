@@ -36,7 +36,7 @@ Hold the guide button (or L3 + R3, or the accessibility button) in any app: a pa
 
 | | |
 |---|---|
-| **Modes** | Android, X-Input and **DS5** (the best mode on Android: rumble, gyro, touchpad). The official app can't set DS5. Switches automatically per game, with an on-screen View + Menu guide to get back. |
+| **Modes** | Android, X-Input and **DS5** (the best mode on Android: rumble, gyro, touchpad). The official app can't set DS5. Switches automatically per app, with an on-screen View + Menu guide to get back. |
 | **Lights, sticks, vibration** | Light strips and the Home button; dead zones and trigger ranges with a live preview; hair trigger; vibration levels. |
 | **Paddles and macros** | L4, R4, L5, R5 as any button (including Home and stick directions) or a macro, chosen on a controller-shaped grid; macros recorded with the controller, with a timeline editor. |
 | **Profiles** | Complete configurations with file backup. |
@@ -60,7 +60,7 @@ Language, theme, app background (animated gradient, image or GIF, **your live wa
 
 ### About the accessibility service
 
-The game panel, shortcuts, screenshots, per-game switching and the automatic features use an accessibility service. It:
+The game panel, shortcuts, screenshots, per-app mode switching and the automatic features use an accessibility service. It:
 
 - sees which app is on screen (window changes) and the controller's buttons (and, while the panel is open, the sticks, so they don't reach the game);
 - takes screenshots when you ask, of the game window only, saved on the tablet;

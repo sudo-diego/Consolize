@@ -388,7 +388,7 @@ private fun GuideContent(ui: GuideUi) {
     val shown = remember { MutableTransitionState(false) }
     shown.targetState = ui.visible
     if (!ui.hold) {
-        // Cambio hecho por la app al abrir un juego: etiqueta pequeña en la esquina, sin tapar nada.
+        // Cambio hecho por la app al abrir una app con modo: etiqueta pequeña en la esquina, sin tapar nada.
         AnimatedVisibility(
             shown,
             modifier = Modifier.padding(top = 14.dp, end = 16.dp, start = 16.dp, bottom = 14.dp),

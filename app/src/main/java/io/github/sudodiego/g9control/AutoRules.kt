@@ -91,7 +91,7 @@ object AutoRules {
     fun miniBlock(ctx: Context) = sp(ctx).getBoolean("mini_block", false)
     fun setMiniBlock(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("mini_block", v).apply()
 
-    /** Al abrir un juego: tarjeta en el centro (false) o directamente el aviso pequeño (true). */
+    /** Al abrir una app con otro modo: tarjeta en el centro (false) o directamente el aviso pequeño (true). */
     fun guideSmall(ctx: Context) = sp(ctx).getBoolean("guide_small", false)
     fun setGuideSmall(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("guide_small", v).apply()
 

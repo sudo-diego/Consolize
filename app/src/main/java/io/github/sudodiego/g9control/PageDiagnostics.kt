@@ -197,8 +197,8 @@ private fun ConsolePanel(s: AppState, a: MainActivity) {
 }
 
 /**
- * Cómo se ven los avisos de cambio de modo, ordenados por cuándo aparecen: al abrir un juego, al
- * salir de él y cuando la app cambia el modo sola. Cada uno con su bloqueo en una sola elección.
+ * Cómo se ven los avisos de cambio de modo, ordenados por cuándo aparecen: al abrir una app con modo, al
+ * salir de ella y cuando la app cambia el modo sola. Cada uno con su bloqueo en una sola elección.
  */
 /**
  * "Juego": lo que se usa dentro de los juegos, con cualquier control: el panel de juego, las capturas, el monitor de
@@ -243,7 +243,7 @@ fun NoticesPanel(s: AppState, a: MainActivity) {
     // Estas opciones son de la app, no del control: siempre se pueden cambiar.
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
         Panel(tr("Avisos de cambio de modo", "Mode change notices")) {
-            NoticeBox(tr("Al abrir un juego", "When opening a game"), tr("Si el juego usa otro modo", "If the game uses another mode"),
+            NoticeBox(tr("Al abrir una app", "When opening an app"), tr("Si usa otro modo del G9", "If it uses another G9 mode"),
                 if (on) { { AutoRules.preview(a, if (small) "mini" else "big") } } else null) {
                 ChoiceChips(listOf(false to tr("Tarjeta en el centro", "Card in the center"), true to tr("Aviso pequeño", "Small notice")), small) {
                     small = it; AutoRules.setGuideSmall(a, it)
@@ -251,7 +251,7 @@ fun NoticesPanel(s: AppState, a: MainActivity) {
                 if (small) Hint(tr("Mismo bloqueo y posición que al salir.", "Same blocking and position as when leaving."))
                 else LockChips(big) { big = it; AutoRules.setGuideBlock(a, it > 0); AutoRules.setBlockSticks(a, it > 1) }
             }
-            NoticeBox(tr("Al salir de un juego", "When leaving a game"), tr("Volver a Android", "Back to Android"),
+            NoticeBox(tr("Al salir de esa app", "When leaving that app"), tr("Volver a Android", "Back to Android"),
                 if (on) { { AutoRules.preview(a, if (exitBig) "big" else "mini") } } else null,
                 side = { PosGrid(guidePos) { guidePos = it; AutoRules.setGuidePos(a, it) } }) {
                 ChoiceChips(listOf(true to tr("Tarjeta en el centro", "Card in the center"), false to tr("Aviso pequeño", "Small notice")), exitBig) {
