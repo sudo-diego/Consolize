@@ -470,6 +470,16 @@ fun GameAssistantSettings(s: AppState, a: MainActivity) {
                     if (runCatching { Settings.Global.putInt(a.contentResolver, GA_NO_AUTO_BRIGHTNESS, if (want) 0 else 1) }.isSuccess) autoInGames = want
                 }
             }
+            // Otras dos de Game Assistant (Settings.Global key_game_assistant_*), que su app tiene escondidas en sus ajustes.
+            CompositionLocalProvider(LocalEditable provides (canWrite && LocalGateOk.current)) {
+                listOf(
+                    Triple("key_game_assistant_notification_undisturb", tr("Sin notificaciones en juegos", "No notifications in games"), tr("Las notificaciones no aparecen encima", "Notifications don't pop up over the game")),
+                    Triple("key_game_assistant_memory_accelerate", tr("Liberar memoria al entrar", "Free memory when starting"), tr("Cierra apps en segundo plano al abrir un juego", "Closes background apps when a game opens")),
+                ).forEach { (key, label, sub) ->
+                    var on by remember { mutableStateOf(runCatching { Settings.Global.getInt(a.contentResolver, key) == 1 }.getOrDefault(false)) }
+                    SwitchRow(label, on, sub) { want -> if (runCatching { Settings.Global.putInt(a.contentResolver, key, if (want) 1 else 0) }.isSuccess) on = want }
+                }
+            }
             if (!canWrite) Hint(tr("Necesita el permiso de pantalla (Ajustes → Permisos).", "Needs the screen permission (Settings → Permissions)."))
             // Medido en RetroArch: ninguno cambia el techo de la CPU; cambian cuánto la dejan subir.
             Text(tr("Modos de rendimiento", "Performance modes"), fontSize = 14.sp)

@@ -62,6 +62,12 @@ object Prefs {
     fun navSounds(ctx: Context) = sp(ctx).getBoolean("nav_sounds", false)
     fun setNavSounds(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("nav_sounds", v).apply()
     fun navSoundsPanel(ctx: Context) = sp(ctx).getBoolean("nav_sounds_panel", false)
+    /** Con el panel abierto, el audio del juego baja (como en la Switch). */
+    fun panelDuck(ctx: Context) = sp(ctx).getBoolean("panel_duck", true)
+    fun setPanelDuck(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("panel_duck", v).apply()
+    /** Cuánto queda el audio del juego con el panel abierto (0 = silencio). */
+    fun panelDuckLevel(ctx: Context) = sp(ctx).getFloat("panel_duck_level", 0.3f)
+    fun setPanelDuckLevel(ctx: Context, v: Float) = sp(ctx).edit().putFloat("panel_duck_level", v).apply()
     fun setNavSoundsPanel(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("nav_sounds_panel", v).apply()
     fun navVolume(ctx: Context) = sp(ctx).getInt("nav_volume", 50)
     fun setNavVolume(ctx: Context, v: Int) = sp(ctx).edit().putInt("nav_volume", v).apply()

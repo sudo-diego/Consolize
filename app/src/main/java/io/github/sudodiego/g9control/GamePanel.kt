@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import kotlinx.coroutines.sync.withLock
+
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.ContentValues
@@ -35,6 +37,16 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.AirplanemodeActive
+import androidx.compose.material.icons.outlined.AirplanemodeInactive
+import androidx.compose.material.icons.outlined.NightsStay
+import androidx.compose.material.icons.outlined.Bedtime
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
@@ -146,6 +158,7 @@ class GamePanel(private val svc: AutoModeService) {
         header()
         if (view == null) { create(); UiSounds.play(svc, UiSounds.Kind.OPEN, panel = true) }
         svc.setPanelSticks(true)
+        duckOn()
         poke()
         main.removeCallbacks(live); main.postDelayed(live, LIVE_MS)
         scope.launch { readShadow() }
@@ -301,6 +314,49 @@ class GamePanel(private val svc: AutoModeService) {
         poke()
     }
 
+    /** Submenú de pocas opciones (en una fila al centro, una debajo de otra en el lateral). */
+    private fun showMenu(title: String, from: ImageVector, items: List<PanelItem>, footer: String? = null) {
+        keepHeight()
+        inPerfMenu = true
+        subFrom = from
+        ui.sub = true; ui.footer = footer
+        ui.title = title
+        ui.items = items
+        ui.sel = items.indexOfFirst { it.active }.coerceAtLeast(0)
+        poke()
+    }
+
+    /** Proporción de este juego: Completa, 16:9 o 4:3 (se ve al volver a abrirlo). */
+    private fun showAspectMenu(pkg: String) {
+        val cur = GameAspect.get(svc, pkg)
+        showMenu(tr("Proporción", "Aspect"), Icons.Outlined.Crop, GameAspect.Ratio.entries.map { r ->
+            PanelItem(r.label, if (r == GameAspect.Ratio.FULL) Icons.Outlined.Fullscreen else Icons.Outlined.Crop, PanelRow.MENU,
+                sub = if (r == cur) tr("Actual", "Current") else null, active = r == cur) {
+                crossfade { backToMain() }
+                if (r != cur) scope.launch {
+                    if (GameAspect.set(svc, pkg, r)) { refresh(); toast(tr("Proporción: ${r.label}", "Aspect: ${r.label}"), tr("Se ve al volver a abrir el juego.", "Shows when you reopen the game."), NoteKind.OK) }
+                    else toast(tr("No se pudo cambiar la proporción", "Couldn't change the aspect"), tr("Hace falta Shizuku.", "Needs Shizuku."), NoteKind.FAIL)
+                }
+            }
+        }, tr("Solo este juego, se ve al volver a abrirlo · A elegir · B volver", "This game only, shows when reopened · A select · B back"))
+    }
+
+    /** Modo lectura de ZUI (`Settings.Global readingmode_switch` y `readingmode_type`: 1 color, 2 blanco y negro). */
+    private fun showReadingMenu() {
+        val cr = svc.contentResolver
+        val on = android.provider.Settings.Global.getInt(cr, "readingmode_switch", 0) == 1
+        val type = android.provider.Settings.Global.getInt(cr, "readingmode_type", 1)
+        fun set(sw: Int, t: Int?) {
+            runCatching { t?.let { android.provider.Settings.Global.putInt(cr, "readingmode_type", it) }; android.provider.Settings.Global.putInt(cr, "readingmode_switch", sw) }
+            crossfade { backToMain() }
+        }
+        showMenu(tr("Modo lectura", "Reading mode"), Icons.AutoMirrored.Outlined.MenuBook, listOf(
+            PanelItem(tr("Apagado", "Off"), Icons.Outlined.Close, PanelRow.MENU, active = !on) { set(0, null) },
+            PanelItem(tr("Color", "Color"), Icons.Outlined.Palette, PanelRow.MENU, active = on && type != 2) { set(1, 1) },
+            PanelItem(tr("Blanco y negro", "Black and white"), Icons.Outlined.Contrast, PanelRow.MENU, active = on && type == 2) { set(1, 2) },
+        ))
+    }
+
     /** WiFi o Bluetooth: con Shizuku se cambia y el panel queda abierto mostrando el estado nuevo; sin él, el panel de Android. */
     private fun radio(on: Boolean, onCmd: String, offCmd: String) {
         if (Shell.state != Shell.State.READY) return
@@ -339,7 +395,51 @@ class GamePanel(private val svc: AutoModeService) {
     /** El panel muestra el submenú de rendimiento (no se reemplaza por la lista principal al confirmar algo). */
     private var inPerfMenu = false
 
+    /**
+     * Con el panel abierto el juego se oye más bajo, como en la Switch: el panel pide el audio "con permiso para bajar a
+     * los demás" (sin sonar nada) y Android baja al resto hasta que lo suelta al cerrarse. No pausa: las apps que
+     * manejan el foco solas solo bajan el volumen ([AudioFocusRequest.setWillPauseWhenDucked] es de quien pide).
+     */
+    private val duckAudio = svc.getSystemService(android.media.AudioManager::class.java)
+    private val duck = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+        .setAudioAttributes(android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        .setWillPauseWhenDucked(false).build()
+    private var ducking = false
+    /** App a la que se le bajó el volumen (uid) y el que tenía en ZUI, para devolvérselo. */
+    private var duckedUid: Int? = null
+    private var duckedWas = 1f
+    private val duckLock = kotlinx.coroutines.sync.Mutex()
+    private fun duckOn() {
+        if (ducking || !Prefs.panelDuck(svc)) return
+        ducking = true
+        runCatching { duckAudio.requestAudioFocus(duck) }
+        // Los juegos casi nunca piden el audio, así que Android no los baja: con Shizuku, el volumen por app de ZUI.
+        val pkg = svc.foregroundApp?.takeIf { it != svc.packageName } ?: return
+        if (Shell.state != Shell.State.READY) return
+        val uid = runCatching { svc.packageManager.getApplicationInfo(pkg, 0).uid }.getOrNull() ?: return
+        val was = zuiAppVolume(uid)
+        duckedUid = uid; duckedWas = was
+        val to = was * Prefs.panelDuckLevel(svc)
+        scope.launch { duckLock.withLock { Shell.run(Shell.appVolume(uid, to)) } }
+    }
+    private fun duckOff() {
+        if (!ducking) return
+        ducking = false
+        runCatching { duckAudio.abandonAudioFocusRequest(duck) }
+        val uid = duckedUid ?: return
+        duckedUid = null
+        val back = duckedWas
+        // En orden con el de abrir (abrir y cerrar rápido no deja el juego bajo).
+        scope.launch { duckLock.withLock { if (Shell.run(Shell.appVolume(uid, back)) == null) Log.w(AutoModeService.TAG, "panel: no se pudo devolver el volumen de la app") } }
+    }
+    /** El volumen de la app en ZUI (`system zui_app_volume` = ";uid/0.6;uid/1.0…"; 1 si no está). */
+    private fun zuiAppVolume(uid: Int): Float =
+        runCatching { android.provider.Settings.System.getString(svc.contentResolver, "zui_app_volume") }.getOrNull()
+            ?.split(';')?.firstOrNull { it.startsWith("$uid/") }?.substringAfter('/')?.toFloatOrNull()?.coerceIn(0f, 1f) ?: 1f
+
     fun hide() {
+        duckOff()
         main.removeCallbacks(live)
         fadeAnim?.cancel(); fadeAnim = null; ui.fade = 1f
         main.removeCallbacks(timeout)
@@ -862,14 +962,10 @@ class GamePanel(private val svc: AutoModeService) {
         // aplica al volver a abrir el juego (no se reinicia solo: se perdería la partida).
         svc.foregroundApp?.takeIf { it != svc.packageName && ZuiGame.inGame(svc) }?.let { pkg ->
             val r = GameAspect.get(svc, pkg)
-            add(PanelItem(tr("Proporción", "Aspect"), Icons.Outlined.AspectRatio, PanelRow.SCREEN,
+            add(PanelItem(tr("Proporción", "Aspect"), Icons.Outlined.Crop, PanelRow.SCREEN,
                 sub = r.label, active = r != GameAspect.Ratio.FULL,
-                foot = tr("A pasar a ${r.next().label} (solo este juego, al volver a abrirlo) · B cerrar", "A switch to ${r.next().label} (this game only, when reopened) · B close")) {
-                val next = r.next()
-                scope.launch {
-                    if (GameAspect.set(svc, pkg, next)) { refresh(); toast(tr("Proporción: ${next.label}", "Aspect: ${next.label}"), tr("Se ve al volver a abrir el juego.", "Shows when you reopen the game."), NoteKind.OK) }
-                    else toast(tr("No se pudo cambiar la proporción", "Couldn't change the aspect"), tr("Hace falta Shizuku.", "Needs Shizuku."), NoteKind.FAIL)
-                }
+                foot = tr("A elegir (solo este juego, se ve al volver a abrirlo) · B cerrar", "A choose (this game only, shows when reopened) · B close")) {
+                crossfade { showAspectMenu(pkg) }
             })
         }
         // Con un monitor en espejo y la pantalla de la tablet oscurecida (o encendida a mano): verla un rato o volver.
@@ -890,6 +986,10 @@ class GamePanel(private val svc: AutoModeService) {
             hide(); svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
         })
         // Los ajustes de Android, para no tener que salir del juego a buscarlos.
+        // Modo espera, como en una consola: apaga la pantalla y bloquea la tablet.
+        add(PanelItem(tr("Bloquear", "Sleep"), Icons.Outlined.Bedtime, PanelRow.SYSTEM) {
+            afterHide { svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN) }
+        })
         add(PanelItem(tr("Ajustes", "Settings"), Icons.Outlined.Settings, PanelRow.SYSTEM) {
             hide(); runCatching { svc.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         })
@@ -911,6 +1011,27 @@ class GamePanel(private val svc: AutoModeService) {
         add(PanelItem("Bluetooth", if (bt) Icons.Outlined.Bluetooth else Icons.Outlined.BluetoothDisabled, PanelRow.SCREEN, active = bt,
             sub = if (bt) tr("Encendido", "On") else tr("Apagado", "Off"), foot = radioFoot(tr("dispositivos", "devices"), bt),
             alt = { radio(!bt, Shell.BT_ON, Shell.BT_OFF) }, run = btList))
+        // Modo avión (con Shizuku: una app no puede cambiarlo).
+        if (Shell.state == Shell.State.READY) {
+            val plane = android.provider.Settings.Global.getInt(cr, "airplane_mode_on", 0) != 0
+            add(PanelItem(tr("Modo avión", "Airplane mode"), if (plane) Icons.Outlined.AirplanemodeActive else Icons.Outlined.AirplanemodeInactive,
+                PanelRow.SCREEN, active = plane, sub = if (plane) tr("Encendido", "On") else tr("Apagado", "Off")) {
+                radio(!plane, Shell.PLANE_ON, Shell.PLANE_OFF)
+            })
+        }
+        // Luz nocturna (la "protección de la vista" de ZUI) y modo lectura: ajustes del sistema, con el permiso de pantalla.
+        if (Aspect.canWrite(svc)) {
+            val night = android.provider.Settings.Secure.getInt(cr, "night_display_activated", 0) == 1
+            add(PanelItem(tr("Luz nocturna", "Night light"), Icons.Outlined.NightsStay, PanelRow.SCREEN, active = night,
+                sub = if (night) tr("Encendida", "On") else tr("Apagada", "Off")) {
+                runCatching { android.provider.Settings.Secure.putInt(cr, "night_display_activated", if (night) 0 else 1) }; refresh()
+            })
+            val read = android.provider.Settings.Global.getInt(cr, "readingmode_switch", 0) == 1
+            val readType = android.provider.Settings.Global.getInt(cr, "readingmode_type", 1)
+            add(PanelItem(tr("Modo lectura", "Reading mode"), Icons.AutoMirrored.Outlined.MenuBook, PanelRow.SCREEN, active = read,
+                sub = if (!read) tr("Apagado", "Off") else if (readType == 2) tr("Blanco y negro", "Black and white") else tr("Color", "Color"),
+                foot = tr("A elegir · B cerrar", "A choose · B close")) { crossfade { showReadingMenu() } })
+        }
         // Bloquear gestos: el "Disable navigation bar and gesture" de Game Assistant (en sus juegos), un ajuste del
         // sistema que se puede cambiar con el permiso de pantalla.
         if (ZuiGame.installed(svc) && Aspect.canWrite(svc)) {
@@ -1333,7 +1454,8 @@ class GamePanel(private val svc: AutoModeService) {
                 ZuiGame.PerfMode.BALANCED -> Icons.Outlined.Balance
                 ZuiGame.PerfMode.BEAST -> Icons.Outlined.Bolt
             }
-            PanelItem(m.label, icon, sub = if (m == current) tr("Actual", "Current") else null, active = m == current) { setPerf(m) }
+            // Corto: al centro van los tres en una fila ("Ahorro de energía" se cortaba).
+            PanelItem(if (m == ZuiGame.PerfMode.SAVER) tr("Ahorro", "Saver") else m.label, icon, PanelRow.MENU, sub = if (m == current) tr("Actual", "Current") else null, active = m == current) { setPerf(m) }
         }
         val app = svc.foregroundApp
         val known = ZuiGame.knownPerf(app)

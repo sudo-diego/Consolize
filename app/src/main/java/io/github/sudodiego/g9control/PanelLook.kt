@@ -120,7 +120,7 @@ import java.util.Locale
  */
 
 /** Dónde va un ítem del panel: las barras arriba, después el juego, la pantalla y conexiones, y abajo Android. */
-internal enum class PanelRow { SLIDER, GAME, RECENT, SCREEN, SYSTEM }
+internal enum class PanelRow { SLIDER, GAME, RECENT, SCREEN, SYSTEM, MENU }
 
 /**
  * Una acción del panel de juego, como un mosaico de los ajustes rápidos: [sub] es su estado o un detalle y
@@ -158,6 +158,9 @@ internal fun panelRows(items: List<PanelItem>): List<List<Int>> {
         return list.chunked((list.size + rows - 1) / rows)
     }
     return buildList {
+        // Submenús de pocas opciones (rendimiento, proporción, modo lectura): al centro todas en una fila; en el
+        // lateral, angosto, una debajo de otra (repartidas de a 2 quedaba una sola abajo). Con más, como siempre.
+        by[PanelRow.MENU]?.let { if (it.size <= 4) { if (ThemeState.panelSide) addAll(it.chunked(1)) else add(it) } else addAll(even(it)) }
         // Lateral (2 columnas): brillo y volumen uno debajo del otro, cada uno con su botón.
         by[PanelRow.SLIDER]?.let { if (ThemeState.panelSide) addAll(it.chunked(2)) else add(it) }
         by[PanelRow.GAME]?.let { addAll(even(it)) }

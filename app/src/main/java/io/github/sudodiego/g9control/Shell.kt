@@ -58,15 +58,19 @@ object Shell {
     // solo la luz (brillo -1; vuelve sola cuando Android cambia el brillo).
     fun screenPower(on: Boolean) = screenCmd("power ${if (on) 2 else 0}")
     val SCREEN_LIGHT_OFF get() = screenCmd("light -1")
+    // Volumen de una app, como el de ZUI (AudioSystem.setParameters "uid=…;app_volume=…": solo sistema o shell).
+    fun appVolume(uid: Int, v: Float) = screenCmd("appvol $uid ${"%.2f".format(java.util.Locale.US, v)}")
     private fun screenCmd(args: String) =
         "app_process -Djava.class.path=${app?.applicationInfo?.sourceDir} /system/bin ${ScreenPower::class.java.name} $args"
-    private val SCREEN = Regex("power [02]|light -1")
+    private val SCREEN = Regex("power [02]|light -1|appvol \\d{4,6} [01]\\.\\d{2}")
 
     // WiFi y Bluetooth desde el panel: una app ya no puede encenderlos ni apagarlos (Android 10 y 13), el shell sí.
     const val WIFI_ON = "svc wifi enable"
     const val WIFI_OFF = "svc wifi disable"
     const val BT_ON = "svc bluetooth enable"
     const val BT_OFF = "svc bluetooth disable"
+    const val PLANE_ON = "cmd connectivity airplane-mode enable"
+    const val PLANE_OFF = "cmd connectivity airplane-mode disable"
 
     // Arrastrar con el mouse virtual: el dedo inyectado por el shell no lo cancela el stick (los gestos del servicio
     // de accesibilidad sí: Android los cancela apenas llega un movimiento real del control).
@@ -103,7 +107,7 @@ object Shell {
 
     private fun allowed(cmd: String) =
         cmd in setOf(GA_GET, GA_SHOW, GA_HIDE, GA_LOG, BYPASS_GET, BYPASS_ON, BYPASS_OFF, LIMIT_GET, LIMIT_LEVEL, BACK_LONG, SF_LIST,
-            WIFI_ON, WIFI_OFF, BT_ON, BT_OFF, PROCESSES, MEDIA_PROJ, TOP, RA_PROXY, RA_CFG, RA64_CFG, DOLPHIN_RA) || TOUCH.matches(cmd) || STOP_APP.matches(cmd) || PIDOF.matches(cmd) || WM_SIZE.matches(cmd) || SF_LATENCY.matches(cmd) || REFRESH.matches(cmd) || WIDE_SET.matches(cmd) || WIDE_LIST.matches(cmd) || cmd == INPUT_LIST ||
+            WIFI_ON, WIFI_OFF, BT_ON, BT_OFF, PLANE_ON, PLANE_OFF, PROCESSES, MEDIA_PROJ, TOP, RA_PROXY, RA_CFG, RA64_CFG, DOLPHIN_RA) || TOUCH.matches(cmd) || STOP_APP.matches(cmd) || PIDOF.matches(cmd) || WM_SIZE.matches(cmd) || SF_LATENCY.matches(cmd) || REFRESH.matches(cmd) || WIDE_SET.matches(cmd) || WIDE_LIST.matches(cmd) || cmd == INPUT_LIST ||
             (app != null && cmd.startsWith(screenCmd("")) && SCREEN.matches(cmd.removePrefix(screenCmd(""))))
 
     /** Para Ajustes (Compose lo vuelve a leer al cambiar). */

@@ -14,6 +14,14 @@ import android.os.IBinder
 object ScreenPower {
     @JvmStatic
     fun main(args: Array<String>) {
+        // Volumen de una app (como el de ZUI): `appvol <uid> <0..1>`. Solo el sistema y el shell pueden.
+        if (args.firstOrNull() == "appvol") {
+            val r = Class.forName("android.media.AudioSystem").getMethod("setParameters", String::class.java)
+                .invoke(null, "uid=${args[1]};app_volume=${args[2]}")
+            println("appvol $r")
+            System.out.flush()
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }
         val sc = Class.forName("android.view.SurfaceControl")
         val value = args.getOrNull(1) ?: "2"
         when (args.firstOrNull()) {

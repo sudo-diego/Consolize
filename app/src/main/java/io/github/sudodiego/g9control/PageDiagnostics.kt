@@ -403,6 +403,16 @@ internal fun PanelLookPanel(a: MainActivity) {
         }
         if (AutoModeService.active == null) Text(tr("Activa el servicio de accesibilidad para usar el panel.", "Turn on the accessibility service to use the panel."),
             fontSize = 13.sp, color = MaterialTheme.colorScheme.secondary)
+        var duck by remember { mutableStateOf(Prefs.panelDuck(a)) }
+        SwitchRow(tr("Bajar el audio con el panel abierto", "Lower the audio while the panel is open"), duck,
+            tr("Como en una consola: el juego se oye más bajo mientras está abierto. Con Shizuku también los juegos; sin él, solo la música de otras apps.",
+                "Like a console: the game plays quieter while it's open. With Shizuku also games; without it, only other apps' music.")) { duck = it; Prefs.setPanelDuck(a, it) }
+        if (duck) {
+            var level by remember { mutableStateOf(Prefs.panelDuckLevel(a)) }
+            ChoiceChips(listOf(0.6f to tr("Un poco", "A little"), 0.3f to tr("Bastante", "A lot"), 0f to tr("Silencio", "Mute")), level) {
+                level = it; Prefs.setPanelDuckLevel(a, it)
+            }
+        }
         Text(tr("Estilo", "Style"), fontSize = 14.sp)
         ChoiceChips(PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
         if (ThemeState.panelSide) Hint(tr("Pegado a la derecha, de alto completo, como el acceso rápido del Steam Deck. La imagen va de cabecera o de fondo.",

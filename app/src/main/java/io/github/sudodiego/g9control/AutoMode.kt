@@ -485,6 +485,12 @@ class AutoModeService : AccessibilityService() {
                         // Mover la selección del panel: --ei dx … --ei dy … (como la cruceta).
                         "move" -> panel.testMove(i.getIntExtra("dx", 0), i.getIntExtra("dy", 0))
                         "pick" -> panel.testPick()
+                        // Volumen de una app (el de ZUI): --es pkg … --ef v 0.3
+                        "appvol" -> runCatching {
+                            val uid = packageManager.getApplicationInfo(i.getStringExtra("pkg") ?: "", 0).uid
+                            getSystemService(android.media.AudioManager::class.java).setParameters("uid=$uid;app_volume=${i.getFloatExtra("v", 1f)}")
+                            Log.d(TAG, "volumen de app: uid $uid = ${i.getFloatExtra("v", 1f)}")
+                        }.onFailure { Log.w(TAG, "volumen de app", it) }
                         "alt" -> panel.testAlt()
                         // Un aviso del panel: --es title … [--es line …] [--es kind OK|FAIL].
                         "toast" -> panel.message(i.getStringExtra("title") ?: "Aviso", i.getStringExtra("line"),
