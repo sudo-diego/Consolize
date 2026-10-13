@@ -494,6 +494,9 @@ internal class PerfRing(ctx: Context) : android.view.View(ctx) {
     }
 }
 
+/** Tipo de aviso del panel: cambia su ícono. */
+internal enum class NoteKind { INFO, OK, FAIL }
+
 /**
  * Aviso de captura, como el de la Switch: una tarjeta con la miniatura y «Captura guardada» que entra desde
  * el borde (por defecto arriba a la izquierda; se elige en Ajustes), se queda 2 s y vuelve a salir. No recibe
@@ -530,7 +533,8 @@ internal class ShotFlash(private val svc: AccessibilityService) {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(px(14), 0, px(6), 0)
             addView(android.widget.TextView(svc).apply { text = title; setTextColor(if (light) 0xFF14203A.toInt() else android.graphics.Color.WHITE); textSize = 15f })
-            line?.let { l -> addView(android.widget.TextView(svc).apply { text = l; setTextColor(if (light) 0xFF56607A.toInt() else 0xFF9AA6BF.toInt()); textSize = 13f }) }
+            // Con ancho máximo: un texto largo se parte en líneas en vez de cruzar la pantalla.
+            line?.let { l -> addView(android.widget.TextView(svc).apply { text = l; maxWidth = px(340); setTextColor(if (light) 0xFF56607A.toInt() else 0xFF9AA6BF.toInt()); textSize = 13f }) }
         }
         val card = android.widget.LinearLayout(svc).apply {
             orientation = android.widget.LinearLayout.HORIZONTAL
@@ -605,6 +609,32 @@ internal class ShotFlash(private val svc: AccessibilityService) {
                     lineTo(20 * dp, 32 * dp); lineTo(27 * dp, 23 * dp); lineTo(22 * dp, 23 * dp); close()
                 }
                 c.drawPath(bolt, p)
+            }
+        }
+    }
+
+    /**
+     * Ícono de los avisos del panel (40 dp): un círculo con «i» (información), ✓ (listo) o «!» (no se pudo, en
+     * rojo). Los dos primeros con el color de acento del panel.
+     */
+    fun noteIcon(kind: NoteKind): Bitmap {
+        val s = (40 * dp).toInt()
+        return Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888).also { b ->
+            val c = android.graphics.Canvas(b)
+            val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            p.color = if (kind == NoteKind.FAIL) 0xFFFF5A5F.toInt()
+                else ThemeState.panelAccent.color(light).let { android.graphics.Color.argb(it.alpha, it.red, it.green, it.blue) }
+            c.drawCircle(s / 2f, s / 2f, s / 2f, p)
+            p.color = android.graphics.Color.WHITE
+            p.strokeWidth = 3.5f * dp
+            p.strokeCap = android.graphics.Paint.Cap.ROUND
+            p.style = android.graphics.Paint.Style.STROKE
+            when (kind) {
+                NoteKind.OK -> c.drawPath(android.graphics.Path().apply {
+                    moveTo(12 * dp, 21 * dp); lineTo(18 * dp, 27 * dp); lineTo(29 * dp, 14 * dp)
+                }, p.apply { strokeJoin = android.graphics.Paint.Join.ROUND })
+                NoteKind.INFO -> { c.drawLine(20 * dp, 18 * dp, 20 * dp, 29 * dp, p); c.drawPoint(20 * dp, 12 * dp, p) }
+                NoteKind.FAIL -> { c.drawLine(20 * dp, 11 * dp, 20 * dp, 22 * dp, p); c.drawPoint(20 * dp, 29 * dp, p) }
             }
         }
     }

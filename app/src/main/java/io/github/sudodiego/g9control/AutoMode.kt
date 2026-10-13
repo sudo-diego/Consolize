@@ -809,7 +809,7 @@ class AutoModeService : AccessibilityService() {
             scope.launch {
                 if (Shell.run(Shell.BACK_LONG) == null) {
                     performGlobalAction(GLOBAL_ACTION_BACK)
-                    panel.message(tr("Mantener Atrás necesita Shizuku: se hizo un Atrás normal.", "Holding Back needs Shizuku: did a normal Back."))
+                    panel.message(tr("Se hizo un Atrás normal", "Did a normal Back"), tr("Mantener Atrás necesita Shizuku.", "Holding Back needs Shizuku."))
                 }
             }
         }

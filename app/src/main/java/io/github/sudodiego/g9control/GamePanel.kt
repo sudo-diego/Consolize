@@ -223,7 +223,7 @@ class GamePanel(private val svc: AutoModeService) {
         hide()
         if (Shell.state == Shell.State.NO_PERMISSION) Shell.requestPermission()
         else Shell.launchIntent(svc)?.let { runCatching { svc.startActivity(it) } }
-            ?: toast(tr("Shizuku no está instalado.", "Shizuku isn't installed."))
+            ?: toast(tr("Shizuku no está instalado", "Shizuku isn't installed"), kind = NoteKind.FAIL)
     }
 
     /** Del submenú (rendimiento, frecuencia) al panel, con su mosaico elegido. */
@@ -653,14 +653,15 @@ class GamePanel(private val svc: AutoModeService) {
         closeArmed = null
         val name = RecentApps.label(svc, pkg)
         if (pkg == RaProxy.PACKAGE && RaProxy.activeNow == true) {
-            toast(tr("Apágalo con Stop proxy en su app: cerrado así, los emuladores quedan sin logros", "Turn it off with Stop proxy in its app: closed like this, emulators lose achievements"))
+            toast(tr("Apágalo desde su app", "Turn it off from its app"),
+                tr("Toca Stop proxy. Si se cierra así, los emuladores quedan sin logros.", "Tap Stop proxy. Closed like this, emulators lose achievements."))
             refresh(); return
         }
         RecentApps.forget(svc, pkg)
         if (Shell.state == Shell.State.READY) {
             scope.launch { Memory.stop(svc, pkg) }
-            toast(tr("$name cerrada", "$name closed"))
-        } else toast(tr("$name quitada de recientes (cerrarla necesita Shizuku)", "$name removed from recents (closing it needs Shizuku)"))
+            toast(tr("$name cerrada", "$name closed"), kind = NoteKind.OK)
+        } else toast(tr("$name quitada de recientes", "$name removed from recents"), tr("Para cerrarla del todo hace falta Shizuku.", "Closing it fully needs Shizuku."))
         refresh()
     }
 
@@ -710,8 +711,9 @@ class GamePanel(private val svc: AutoModeService) {
                 SystemLevels.setAutoBrightness(svc, !auto)
                 // En un juego: también lo que hace Game Assistant al entrar a los juegos (apagarlo o no), y se avisa.
                 if (ZuiGame.inGame(svc) && SystemLevels.setAutoInGames(svc, !auto).isSuccess)
-                    toast(if (!auto) tr("Brillo automático: también en los juegos", "Auto brightness: also in games")
-                        else tr("Game Assistant lo apagará en los juegos", "Game Assistant will turn it off in games"))
+                    toast(if (!auto) tr("Brillo automático encendido", "Auto brightness on") else tr("Brillo automático apagado", "Auto brightness off"),
+                        if (!auto) tr("También en los juegos.", "Also in games.") else tr("Game Assistant lo apagará en los juegos.", "Game Assistant will turn it off in games."),
+                        NoteKind.OK)
                 refresh()
             })
         }
@@ -756,7 +758,8 @@ class GamePanel(private val svc: AutoModeService) {
                     true -> tr("Sin internet: activo", "Offline: on"); false -> tr("Sin internet: apagado", "Offline: off"); null -> "RAOfflineProxy" },
                 active = on == true && problem == null, danger = problem != null) {
                 // Apagado: A lo abre igual (para Start); si falta algo en el emulador, A dice qué.
-                if (problem != null && on != false) toast(problem) else { hide(); RaProxy.open(svc) }
+                if (problem != null && on != false) toast(tr("Logros: falta algo", "Achievements: something's missing"), problem, NoteKind.FAIL)
+                else { hide(); RaProxy.open(svc) }
             })
         }
         if (ZuiGame.inGame(svc)) {
@@ -768,7 +771,7 @@ class GamePanel(private val svc: AutoModeService) {
                     hide()
                     gaShownByUs = false
                     scope.launch {
-                        if (!ZuiGame.setHidden(true)) toast(tr("No se pudo ocultar Game Assistant.", "Couldn't hide Game Assistant."))
+                        if (!ZuiGame.setHidden(true)) toast(tr("No se pudo ocultar Game Assistant", "Couldn't hide Game Assistant"), tr("Revisa que Shizuku esté iniciado.", "Check that Shizuku is started."), NoteKind.FAIL)
                         else AutoRules.setGaHidden(svc, true)
                     }
                 })
@@ -796,15 +799,15 @@ class GamePanel(private val svc: AutoModeService) {
                 hide()
                 if (!isAuto && !bypassOn && hasAuto) {
                     svc.bypassToAuto()
-                    toast(tr("Bypass automático: se activa cuando corresponde.", "Automatic bypass: turns on when it should."))
+                    toast(tr("Bypass automático", "Automatic bypass"), tr("Se enciende solo cuando corresponde.", "Turns on by itself when it should."), NoteKind.OK)
                     return@PanelItem
                 }
                 // Desde el automático, el primer toque siempre lo enciende (aunque ya lo estuviera: pasa a ser tuyo).
                 val want = if (isAuto) true else !bypassOn
                 scope.launch {
-                    if (!ZuiBattery.setBypass(want)) toast(tr("No se pudo cambiar el bypass.", "Couldn't change bypass."))
-                    else toast(if (want) tr("Bypass encendido: el cargador alimenta la tablet y la batería no carga.", "Bypass on: the charger powers the tablet and the battery doesn't charge.")
-                        else tr("Bypass apagado: la batería vuelve a cargar.", "Bypass off: the battery charges again."))
+                    if (!ZuiBattery.setBypass(want)) toast(tr("No se pudo cambiar el bypass", "Couldn't change bypass"), kind = NoteKind.FAIL)
+                    else if (want) toast(tr("Bypass encendido", "Bypass on"), tr("El cargador alimenta la tablet y la batería no carga.", "The charger powers the tablet and the battery doesn't charge."), NoteKind.OK)
+                    else toast(tr("Bypass apagado", "Bypass off"), tr("La batería vuelve a cargar.", "The battery charges again."), NoteKind.OK)
                 }
             })
         }
@@ -832,7 +835,7 @@ class GamePanel(private val svc: AutoModeService) {
             add(PanelItem("16:9", Icons.Outlined.AspectRatio, PanelRow.SCREEN,
                 sub = if (wide) tr("Encendida", "On") else tr("Apagada", "Off"), active = wide) {
                 hide()
-                scope.launch { if (!Aspect.toggle(svc)) toast(tr("No se pudo cambiar la pantalla.", "Couldn't change the screen.")) }
+                scope.launch { if (!Aspect.toggle(svc)) toast(tr("No se pudo cambiar la pantalla", "Couldn't change the screen"), kind = NoteKind.FAIL) }
             })
         }
         // Proporción de esta app (WideVision de ZUI): Completa → 16:9 → 4:3, sin tocar la resolución de la tablet. Se
@@ -843,8 +846,8 @@ class GamePanel(private val svc: AutoModeService) {
                 sub = r.label + tr(" · este juego", " · this game"), active = r != GameAspect.Ratio.FULL) {
                 val next = r.next()
                 scope.launch {
-                    if (GameAspect.set(svc, pkg, next)) { refresh(); toast(tr("${next.label}: se ve al volver a abrir el juego", "${next.label}: shows when you reopen the game")) }
-                    else toast(tr("Necesita Shizuku", "Needs Shizuku"))
+                    if (GameAspect.set(svc, pkg, next)) { refresh(); toast(tr("Proporción: ${next.label}", "Aspect: ${next.label}"), tr("Se ve al volver a abrir el juego.", "Shows when you reopen the game."), NoteKind.OK) }
+                    else toast(tr("No se pudo cambiar la proporción", "Couldn't change the aspect"), tr("Hace falta Shizuku.", "Needs Shizuku."), NoteKind.FAIL)
                 }
             })
         }
@@ -898,8 +901,9 @@ class GamePanel(private val svc: AutoModeService) {
         add(PanelItem(tr("Mouse", "Mouse"), Icons.Outlined.Mouse, PanelRow.SCREEN, active = mouseOn,
             sub = if (mouseOn) tr("Encendido", "On") else tr("Apagado", "Off")) {
             hide(); svc.toggleMouse()
-            if (!mouseOn) toast(tr("Mouse: stick izquierdo mueve, A toca (mantener: toque largo; mantener y mover: arrastra), stick derecho desplaza, B atrás.",
-                "Mouse: left stick moves, A taps (hold: long press; hold and move: drag), right stick scrolls, B back."))
+            if (!mouseOn) toast(tr("Mouse encendido", "Mouse on"),
+                tr("El stick izquierdo mueve y A toca. Mantén A para arrastrar. El stick derecho desplaza y B vuelve atrás.",
+                    "The left stick moves and A taps. Hold A to drag. The right stick scrolls and B goes back."))
         })
         val mode = ModeSwitcher.detect()
         // Un solo mosaico para el modo del G9: dice el actual y pasa al siguiente (Android → X-Input → DS5 → Android).
@@ -927,7 +931,7 @@ class GamePanel(private val svc: AutoModeService) {
     fun capture() = screenshot()
 
     /** Aviso corto desde el servicio (el mismo de las acciones del panel). */
-    fun message(text: String) = toast(text)
+    internal fun message(title: String, line: String? = null, kind: NoteKind = NoteKind.INFO) = toast(title, line, kind)
 
     /** Guarda las capturas fuera del hilo principal: codificar un PNG de 2560 × 1600 tarda unos cientos de ms. */
     private val io = java.util.concurrent.Executors.newSingleThreadExecutor()
@@ -972,7 +976,7 @@ class GamePanel(private val svc: AutoModeService) {
                     }
                     saved.onFailure {
                         Log.w(AutoModeService.TAG, "no se guardó la captura", it)
-                        main.post { flash.hide(); toast(tr("No se pudo guardar la captura.", "Couldn't save the screenshot.")) }
+                        main.post { flash.hide(); toast(tr("No se pudo guardar la captura", "Couldn't save the screenshot"), kind = NoteKind.FAIL) }
                     }
                 }
                 override fun onFailure(code: Int) {
@@ -1018,7 +1022,7 @@ class GamePanel(private val svc: AutoModeService) {
     }.getOrNull()
 
     private fun fullScreenshot() {
-        if (!svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)) toast(tr("No se pudo sacar la captura.", "Couldn't take the screenshot."))
+        if (!svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)) toast(tr("No se pudo sacar la captura", "Couldn't take the screenshot"), kind = NoteKind.FAIL)
     }
 
     /** Guarda la captura en Pictures/Screenshots, junto a las del sistema. */
@@ -1110,7 +1114,7 @@ class GamePanel(private val svc: AutoModeService) {
     fun toggleRecord() {
         hide()
         scope.launch {
-            if (shadowOn()) return@launch toast(tr("Apaga Shadow Rec para grabar: no pueden ir juntos", "Turn off Shadow Rec to record: they can't run together"))
+            if (shadowOn()) return@launch toast(tr("Apaga Shadow Rec para grabar", "Turn off Shadow Rec to record"), tr("No pueden ir juntos.", "They can't run together."), NoteKind.FAIL)
             val was = recState()
             var why: String? = null
             val ok = covered(if (was == 1) tr("Parando la grabación", "Stopping the recording") else tr("Empezando a grabar", "Starting to record"),
@@ -1144,17 +1148,20 @@ class GamePanel(private val svc: AutoModeService) {
                 while (recState() != 1 && w++ < 10) delay(200)
                 recState() == 1
             }
-            if (why != null) toast(why!!) else if (ok) toast(if (was == 1) tr("Grabación guardada en Pictures/screenrecorder", "Recording saved in Pictures/screenrecorder")
-                else tr("Grabando · Guía + LT para parar", "Recording · Guide + LT to stop"))
+            if (why != null) toast(tr("No se pudo grabar", "Couldn't record"), why, NoteKind.FAIL)
+            else if (ok) {
+                if (was == 1) toast(tr("Grabación guardada", "Recording saved"), "Pictures/screenrecorder", NoteKind.OK)
+                else toast(tr("Grabando", "Recording"), tr("Guía + LT para parar.", "Guide + LT to stop."))
+            }
         }
     }
 
     /** Shadow Rec: encendido, guarda el clip; apagado, lo enciende. */
     fun shadowAction() {
         hide()
-        if (!ZuiGame.inGame(svc)) return toast(tr("Shadow Rec funciona en los juegos de Game Assistant", "Shadow Rec works in Game Assistant's games"))
+        if (!ZuiGame.inGame(svc)) return toast(tr("Shadow Rec no está disponible aquí", "Shadow Rec isn't available here"), tr("Solo funciona en juegos.", "It only works in games."), NoteKind.FAIL)
         scope.launch {
-            var msg: String? = null
+            var msg: Note? = null
             covered(tr("Shadow Rec", "Shadow Rec"), tr("No se pudo usar Shadow Rec", "Couldn't use Shadow Rec"), tr("Prueba desde el panel de Game Assistant", "Try from Game Assistant's panel"), quick = true) {
                 var ok = false
                 withGa {
@@ -1164,54 +1171,59 @@ class GamePanel(private val svc: AutoModeService) {
                     tapNode(f)
                     var b: android.view.accessibility.AccessibilityNodeInfo? = null
                     repeat(8) { if (b == null) { delay(150); b = findNode(ZuiGame.PACKAGE, SHADOW_SAVE) } }
-                    val bb = b ?: run { msg = tr("No encontré el botón de guardar de Shadow Rec", "Couldn't find Shadow Rec's save button"); return@withGa }
+                    val bb = b ?: run { msg = Note(tr("No se pudo guardar el clip", "Couldn't save the clip"), tr("No encontré el botón de guardar de Shadow Rec.", "Couldn't find Shadow Rec's save button."), NoteKind.FAIL); return@withGa }
                     tapNode(bb)
                     ok = true
-                    msg = tr("Clip guardado en Movies/Highlight", "Clip saved in Movies/Highlight")
+                    msg = Note(tr("Clip guardado", "Clip saved"), "Movies/Highlight", NoteKind.OK)
                 }
                 ok
             }
-            msg?.let { toast(it) }
+            msg?.let { toast(it.title, it.line, it.kind) }
         }
     }
 
     /** Enciende o apaga Shadow Rec desde el panel de Game Assistant (su botón, por nombre). */
     private fun shadowToggle() {
         scope.launch {
-            var msg: String? = null
+            var msg: Note? = null
             covered("Shadow Rec", tr("No se pudo usar Shadow Rec", "Couldn't use Shadow Rec"), tr("Prueba desde el panel de Game Assistant", "Try from Game Assistant's panel"), quick = true) {
                 var ok = false
                 withGa { val (o, m) = shadowToggleShown(); ok = o; msg = m }
                 ok
             }
-            msg?.let { toast(it) }
+            msg?.let { toast(it.title, it.line, it.kind) }
         }
     }
 
     /** Toca "Shadow Rec" en el panel de Game Assistant. Devuelve si se pudo y qué decir. */
-    private suspend fun shadowToggleShown(): Pair<Boolean, String> {
+    private suspend fun shadowToggleShown(): Pair<Boolean, Note> {
         val was = shadowOn()
-        val bar = ZuiGame.awaitSideBar(svc) ?: return false to tr("No se pudo abrir Game Assistant.", "Couldn't open Game Assistant.")
-        if (!swipe(bar, open = true)) return false to tr("No se pudo abrir Game Assistant.", "Couldn't open Game Assistant.")
+        val bar = ZuiGame.awaitSideBar(svc) ?: return false to Note(tr("No se pudo abrir Game Assistant", "Couldn't open Game Assistant"), kind = NoteKind.FAIL)
+        if (!swipe(bar, open = true)) return false to Note(tr("No se pudo abrir Game Assistant", "Couldn't open Game Assistant"), kind = NoteKind.FAIL)
         var item: android.view.accessibility.AccessibilityNodeInfo? = null
         repeat(10) { if (item == null) { delay(150); item = findNode(ZuiGame.PACKAGE, listOf("Shadow Rec")) } }
         val i = item
         if (i == null) {
             swipe(bar, open = false)
-            return false to tr("Agrega Shadow Rec a su panel: Game Assistant → Shortcut sort", "Add Shadow Rec to its panel: Game Assistant → Shortcut sort")
+            return false to Note(tr("Shadow Rec no está en su panel", "Shadow Rec isn't in its panel"), tr("Agrégalo en Game Assistant → Shortcut sort.", "Add it in Game Assistant → Shortcut sort."), NoteKind.FAIL)
         }
         tapNode(i)
         shadowKnown = !was
         delay(900)
         // Al tocarlo su panel se cierra solo; si quedó abierto, se cierra.
         if (findNode(ZuiGame.PACKAGE, listOf("Clean RAM", "Screen shot")) != null) swipe(bar, open = false)
-        return true to if (was) tr("Shadow Rec apagado", "Shadow Rec off") else tr("Shadow Rec encendido · Guía + RT guarda los últimos segundos", "Shadow Rec on · Guide + RT saves the last seconds")
+        return true to if (was) Note(tr("Shadow Rec apagado", "Shadow Rec off"), kind = NoteKind.OK)
+            else Note(tr("Shadow Rec encendido", "Shadow Rec on"), tr("Guía + RT guarda los últimos segundos.", "Guide + RT saves the last seconds."), NoteKind.OK)
     }
+
+    /** Un aviso armado antes de mostrarlo (cuando se decide qué decir dentro de otra operación). */
+    private class Note(val title: String, val line: String? = null, val kind: NoteKind = NoteKind.INFO)
+
     /** Con Game Assistant a la vista (si está oculto, se muestra y se vuelve a ocultar al terminar). */
     private suspend fun withGa(block: suspend () -> Unit) {
         val hidden = keepGaHidden() && !gaShownByUs
         if (hidden) {
-            if (!ZuiGame.setHidden(false)) return toast(tr("Game Assistant está oculto y Shizuku no responde.", "Game Assistant is hidden and Shizuku isn't responding."))
+            if (!ZuiGame.setHidden(false)) return toast(tr("Game Assistant está oculto", "Game Assistant is hidden"), tr("Shizuku no responde: revisa que esté iniciado.", "Shizuku isn't responding: check that it's started."), NoteKind.FAIL)
             delay(600)
         }
         try { block() } finally { if (hidden) withContext(NonCancellable) { delay(1500); ZuiGame.setHidden(true) } }
@@ -1237,12 +1249,12 @@ class GamePanel(private val svc: AutoModeService) {
      * muestra; se vuelve a ocultar al cambiar de app ([onAppChanged]).
      */
     private fun openGameAssistant() {
-        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo en esta app.", "Game Assistant isn't active in this app."))
+        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo aquí", "Game Assistant isn't active here"), tr("Solo funciona en juegos.", "It only works in games."), NoteKind.FAIL)
         scope.launch {
             if (keepGaHidden()) {
                 // Oculto y sin Shizuku: su panel se abriría invisible y parecería que no pasó nada.
                 if (!ZuiGame.setHidden(false))
-                    return@launch toast(tr("Game Assistant está oculto y Shizuku no responde.", "Game Assistant is hidden and Shizuku isn't responding."))
+                    return@launch toast(tr("Game Assistant está oculto", "Game Assistant is hidden"), tr("Shizuku no responde: revisa que esté iniciado.", "Shizuku isn't responding: check that it's started."), NoteKind.FAIL)
                 gaShownByUs = true
                 delay(400)
             }
@@ -1250,7 +1262,7 @@ class GamePanel(private val svc: AutoModeService) {
             val bar = ZuiGame.awaitSideBar(svc)
             // Si mientras tanto se volvió a abrir el panel, el deslizamiento caería sobre él: se cancela.
             if (isOpen) return@launch
-            if (bar == null || !swipe(bar, open = true)) toast(tr("No se pudo abrir Game Assistant.", "Couldn't open Game Assistant."))
+            if (bar == null || !swipe(bar, open = true)) toast(tr("No se pudo abrir Game Assistant", "Couldn't open Game Assistant"), kind = NoteKind.FAIL)
         }
     }
 
@@ -1316,7 +1328,7 @@ class GamePanel(private val svc: AutoModeService) {
      */
     private fun setPerf(target: ZuiGame.PerfMode) {
         hide()
-        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo en esta app.", "Game Assistant isn't active in this app."))
+        if (!ZuiGame.inGame(svc)) return toast(tr("Game Assistant no está activo aquí", "Game Assistant isn't active here"), tr("Solo funciona en juegos.", "It only works in games."), NoteKind.FAIL)
         if (perfBusy) return
         perfBusy = true
         val cover = FreezeCover(svc)
@@ -1324,7 +1336,7 @@ class GamePanel(private val svc: AutoModeService) {
             // Shizuku tiene que responder antes de congelar nada (si no, la imagen quedaba mucho rato).
             if (Shell.run(Shell.GA_GET) == null) {
                 perfBusy = false
-                toast(tr("Shizuku no responde: revisa que esté iniciado.", "Shizuku isn't responding: check that it's started."))
+                toast(tr("Shizuku no responde", "Shizuku isn't responding"), tr("Revisa que esté iniciado.", "Check that it's started."), NoteKind.FAIL)
                 return@launch
             }
             var now: ZuiGame.PerfMode? = null
@@ -1435,33 +1447,14 @@ class GamePanel(private val svc: AutoModeService) {
         if (Build.VERSION.SDK_INT >= 30) wm.currentWindowMetrics.bounds.height()
         else Point().also { @Suppress("DEPRECATION") wm.defaultDisplay.getRealSize(it) }.y
 
-    private var noticeView: android.view.View? = null
-    private val noticeOff = Runnable { noticeView?.let { runCatching { wm.removeView(it) } }; noticeView = null }
-
     /**
-     * Aviso corto abajo al centro, en una ventana de accesibilidad: un Toast de Android no siempre se ve sobre un
-     * juego en ZUI. No recibe toques.
+     * Aviso de las acciones del panel: la misma tarjeta que el de captura (posición y animación de Ajustes), con un
+     * ícono según [kind], un título corto y, si hace falta, una línea más. Se queda más cuanto más texto tiene
+     * (2,5 a 6 s). Es una ventana de accesibilidad: un Toast de Android no siempre se ve sobre un juego en ZUI.
      */
-    private fun toast(text: String) {
-        main.removeCallbacks(noticeOff)
-        noticeOff.run()
-        val dp = svc.resources.displayMetrics.density
-        val v = android.widget.TextView(svc).apply {
-            this.text = text
-            setTextColor(if (light) 0xFF14203A.toInt() else android.graphics.Color.WHITE)
-            textSize = 14f
-            setPadding((16 * dp).toInt(), (10 * dp).toInt(), (16 * dp).toInt(), (10 * dp).toInt())
-            background = android.graphics.drawable.GradientDrawable().apply { setColor(if (light) 0xF2F3F6FB.toInt() else 0xEE0E1424.toInt()); cornerRadius = 16 * dp }
-        }
-        val lp = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; y = (48 * dp).toInt() }
-        if (runCatching { wm.addView(v, lp) }.isFailure) return
-        noticeView = v
-        main.postDelayed(noticeOff, 2500)
+    private fun toast(title: String, line: String? = null, kind: NoteKind = NoteKind.INFO) {
+        val ms = (2500L + 40L * (title.length + (line?.length ?: 0))).coerceAtMost(6000L)
+        flash.show(flash.noteIcon(kind), title, line, ms)
     }
 
     private fun create() {
