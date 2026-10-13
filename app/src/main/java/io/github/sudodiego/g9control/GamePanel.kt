@@ -743,7 +743,9 @@ class GamePanel(private val svc: AutoModeService) {
         if (ZuiGame.inGame(svc)) {
             val shadow = shadowOn()
             add(PanelItem("Shadow Rec", Icons.Outlined.History, active = shadow,
-                sub = if (shadow) tr("Guardar clip · Y apagar", "Save clip · Y turn off") else tr("Apagado · Guía + RT", "Off · Guide + RT"),
+                sub = if (shadow) tr("Encendido", "On") else tr("Apagado", "Off"),
+                foot = if (shadow) tr("A guardar clip (Guía + RT) · Y apagar · B cerrar", "A save clip (Guide + RT) · Y turn off · B close")
+                    else tr("A encender (Guía + RT) · B cerrar", "A turn on (Guide + RT) · B close"),
                 alt = { if (shadowOn()) { hide(); shadowToggle() } }) { shadowAction() })
         }
         // Logros sin internet (RAOfflineProxy): en un emulador, si está instalado. Encendido = en color; A lo abre.
@@ -754,8 +756,11 @@ class GamePanel(private val svc: AutoModeService) {
                 ?: if (on == false && RaProxy.strandedNow) tr("RAOfflineProxy está apagado y tus emuladores le apuntan: sin logros ni con internet. Ábrelo: se vuelve a encender solo.",
                     "RAOfflineProxy is off and your emulators point to it: no achievements even online. Open it and press Start (or Stop).") else null
             add(PanelItem(tr("Logros", "Achievements"), Icons.Outlined.Star,
-                sub = problem?.let { if (on == false) tr("Apagado: sin logros", "Off: no achievements") else tr("Falta algo: ver aviso", "Something's missing") } ?: when (on) {
-                    true -> tr("Sin internet: activo", "Offline: on"); false -> tr("Sin internet: apagado", "Offline: off"); null -> "RAOfflineProxy" },
+                // El nombre y el estado se leen juntos ("Logros · También sin internet"); qué hace A, en la línea de abajo.
+                sub = problem?.let { if (on == false) tr("No se guardan", "Not saved") else tr("Falta algo", "Something's missing") } ?: when (on) {
+                    true -> tr("También sin internet", "Offline too"); false -> tr("Solo con internet", "Online only"); null -> "RAOfflineProxy" },
+                foot = if (problem != null && on != false) tr("A ver qué falta · B cerrar", "A see what's missing · B close")
+                    else tr("A abrir RAOfflineProxy (logros sin internet) · B cerrar", "A open RAOfflineProxy (offline achievements) · B close"),
                 active = on == true && problem == null, danger = problem != null) {
                 // Apagado: A lo abre igual (para Start); si falta algo en el emulador, A dice qué.
                 if (problem != null && on != false) toast(tr("Logros: falta algo", "Achievements: something's missing"), problem, NoteKind.FAIL)
@@ -880,12 +885,15 @@ class GamePanel(private val svc: AutoModeService) {
         // hacer el sistema); Y enciende o apaga ahí mismo (con Shizuku).
         val wifiList = { hide(); openSettings(android.provider.Settings.Panel.ACTION_INTERNET_CONNECTIVITY) }
         val btList = { hide(); openSettings(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS) }
-        val ySwitch = if (Shell.state == Shell.State.READY) tr(" · Y apagar", " · Y off") to tr(" · Y encender", " · Y on") else "" to ""
+        // El mosaico dice si está encendido; qué hacen A e Y va en la línea de abajo (en el mosaico se cortaba).
+        val canY = Shell.state == Shell.State.READY
+        fun radioFoot(list: String, on: Boolean) = tr("A $list", "A $list") +
+            (if (canY) (if (on) tr(" · Y apagar", " · Y turn off") else tr(" · Y encender", " · Y turn on")) else "") + tr(" · B cerrar", " · B close")
         add(PanelItem("WiFi", if (wifi) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, PanelRow.SCREEN, active = wifi,
-            sub = tr("Redes", "Networks") + if (wifi) ySwitch.first else ySwitch.second,
+            sub = if (wifi) tr("Encendido", "On") else tr("Apagado", "Off"), foot = radioFoot(tr("redes", "networks"), wifi),
             alt = { radio(!wifi, Shell.WIFI_ON, Shell.WIFI_OFF) }, run = wifiList))
         add(PanelItem("Bluetooth", if (bt) Icons.Outlined.Bluetooth else Icons.Outlined.BluetoothDisabled, PanelRow.SCREEN, active = bt,
-            sub = tr("Dispositivos", "Devices") + if (bt) ySwitch.first else ySwitch.second,
+            sub = if (bt) tr("Encendido", "On") else tr("Apagado", "Off"), foot = radioFoot(tr("dispositivos", "devices"), bt),
             alt = { radio(!bt, Shell.BT_ON, Shell.BT_OFF) }, run = btList))
         // Bloquear gestos: el "Disable navigation bar and gesture" de Game Assistant (en sus juegos), un ajuste del
         // sistema que se puede cambiar con el permiso de pantalla.

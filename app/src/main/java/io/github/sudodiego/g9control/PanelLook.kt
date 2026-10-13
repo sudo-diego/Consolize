@@ -139,6 +139,8 @@ internal class PanelItem(
     val appIcon: androidx.compose.ui.graphics.ImageBitmap? = null,
     /** En rojo: lo que va a pasar no se deshace (cerrar una reciente, a la espera de confirmar). */
     val danger: Boolean = false,
+    /** Línea de abajo mientras está elegido (qué hacen A e Y): así [sub] dice solo el estado y no se corta. */
+    val foot: String? = null,
     val run: () -> Unit = {}
 )
 
@@ -497,6 +499,7 @@ private fun PanelGrid(ui: PanelUi, fixed: Boolean, modifier: Modifier, onPick: (
 private fun PanelFooter(ui: PanelUi, modifier: Modifier) {
     Text(
         ui.items.getOrNull(ui.sel)?.takeIf { ui.editing }?.hint
+            ?: ui.items.getOrNull(ui.sel)?.takeIf { !ui.sub }?.foot
             ?: ui.items.getOrNull(ui.sel)?.takeIf { it.section == PanelRow.RECENT }?.let {
                 tr("A volver · Y cerrar la app · B cerrar", "A resume · Y close the app · B close") }
             ?: ui.footer ?: if (ui.sub) tr("A elegir · B volver", "A select · B back")

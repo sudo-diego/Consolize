@@ -588,7 +588,7 @@ private fun LockChips(level: Int, onPick: (Int) -> Unit) {
     ChoiceChips(listOf(0 to tr("Nada", "Nothing"), 1 to tr("Botones", "Buttons"), 2 to tr("Todo", "Everything")), level, onPick)
     when (level) {
         1 -> Hint(tr("Sticks y gatillos siguen llegando al juego.", "Sticks and triggers still reach the game."))
-        2 -> Hint(tr("También sticks y gatillos. El juego puede pausarse.", "Also sticks and triggers. The game may pause."))
+        2 -> Hint(tr("También sticks y gatillos. La app puede pausarse.", "Also sticks and triggers. The app may pause."))
     }
 }
 

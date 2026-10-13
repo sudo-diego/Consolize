@@ -440,6 +440,9 @@ class AutoModeService : AccessibilityService() {
                     when (i.getStringExtra("what")) {
                         "battery" -> panel.lowBattery(15, "1 h 20 min")
                         "panel" -> panel.toggle()
+                        // Un aviso del panel: --es title … [--es line …] [--es kind OK|FAIL].
+                        "toast" -> panel.message(i.getStringExtra("title") ?: "Aviso", i.getStringExtra("line"),
+                            runCatching { NoteKind.valueOf(i.getStringExtra("kind") ?: "INFO") }.getOrDefault(NoteKind.INFO))
                         "recent" -> i.getStringExtra("pkg")?.let { RecentApps.open(this@AutoModeService, it) }
                         "front" -> Log.i(TAG, "al frente: ${currentApp()}")
                         else -> guideTap()
