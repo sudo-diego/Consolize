@@ -108,7 +108,8 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     var bypass by remember { mutableStateOf(ZuiBattery.bypassNow == true) }
     var hud by remember { mutableStateOf(AutoRules.perfHud(a)) }
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
-    LaunchedEffect(ready) { if (ready) ZuiBattery.readBypass()?.let { bypass = it } }
+    // Cada pocos segundos, como en Batería: el bypass automático lo cambia solo (al salir de un juego quedaba "Encendido").
+    LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; kotlinx.coroutines.delay(3000) } }
     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         // Sin Shizuku el bypass no se puede cambiar: no sale (el aviso de arriba lo dice).
         if (ready) QuickTile(Icons.Outlined.Power, "Bypass", if (bypass) tr("Encendido", "On") else tr("Apagado", "Off"), bypass,

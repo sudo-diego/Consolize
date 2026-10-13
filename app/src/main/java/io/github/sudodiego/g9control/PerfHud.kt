@@ -71,7 +71,7 @@ class PerfHud(private val svc: AutoModeService) {
             background = GradientDrawable().apply { setColor(0xB80E1424.toInt()); cornerRadius = 12 * dp }
             addView(v)
             addView(g, android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                (30 * dp).toInt()).apply { topMargin = (4 * dp).toInt() })
+                (44 * dp).toInt()).apply { topMargin = (4 * dp).toInt() })
         }
         val pos = AutoRules.perfPos(svc)
         // La ventana ocupa todo el ancho (transparente, no recibe toques) y la barra va adentro a un lado: así la
@@ -314,8 +314,10 @@ class PerfHud(private val svc: AutoModeService) {
     }
 
     /**
-     * Gráfico de tiempos de cuadro: una línea por cuadro; plana es fluido, cada pico es un tirón. Escala fija de 0 a
-     * 50 ms (si cambiara con cada pico, un juego estable se veía movido), con guías en 16,7 ms (60 FPS) y 33,3 ms (30).
+     * Gráfico de tiempos de cuadro (frametime): cuánto tardó cada cuadro en llegar a la pantalla, de los últimos segundos;
+     * plana es fluido, cada pico es un tirón. Escala fija de 0 a 50 ms (si cambiara con cada pico, un juego estable se
+     * veía movido), con guías rotuladas en 16,7 ms (60 FPS) y 33,3 ms (30) y el título arriba (sin rótulos no se sabía
+     * qué era).
      */
     private class FrameGraph(ctx: android.content.Context, private val dp: Float) : android.view.View(ctx) {
         private var times: List<Float> = emptyList()
@@ -323,6 +325,9 @@ class PerfHud(private val svc: AutoModeService) {
             color = ACCENT; strokeWidth = 1.6f * dp; style = android.graphics.Paint.Style.STROKE
         }
         private val guide = android.graphics.Paint().apply { color = 0x33FFFFFF; strokeWidth = 1f * dp }
+        private val text = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0x99FFFFFF.toInt(); textSize = 8.5f * dp; typeface = android.graphics.Typeface.MONOSPACE
+        }
         fun set(t: List<Float>) { times = t.takeLast(160); invalidate() }
         /** No pide ancho propio: toma el del texto (la caja lo iguala al más ancho). Si pidiera todo, la caja ocupaba la pantalla. */
         override fun onMeasure(w: Int, h: Int) {
@@ -333,7 +338,13 @@ class PerfHud(private val svc: AutoModeService) {
             if (times.size < 2) return
             val w = width.toFloat(); val h = height.toFloat()
             val top = 50f
-            for (gm in floatArrayOf(16.7f, 33.3f)) { val gy = h - gm / top * h; c.drawLine(0f, gy, w, gy, guide) }
+            for (gm in floatArrayOf(16.7f, 33.3f)) {
+                val gy = h - gm / top * h
+                c.drawLine(0f, gy, w, gy, guide)
+                val label = "%.1f".format(gm)
+                c.drawText(label, w - text.measureText(label), gy - 2 * dp, text)
+            }
+            c.drawText("FRAMETIME ms", 0f, text.textSize, text)
             val path = android.graphics.Path()
             times.forEachIndexed { i, ms ->
                 val x = i * w / (times.size - 1); val y = h - (ms / top).coerceIn(0f, 1f) * (h - 2 * dp) - dp
@@ -376,7 +387,14 @@ class PerfHud(private val svc: AutoModeService) {
         presented.filter { it > last }.sorted().forEach { presentedSeen.addLast(it) }
         while (presentedSeen.isNotEmpty() && (presentedSeen.peekFirst() ?: now) < now - 4_000_000_000L) presentedSeen.pollFirst()
         frameTimes = presentedSeen.zipWithNext { a, b -> (b - a) / 1e6f }.filter { it in 0.5f..500f }
-        return presentedSeen.count { it > now - 1_000_000_000L }
+        // Del último segundo de cuadros, medido con ellos mismos: cuántos intervalos caben en el tiempo entre el primero
+        // y el último. Contar "los de después de ahora − 1 s" contaba de más (Wind Waker, fijo a 30, decía 34): `now` se
+        // toma antes de la consulta a SurfaceFlinger, que tarda cientos de ms, y los cuadros de mientras también entraban.
+        val newest = presentedSeen.peekLast() ?: return 0
+        if (newest < now - 1_000_000_000L) return 0
+        val recent = presentedSeen.filter { it > newest - 1_000_000_000L }
+        if (recent.size < 2) return recent.size
+        return Math.round((recent.size - 1) * 1e9 / (newest - recent.first()).toDouble()).toInt()
     }
 
     /**

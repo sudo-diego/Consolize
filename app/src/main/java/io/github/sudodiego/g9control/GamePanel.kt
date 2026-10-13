@@ -677,6 +677,8 @@ class GamePanel(private val svc: AutoModeService) {
 
     /** Prueba desde el PC (receptor de prueba del servicio): mover la selección como la cruceta. */
     internal fun testMove(dx: Int, dy: Int) { if (isOpen) { poke(); moveGrid(dx, dy) } }
+    /** Prueba desde el PC: A sobre lo elegido. */
+    internal fun testPick() { if (isOpen) { poke(); ui.items.getOrNull(ui.sel)?.run?.invoke() } }
 
     private fun poke() {
         main.removeCallbacks(timeout)
