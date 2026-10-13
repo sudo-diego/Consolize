@@ -188,7 +188,7 @@ class PerfHud(private val svc: AutoModeService) {
         // Para medir consumo (por ejemplo 60 contra 120 Hz) desde el PC: una línea por segundo en el registro.
         val ua = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
         val mv = bat?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
-        if (ua != Int.MIN_VALUE && mv > 0) Log.d("G9Power", "w=%.3f hz=%s plugged=%b".format(kotlin.math.abs(ua.toDouble()) / 1e6 * mv / 1e3, hz(), plugged))
+        if (debuggable && ua != Int.MIN_VALUE && mv > 0) Log.d("G9Power", "w=%.3f hz=%s plugged=%b".format(kotlin.math.abs(ua.toDouble()) / 1e6 * mv / 1e3, hz(), plugged))
 
         val pwrText = w?.let { (if (charging) "+" else "") + "%.1f W".format(it) } ?: "—"
         val avgText = avg?.let { tr(" · prom %.1f", " · avg %.1f").format(it) }
@@ -236,6 +236,8 @@ class PerfHud(private val svc: AutoModeService) {
     }
 
     private val bm = svc.getSystemService(BatteryManager::class.java)
+    /** Solo en la APK de depuración: la línea de consumo por segundo en el registro (para medir desde el PC). */
+    private val debuggable = svc.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
     /** Corriente suavizada (µA, positiva), para que los watts y el tiempo no salten de un segundo al otro. */
     private var currentAvg = 0.0
 
@@ -369,8 +371,9 @@ class PerfHud(private val svc: AutoModeService) {
         val now = System.nanoTime()
         // Buscar la capa pide varias consultas a SurfaceFlinger (que es quien muestra los cuadros): solo al cambiar de app,
         // si la de ahora dejó de dibujar o cada 30 s (antes cada 5 s; podía causar un pico en el gráfico).
-        val stale = presentedSeen.isNotEmpty() && (presentedSeen.peekLast() ?: now) < now - 1_500_000_000L
-        if (app != layerApp || layer == null || stale || now - layerAt > 30_000_000_000L) {
+        // Sin cuadros nuevos (una app quieta, como TBF) se volvía a buscar cada segundo: como mucho cada 5 s.
+        val stale = presentedSeen.isNotEmpty() && (presentedSeen.peekLast() ?: now) < now - 1_500_000_000L && now - layerAt > 5_000_000_000L
+        if (app != layerApp || (layer == null && now - layerAt > 5_000_000_000L) || stale || now - layerAt > 30_000_000_000L) {
             if (app != layerApp) presentedSeen.clear()
             layerApp = app
             layerAt = now

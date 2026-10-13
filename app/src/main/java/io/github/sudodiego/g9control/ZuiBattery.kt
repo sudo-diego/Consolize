@@ -29,11 +29,15 @@ object ZuiBattery {
     @Volatile var manualOverride = false
         set(v) { field = v; prefs?.edit()?.putBoolean("bypass_manual", v)?.apply() }
     private var prefs: android.content.SharedPreferences? = null
+    /** Lo que eligió a mano (encendido o apagado): Game Assistant lo apaga al salir de un juego y hay que reponerlo. */
+    @Volatile var manualOn = false
+        set(v) { field = v; prefs?.edit()?.putBoolean("bypass_manual_on", v)?.apply() }
 
     /** Al arrancar el servicio: la elección manual que había, si sigue enchufada. */
     fun init(ctx: Context) {
         prefs = ctx.getSharedPreferences("g9", Context.MODE_PRIVATE)
         manualOverride = plugged(ctx) && prefs!!.getBoolean("bypass_manual", false)
+        manualOn = prefs!!.getBoolean("bypass_manual_on", false)
     }
 
     /** El bypass encendido lo puso el automático (o el límite propio), no el usuario: para mostrarlo en el panel. */
@@ -45,7 +49,7 @@ object ZuiBattery {
 
     suspend fun setBypass(on: Boolean, manual: Boolean = true): Boolean {
         val ok = Shell.run(if (on) Shell.BYPASS_ON else Shell.BYPASS_OFF)?.let { parse(it) } == true
-        if (ok) { bypassNow = on; byAuto = on && !manual; if (manual) manualOverride = true }
+        if (ok) { bypassNow = on; byAuto = on && !manual; if (manual) { manualOverride = true; manualOn = on } }
         Log.d(AutoModeService.TAG, "bypass ${if (on) "activado" else "desactivado"}: $ok")
         return ok
     }

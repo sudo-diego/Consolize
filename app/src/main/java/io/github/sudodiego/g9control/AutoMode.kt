@@ -118,6 +118,17 @@ class AutoModeService : AccessibilityService() {
     /** El bypass automático lo activó (solo apaga lo que él activó). */
     private var smartOn = false
     private var lastBypassRead = 0L
+    /** Desde cuándo no hay juego al frente (0 = hay); para el margen de [GAME_GRACE_MS]. */
+    private var outOfGameSince = 0L
+    /** El automático tenía el bypass encendido al salir del juego (Game Assistant lo apaga igual: ver [evaluateBypass]). */
+    private var onWhenLeft = false
+    private val GAME_GRACE_MS = 60_000L
+    /**
+     * ZUI entra o sale del modo juego: se revisa el bypass (y la frecuencia de los juegos) al momento. Revisar solo 3 s
+     * después de cambiar de app no alcanzaba: a veces ZUI tarda más en marcarlo, o el aviso del cambio de app no llega,
+     * y al volver al juego el bypass no se encendía.
+     */
+    private var gameModeObserver: android.database.ContentObserver? = null
 
     /**
      * Bypass automático, por dos razones (basta una): el automático (enchufada, con batería ≥ mínimo y temperatura ≥
@@ -132,12 +143,25 @@ class AutoModeService : AccessibilityService() {
             if (smartOn) { smartOn = false; scope.launch { ZuiBattery.setBypass(false, manual = false) } }
             return
         }
-        if (ZuiBattery.manualOverride || Shell.state != Shell.State.READY) return
+        if (Shell.state != Shell.State.READY) return
+        if (ZuiBattery.manualOverride) {
+            // Encendido a mano: dura hasta desconectar, pero Game Assistant lo apaga al salir de un juego. Se repone.
+            if (ZuiBattery.manualOn && ZuiBattery.bypassNow == false && i.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0) {
+                Log.d(TAG, "bypass manual apagado desde fuera: se repone")
+                scope.launch { ZuiBattery.setBypass(true) }
+            }
+            return
+        }
+        val now = android.os.SystemClock.uptimeMillis()
+        // Game Assistant apaga el bypass al salir de cualquier juego (ItemBypassCharging.onGameModeExit), aunque lo
+        // haya encendido otro: si estaba encendido por el automático al salir, se vuelve a encender durante el margen.
+        // Se anota antes de mirar si lo apagaron desde fuera (si no, ya se habría olvidado que era suyo).
+        val inGame = ZuiGame.inGame(this)
+        if (inGame) outOfGameSince = 0L else if (outOfGameSince == 0L) { outOfGameSince = now; onWhenLeft = smartOn }
         // Lo encendió el automático pero alguien lo apagó (a mano, en otra app, ZUI o Game Assistant): ya no está
         // encendido por él. Si no, creería que sigue activo y no lo volvería a encender. Cada minuto se lee el estado
         // real (los avisos de la batería llegan seguido; leerlo es un comando de Shizuku).
         if (smartOn && ZuiBattery.bypassNow == false) smartOn = false
-        val now = android.os.SystemClock.uptimeMillis()
         if (smartOn && now - lastBypassRead > 60_000) {
             lastBypassRead = now
             scope.launch { if (ZuiBattery.readBypass() == false) { Log.d(TAG, "bypass apagado desde fuera: se revisa"); evaluateBypass() } }
@@ -146,7 +170,11 @@ class AutoModeService : AccessibilityService() {
         val level = i.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 /
             i.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
         val temp = i.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, 0) / 10f
-        val game = !AutoRules.smartBypassGames(this) || ZuiGame.inGame(this)
+        // "Solo en juegos": salir un momento (a TBF desde el panel, a Ajustes, a Recientes) no lo apaga; recién tras
+        // [GAME_GRACE_MS] fuera de un juego. Si no, cada salida era cortar y volver a cargar.
+        val grace = !inGame && onWhenLeft && now - outOfGameSince < GAME_GRACE_MS
+        if (grace) { main.removeCallbacks(bypassCheck); main.postDelayed(bypassCheck, GAME_GRACE_MS - (now - outOfGameSince) + 500) }
+        val game = !AutoRules.smartBypassGames(this) || inGame || grace
         val minLevel = AutoRules.smartBypassLevel(this)
         val minTemp = AutoRules.smartBypassTemp(this)
         val margin = if (smartOn) 2 else 0
@@ -407,6 +435,11 @@ class AutoModeService : AccessibilityService() {
             }
         })
         perfHud = PerfHud(this).also { it.update() }
+        // Al entrar o salir del modo juego: se relee el bypass real (Game Assistant lo apaga al salir) y se decide.
+        gameModeObserver = ZuiGame.observe(this, main) {
+            main.removeCallbacks(bypassCheck)
+            main.postDelayed({ scope.launch { if (Shell.state == Shell.State.READY) ZuiBattery.readBypass(); bypassCheck.run() } }, 1000)
+        }
         Shell.init(this)
         ZuiBattery.init(this)
         // El límite de carga de ZUI, para el tiempo de carga (queda guardado para cuando Shizuku no esté).
@@ -1280,6 +1313,7 @@ class AutoModeService : AccessibilityService() {
 
     override fun onDestroy() {
         if (active === this) active = null
+        gameModeObserver?.let { ZuiGame.unobserve(this, it) }
         if (mouseOn) mouse.stop()
         PowerLog.stop()
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(inputListener)
