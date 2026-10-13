@@ -76,10 +76,10 @@ class AutoModeService : AccessibilityService() {
                 // Sin cargador el bypass no sirve, y si quedara activo la próxima vez que se enchufe no cargaría.
                 // Al enchufar, el aviso de cuánto falta (cuando la corriente ya se asentó y el bypass ya decidió).
                 Intent.ACTION_POWER_CONNECTED -> {
-                    // El jingle y el aviso juntos (1,2 s: lo que tarda Android en avisar que está enchufada). Si el tiempo todavía no
-                    // se puede calcular, el aviso dice hasta dónde carga.
-                    if (AutoRules.chargeSound(this@AutoModeService) && getSystemService(android.os.PowerManager::class.java).isInteractive) main.postDelayed({ panel.chargeJingle() }, 1_200)
-                    main.removeCallbacks(chargeNotice); chargeTries = 0; main.postDelayed(chargeNotice, 1_200)
+                    // El jingle apenas Android la ve enchufada; el aviso, cuando la corriente ya se asentó (ver [chargeNotice]).
+                    // Si el tiempo no se puede calcular, el aviso dice hasta dónde carga.
+                    chargeJingle = AutoRules.chargeSound(this@AutoModeService) && getSystemService(android.os.PowerManager::class.java).isInteractive
+                    main.removeCallbacks(chargeNotice); chargeTries = 0; chargeSamples.clear(); main.postDelayed(chargeNotice, 1_200)
                 }
                 Intent.ACTION_POWER_DISCONNECTED -> {
                     main.removeCallbacks(chargeNotice); chargePending = false
@@ -368,7 +368,7 @@ class AutoModeService : AccessibilityService() {
         val mode = ModeSwitcher.detect()
         if (mode == PadMode.ANDROID) returnPending = false
         if (lowPending) main.postDelayed({ lastBattery?.let { checkLowBattery(it) } }, 800)
-        if (chargePending) main.postDelayed(chargeNotice, 1200)
+        if (chargePending) { chargeSamples.clear(); main.postDelayed(chargeNotice, 1200) }
         if (guide.resumeAfterLock()) return
         if (returnPending && ruleApp == null && mode != null) showReturn()
     }
@@ -440,6 +440,8 @@ class AutoModeService : AccessibilityService() {
                     when (i.getStringExtra("what")) {
                         "battery" -> panel.lowBattery(15, "1 h 20 min")
                         "panel" -> panel.toggle()
+                        // Mover la selección del panel: --ei dx … --ei dy … (como la cruceta).
+                        "move" -> panel.testMove(i.getIntExtra("dx", 0), i.getIntExtra("dy", 0))
                         // Un aviso del panel: --es title … [--es line …] [--es kind OK|FAIL].
                         "toast" -> panel.message(i.getStringExtra("title") ?: "Aviso", i.getStringExtra("line"),
                             runCatching { NoteKind.valueOf(i.getStringExtra("kind") ?: "INFO") }.getOrDefault(NoteKind.INFO))
@@ -835,17 +837,28 @@ class AutoModeService : AccessibilityService() {
      */
     private var chargePending = false
     private var chargeTries = 0
+    /** Sonar al enchufar (solo con la pantalla encendida, no al desbloquear después). */
+    private var chargeJingle = false
+    /**
+     * Corriente de los últimos segundos (µA): recién enchufada el cargador todavía negocia la carga rápida y entra poco,
+     * así que el tiempo salía muy largo ("2 h" que luego eran 30 min). Se espera a 3 lecturas seguidas parecidas.
+     */
+    private val chargeSamples = ArrayList<Int>()
+    /** El jingle de enchufar, una vez (también sin aviso: apagado, en bypass o ya en el límite). */
+    private fun jingleOnce() { if (chargeJingle) panel.chargeJingle(); chargeJingle = false }
     private val chargeNotice: Runnable = Runnable {
         chargePending = false
         // El estado de ahora (el último BATTERY_CHANGED puede llegar después de POWER_CONNECTED y seguir diciendo
         // desenchufada): si todavía no se ve enchufada, se reintenta cada medio segundo (hasta 3 s).
         val i = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: lastBattery ?: return@Runnable
-        if (!AutoRules.chargeNotice(this) || smartOn || ZuiBattery.bypassNow == true) return@Runnable
+        if (!AutoRules.chargeNotice(this) || smartOn || ZuiBattery.bypassNow == true) { jingleOnce(); return@Runnable }
         if (i.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) == 0) {
-            if (chargeTries++ < 6) main.postDelayed(chargeNotice, 500)
+            if (chargeTries++ < 6) main.postDelayed(chargeNotice, 500) else jingleOnce()
             return@Runnable
         }
         chargeTries = 0
+        // El jingle al enchufar, sin esperar a la tarjeta (que espera a que la corriente se asiente).
+        jingleOnce()
         // Recién enchufada Android todavía puede decir "descargando": solo se descarta si ya está llena.
         if (i.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, 0) == android.os.BatteryManager.BATTERY_STATUS_FULL) return@Runnable
         val screenOn = getSystemService(android.os.PowerManager::class.java).isInteractive
@@ -854,7 +867,13 @@ class AutoModeService : AccessibilityService() {
         val level = i.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) * 100 / i.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
         val target = ZuiBattery.chargeTarget(this)
         if (level < 0 || level >= target) return@Runnable
-        panel.chargeNotice(level, target, ZuiBattery.chargeTimeLeft(this)?.let { ZuiBattery.formatTime(it) })
+        // Cada segundo hasta que se asiente (3 lecturas a menos de 10 % entre sí), como mucho ~12 s; si no se asentó, sin tiempo.
+        val ua = kotlin.math.abs(getSystemService(android.os.BatteryManager::class.java).getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CURRENT_NOW))
+        chargeSamples += ua
+        val last = chargeSamples.takeLast(3)
+        val settled = last.size == 3 && last.min() > 50_000 && (last.max() - last.min()) <= last.max() / 10
+        if (!settled && chargeSamples.size < 12) { main.postDelayed(chargeNotice, 1000); return@Runnable }
+        panel.chargeNotice(level, target, if (settled) ZuiBattery.chargeTimeLeft(this)?.let { ZuiBattery.formatTime(it) } else null)
     }
 
     /** El último umbral avisado (15, 10, 5); se olvida al enchufar o al pasar de 20 %. */

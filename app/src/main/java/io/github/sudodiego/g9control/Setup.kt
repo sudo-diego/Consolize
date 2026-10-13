@@ -67,11 +67,7 @@ fun SetupDialog(s: AppState, a: MainActivity, onClose: () -> Unit) {
                     ) {
                         if (!s.connected && s.padMode == PadMode.ANDROID) Button(onClick = { a.readAll() }) { Text(tr("Conectar", "Connect")) }
                     }
-                    Step(
-                        4, null, tr("Íconos de modo del G9 (opcional)", "G9 mode tiles (optional)"),
-                        tr("En los ajustes rápidos (desliza dos veces hacia abajo), toca el lápiz y agrega «Android», «X-Input» y «DS5» (con el logo G9): cambian el modo con un toque.",
-                            "In quick settings (swipe down twice), tap the pencil and add “Android”, “X-Input” and “DS5” (with the G9 logo): they switch mode with one tap.")
-                    )
+                    // Sin el paso de los íconos de modo en los ajustes rápidos: el modo se cambia desde el panel de juego.
                     Hint(
                         tr("El firmware del G9 no se actualiza desde esta app. Si alguna vez lo necesitas, usa la app oficial de Legion una vez.",
                             "This app doesn't update the G9 firmware. If you ever need to, use the official Legion app once.")

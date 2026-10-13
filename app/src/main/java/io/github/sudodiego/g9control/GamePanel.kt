@@ -675,6 +675,9 @@ class GamePanel(private val svc: AutoModeService) {
         main.postDelayed({ SystemLevels.raiseWithUi(svc) }, 250)
     }
 
+    /** Prueba desde el PC (receptor de prueba del servicio): mover la selección como la cruceta. */
+    internal fun testMove(dx: Int, dy: Int) { if (isOpen) { poke(); moveGrid(dx, dy) } }
+
     private fun poke() {
         main.removeCallbacks(timeout)
         main.postDelayed(timeout, 10_000)
@@ -756,9 +759,9 @@ class GamePanel(private val svc: AutoModeService) {
                 ?: if (on == false && RaProxy.strandedNow) tr("RAOfflineProxy está apagado y tus emuladores le apuntan: sin logros ni con internet. Ábrelo: se vuelve a encender solo.",
                     "RAOfflineProxy is off and your emulators point to it: no achievements even online. Open it and press Start (or Stop).") else null
             add(PanelItem(tr("Logros", "Achievements"), Icons.Outlined.Star,
-                // El nombre y el estado se leen juntos ("Logros · También sin internet"); qué hace A, en la línea de abajo.
+                // El nombre y el estado se leen juntos ("Logros · Sin internet: sí"); qué hace A, en la línea de abajo.
                 sub = problem?.let { if (on == false) tr("No se guardan", "Not saved") else tr("Falta algo", "Something's missing") } ?: when (on) {
-                    true -> tr("También sin internet", "Offline too"); false -> tr("Solo con internet", "Online only"); null -> "RAOfflineProxy" },
+                    true -> tr("Sin internet: sí", "Offline: yes"); false -> tr("Sin internet: no", "Offline: no"); null -> "RAOfflineProxy" },
                 foot = if (problem != null && on != false) tr("A ver qué falta · B cerrar", "A see what's missing · B close")
                     else tr("A abrir RAOfflineProxy (logros sin internet) · B cerrar", "A open RAOfflineProxy (offline achievements) · B close"),
                 active = on == true && problem == null, danger = problem != null) {
@@ -797,7 +800,7 @@ class GamePanel(private val svc: AutoModeService) {
             val hasAuto = svc.bypassHasAuto()
             val isAuto = hasAuto && !ZuiBattery.manualOverride
             add(PanelItem("Bypass", Icons.Outlined.Power, active = bypassOn, sub = when {
-                isAuto -> if (bypassOn) tr("Automático · activo", "Automatic · on") else tr("Automático", "Automatic")
+                isAuto -> if (bypassOn) tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
                 bypassOn -> tr("Encendido", "On")
                 else -> tr("Apagado", "Off")
             }) {
@@ -848,7 +851,8 @@ class GamePanel(private val svc: AutoModeService) {
         svc.foregroundApp?.takeIf { it != svc.packageName && ZuiGame.inGame(svc) }?.let { pkg ->
             val r = GameAspect.get(svc, pkg)
             add(PanelItem(tr("Proporción", "Aspect"), Icons.Outlined.AspectRatio, PanelRow.SCREEN,
-                sub = r.label + tr(" · este juego", " · this game"), active = r != GameAspect.Ratio.FULL) {
+                sub = r.label, active = r != GameAspect.Ratio.FULL,
+                foot = tr("A pasar a ${r.next().label} (solo este juego, al volver a abrirlo) · B cerrar", "A switch to ${r.next().label} (this game only, when reopened) · B close")) {
                 val next = r.next()
                 scope.launch {
                     if (GameAspect.set(svc, pkg, next)) { refresh(); toast(tr("Proporción: ${next.label}", "Aspect: ${next.label}"), tr("Se ve al volver a abrir el juego.", "Shows when you reopen the game."), NoteKind.OK) }
@@ -1480,7 +1484,9 @@ class GamePanel(private val svc: AutoModeService) {
                 val slide = remember { androidx.compose.animation.core.Animatable(if (side) 1f else 0f) }
                 LaunchedEffect(Unit) { if (side) slide.animateTo(0f, androidx.compose.animation.core.tween(220)) }
                 Box(Modifier.fillMaxWidth().then(if (side || ui.lockedHeight || ThemeState.panelShape.ratio != null) Modifier.fillMaxHeight() else Modifier)
-                    .graphicsLayer { this.alpha = if (side) 1f else alpha.value; translationX = slide.value * size.width },
+                    .graphicsLayer { this.alpha = if (side) 1f else alpha.value; translationX = slide.value * size.width }
+                    // Con el dedo (deslizar la grilla, tocar) tampoco se cierra solo: antes solo contaban los botones.
+                    .pointerInput(Unit) { awaitPointerEventScope { while (true) { awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial); poke() } } },
                     contentAlignment = if (side) Alignment.CenterEnd else Alignment.Center) {
                     // La tarjeta se mide con el ancho que necesite (sin el límite de la ventana) y la ventana toma
                     // ese ancho: así no tapa el juego a los lados (un gesto o un toque ahí cerraba el panel).

@@ -49,15 +49,34 @@ private data class AppEntry(val pkg: String, val label: String, val icon: ImageB
 private object AppCache { @Volatile var apps: List<AppEntry>? = null }
 
 /**
- * Página "Por app": cada app con el modo del G9 en que se abre (cualquier app, no solo los juegos de Game Assistant). Arriba las opciones y la búsqueda; abajo una
- * cuadrícula de apps. Tocar una app pasa por Android → X-Input → DS5.
+ * Página "Por app": cada app con el modo del G9 en que se abre (cualquier app, no solo los juegos de Game Assistant).
+ * Tocar una app pasa por Android → X-Input → DS5. En pantalla ancha, las apps a la izquierda y las opciones (cambio
+ * automático y avisos) a la derecha, a la vista; en angosta, las opciones arriba (al final no se veían).
  */
 @Composable
 fun AutoPage(s: AppState, a: MainActivity) {
     // El cambio por app y sus avisos los hace el servicio de accesibilidad.
     Gate(s.autoServiceOn) {
-        AppPicker(s, a)
-        NoticesPanel(s, a)
+        if (LocalWide.current) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.weight(1.3f), verticalArrangement = Arrangement.spacedBy(12.dp)) { AppPicker(s, a) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) { AutoOptions(s, a); NoticesPanel(s, a) }
+        } else {
+            AutoOptions(s, a)
+            NoticesPanel(s, a)
+            AppPicker(s, a)
+        }
+    }
+}
+
+@Composable
+private fun AutoOptions(s: AppState, a: MainActivity) {
+    CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
+        Panel(tr("Cambio automático", "Automatic switching")) {
+            SwitchRow(tr("Cambiar el modo al abrir cada app", "Switch the mode when opening each app"), s.autoEnabled) { s.autoEnabled = it; AutoRules.setEnabled(a, it) }
+            SwitchRow(tr("Recordar volver a Android", "Remind to return to Android"), s.autoRemindReturn) {
+                s.autoRemindReturn = it; AutoRules.setRemindReturn(a, it)
+            }
+        }
     }
 }
 
@@ -87,13 +106,7 @@ private fun AppPicker(s: AppState, a: MainActivity) {
     }
     val chosen = s.autoRules
     val c = MaterialTheme.colorScheme
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        SearchBox(query, { query = it }, Modifier.weight(1f))
-        InlineSwitch(tr("Cambio automático", "Automatic switching"), s.autoEnabled) { s.autoEnabled = it; AutoRules.setEnabled(a, it) }
-        InlineSwitch(tr("Recordar volver a Android", "Remind to return to Android"), s.autoRemindReturn) {
-            s.autoRemindReturn = it; AutoRules.setRemindReturn(a, it)
-        }
-    }
+    SearchBox(query, { query = it }, Modifier.fillMaxWidth())
     val list = apps
     if (list == null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -106,7 +119,8 @@ private fun AppPicker(s: AppState, a: MainActivity) {
     val shown = list
         .filter { query.isBlank() || it.label.contains(query, true) }
         .sortedByDescending { it.pkg in chosen.keys }   // las que tienen modo primero
-    val cols = if (LocalWide.current) 6 else 3
+    // En ancha comparte la pantalla con las opciones: 3 columnas como en angosta.
+    val cols = 3
     Column(
         Modifier.alpha(if (s.autoEnabled) 1f else 0.5f),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -125,15 +139,6 @@ private fun AppPicker(s: AppState, a: MainActivity) {
                 repeat(cols - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-    }
-}
-
-@Composable
-private fun InlineSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 14.sp)
-        Spacer(Modifier.width(10.dp))
-        Switch(checked, onChange)
     }
 }
 
