@@ -76,6 +76,9 @@ object Shell {
     // Apps activas (con un servicio en primer plano: video, música, descargas), como "Apps activas" de los ajustes
     // rápidos de Android, y detenerlas como su botón Detener (`am stop-app`: la app y sus servicios).
     const val PROCESSES = "dumpsys activity processes"
+    // Shadow Rec grabando: Game Assistant tiene una captura de pantalla activa (su pantalla virtual "HL-ScreenRecorder").
+    // Con Game Assistant oculto no hay otra señal (su ícono flotante tampoco se ve).
+    const val MEDIA_PROJ = "dumpsys media_projection"
     // RAOfflineProxy encendido: su servicio del proxy corre (ver RaProxy).
     const val RA_PROXY = "dumpsys activity services ${RaProxy.PACKAGE}"
     // Configuración de logros de RetroArch y Dolphin (para ver si apuntan al proxy y tienen sesión; el token no se
@@ -101,7 +104,7 @@ object Shell {
 
     private fun allowed(cmd: String) =
         cmd in setOf(GA_GET, GA_SHOW, GA_HIDE, GA_LOG, BYPASS_GET, BYPASS_ON, BYPASS_OFF, LIMIT_GET, LIMIT_LEVEL, BACK_LONG, SF_LIST,
-            WIFI_ON, WIFI_OFF, BT_ON, BT_OFF, PROCESSES, TOP, RA_PROXY, RA_CFG, RA64_CFG, DOLPHIN_RA) || TOUCH.matches(cmd) || STOP_APP.matches(cmd) || PIDOF.matches(cmd) || WM_SIZE.matches(cmd) || SF_LATENCY.matches(cmd) || REFRESH.matches(cmd) || WIDE_SET.matches(cmd) || WIDE_LIST.matches(cmd) || cmd == INPUT_LIST ||
+            WIFI_ON, WIFI_OFF, BT_ON, BT_OFF, PROCESSES, MEDIA_PROJ, TOP, RA_PROXY, RA_CFG, RA64_CFG, DOLPHIN_RA) || TOUCH.matches(cmd) || STOP_APP.matches(cmd) || PIDOF.matches(cmd) || WM_SIZE.matches(cmd) || SF_LATENCY.matches(cmd) || REFRESH.matches(cmd) || WIDE_SET.matches(cmd) || WIDE_LIST.matches(cmd) || cmd == INPUT_LIST ||
             (app != null && cmd.startsWith(screenCmd("")) && SCREEN.matches(cmd.removePrefix(screenCmd(""))))
 
     /** Para Ajustes (Compose lo vuelve a leer al cambiar). */

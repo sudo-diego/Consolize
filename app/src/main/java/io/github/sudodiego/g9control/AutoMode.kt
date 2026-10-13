@@ -485,6 +485,7 @@ class AutoModeService : AccessibilityService() {
                         // Mover la selección del panel: --ei dx … --ei dy … (como la cruceta).
                         "move" -> panel.testMove(i.getIntExtra("dx", 0), i.getIntExtra("dy", 0))
                         "pick" -> panel.testPick()
+                        "alt" -> panel.testAlt()
                         // Un aviso del panel: --es title … [--es line …] [--es kind OK|FAIL].
                         "toast" -> panel.message(i.getStringExtra("title") ?: "Aviso", i.getStringExtra("line"),
                             runCatching { NoteKind.valueOf(i.getStringExtra("kind") ?: "INFO") }.getOrDefault(NoteKind.INFO))

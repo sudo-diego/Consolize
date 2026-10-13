@@ -148,6 +148,7 @@ class GamePanel(private val svc: AutoModeService) {
         svc.setPanelSticks(true)
         poke()
         main.removeCallbacks(live); main.postDelayed(live, LIVE_MS)
+        scope.launch { readShadow() }
         if (RaProxy.isEmulator(svc.foregroundApp) && RaProxy.installed(svc)) scope.launch {
             val before = RaProxy.activeNow to RaProxy.setupNow
             RaProxy.stranded(svc)   // también lee si está encendido
@@ -329,7 +330,7 @@ class GamePanel(private val svc: AutoModeService) {
     private val live: Runnable = object : Runnable {
         override fun run() {
             if (!isOpen) return
-            if (!inPerfMenu && fadeAnim == null) { header(); refresh() }
+            if (!inPerfMenu && fadeAnim == null) { header(); refresh(); scope.launch { readShadow() } }
             main.postDelayed(this, LIVE_MS)
         }
     }
@@ -679,6 +680,8 @@ class GamePanel(private val svc: AutoModeService) {
     internal fun testMove(dx: Int, dy: Int) { if (isOpen) { poke(); moveGrid(dx, dy) } }
     /** Prueba desde el PC: A sobre lo elegido. */
     internal fun testPick() { if (isOpen) { poke(); ui.items.getOrNull(ui.sel)?.run?.invoke() } }
+    /** Prueba desde el PC: Y sobre lo elegido. */
+    internal fun testAlt() { if (isOpen) { poke(); ui.items.getOrNull(ui.sel)?.alt?.invoke() } }
 
     private fun poke() {
         main.removeCallbacks(timeout)
@@ -1099,8 +1102,17 @@ class GamePanel(private val svc: AutoModeService) {
     private var shadowKnown = false
     private fun shadowOn(): Boolean {
         if (findNode(ZuiGame.PACKAGE, id = SHADOW_FLOAT) != null) shadowKnown = true
-        else if (ZuiGame.hiddenNow == false || gaShownByUs) shadowKnown = false
+        else shadowRecording?.let { shadowKnown = it }
+            ?: run { if (ZuiGame.hiddenNow == false || gaShownByUs) shadowKnown = false }
         return shadowKnown
+    }
+
+    /** Shadow Rec grabando según el sistema (con Shizuku; null = no se sabe). Se lee al abrir el panel y mientras está. */
+    @Volatile private var shadowRecording: Boolean? = null
+    private suspend fun readShadow() {
+        if (Shell.state != Shell.State.READY || !ZuiGame.inGame(svc)) return
+        val now = Shell.run(Shell.MEDIA_PROJ)?.contains("(${ZuiGame.PACKAGE},") ?: return
+        if (now != shadowRecording) { shadowRecording = now; if (isOpen && !inPerfMenu) refresh() }
     }
 
     /**
@@ -1230,6 +1242,7 @@ class GamePanel(private val svc: AutoModeService) {
         }
         tapNode(i)
         shadowKnown = !was
+        shadowRecording = !was
         delay(900)
         // Al tocarlo su panel se cierra solo; si quedó abierto, se cierra.
         if (findNode(ZuiGame.PACKAGE, listOf("Clean RAM", "Screen shot")) != null) swipe(bar, open = false)
