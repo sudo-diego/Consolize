@@ -185,6 +185,15 @@ class AutoModeService : AccessibilityService() {
         val smartWant = AutoRules.smartBypass(this) && game && conds
         val limitWant = limit != null && level >= limit - (if (smartOn) 3 else 0)
         val want = plugged && (smartWant || limitWant)
+        // El porqué, para el panel (mosaico Bypass): carga, calor, las dos, o el límite propio.
+        val lv = "$level % ≥ $minLevel %"; val tp = "${temp.toInt()} °C ≥ $minTemp °C"
+        ZuiBattery.autoWhy = if (!want) null else when {
+            limitWant && !smartWant -> tr("por límite", "by limit") to tr("Límite de carga: $level % ≥ $limit %", "Charge limit: $level % ≥ $limit %")
+            grace -> tr("fuera del juego", "out of game") to tr("Sigue 1 min fuera del juego", "Stays on 1 min out of the game")
+            byLevel && byTemp -> tr("carga y calor", "charge and heat") to tr("Batería $lv · $tp", "Battery $lv · $tp")
+            byTemp && minTemp > 0 -> tr("por calor", "by heat") to tr("Temperatura $tp", "Temperature $tp")
+            else -> tr("por carga", "by charge") to tr("Batería $lv", "Battery $lv")
+        }
         if (want == smartOn) return
         Log.d(TAG, "bypass automático: ${if (want) "activar" else "desactivar"} (batería $level %, $temp °C, juego $game, límite $limit)")
         smartOn = want

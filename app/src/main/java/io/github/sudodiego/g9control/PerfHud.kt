@@ -180,7 +180,11 @@ class PerfHud(private val svc: AutoModeService) {
         // Promedio del último minuto (el mismo del panel) y lo que dura la batería a ese ritmo.
         val avg = PowerLog.recentAvg?.takeIf { has(AutoRules.PerfItem.PWR) && !held && !charging }
         val left = if (has(AutoRules.PerfItem.LEFT) && !held) remaining(charging) else null
-        val ms = fps?.takeIf { it > 0 }?.let { 1000.0 / it }
+        // Tiempo de cuadro del último segundo: el promedio y, si hubo un tirón (un cuadro 20 % más largo), el peor en
+        // amarillo ("↑41.7"). Antes era solo 1000 / FPS: nunca mostraba los tirones que sí se veían en el gráfico.
+        val ms = frameAvgMs.takeIf { fps != null && it > 0 }
+        val worst = frameMaxMs.takeIf { ms != null && it > ms * 1.2 }
+        fun msText(sep: String) { ms?.let { colored(sep + "%.1f ms".format(it), MUTED) }; worst?.let { colored(" ↑%.1f".format(it), WARM) } }
         val hz = if (has(AutoRules.PerfItem.HZ)) hz() else null
         val cap = if (has(AutoRules.PerfItem.MAX)) cpuCap() else null
         val ram = if (has(AutoRules.PerfItem.RAM)) ramFree() else null
@@ -196,7 +200,7 @@ class PerfHud(private val svc: AutoModeService) {
             // Columna: una fila por dato elegido, la etiqueta en una columna fija. Mientras estén elegidas, las filas
             // están siempre (con "—" si falta el dato): si cambiaba la cantidad, la ventana no siempre crecía.
             fun row(name: String) { if (sb.isNotEmpty()) sb.append("\n"); label(name.padEnd(5)) }
-            if (has(AutoRules.PerfItem.FPS)) { row("FPS"); sb.append(fps?.let { "%3d".format(it) } ?: "  —"); ms?.let { colored("  %.1f ms".format(it), MUTED) } }
+            if (has(AutoRules.PerfItem.FPS)) { row("FPS"); sb.append(fps?.let { "%3d".format(it) } ?: "  —"); msText("  ") }
             if (has(AutoRules.PerfItem.CPU)) { row("CPU"); sb.append(cpuGhz?.let { "%.1f GHz".format(it) } ?: "—"); temp(maxTemp("cpu"), 75, 90) }
             if (has(AutoRules.PerfItem.GPU)) { row("GPU"); sb.append(gpu?.let { "%3d %%".format(it) } ?: "—"); temp(maxTemp("gpu"), 70, 85) }
             // Columna: solo texto (los íconos son de la barra). En pausa = enchufada sin cargar (bypass o límite).
@@ -214,7 +218,7 @@ class PerfHud(private val svc: AutoModeService) {
             // Barra: los mismos datos, en dos líneas (rendimiento arriba; batería y pantalla abajo).
             val top = mutableListOf<() -> Unit>()
             val bottom = mutableListOf<() -> Unit>()
-            if (has(AutoRules.PerfItem.FPS) && fps != null) top += { sb.append("$fps "); label("FPS"); ms?.let { colored(" %.1f ms".format(it), MUTED) } }
+            if (has(AutoRules.PerfItem.FPS) && fps != null) top += { sb.append("$fps "); label("FPS"); msText(" ") }
             if (has(AutoRules.PerfItem.CPU)) top += { label("CPU "); sb.append(cpuGhz?.let { "%.1f GHz".format(it) } ?: "—"); temp(maxTemp("cpu"), 75, 90) }
             if (has(AutoRules.PerfItem.GPU)) top += { label("GPU "); sb.append(gpu?.let { "$it %" } ?: "—"); temp(maxTemp("gpu"), 70, 85) }
             if (has(AutoRules.PerfItem.MAX)) top += { label("MAX "); capText(cap) }
@@ -305,6 +309,9 @@ class PerfHud(private val svc: AutoModeService) {
 
     /** Tiempos entre los últimos cuadros (ms), de los últimos ~4 s (se van sumando los de cada lectura). */
     @Volatile private var frameTimes: List<Float> = emptyList()
+    /** Tiempo de cuadro del último segundo (ms): promedio y el más largo. */
+    @Volatile private var frameAvgMs = 0.0
+    @Volatile private var frameMaxMs = 0.0
     /** Momentos de presentación ya vistos (ns), para no repetirlos ni perder cuadros entre lecturas. */
     private val presentedSeen = java.util.ArrayDeque<Long>()
 
@@ -396,7 +403,9 @@ class PerfHud(private val svc: AutoModeService) {
         val newest = presentedSeen.peekLast() ?: return 0
         if (newest < now - 1_000_000_000L) return 0
         val recent = presentedSeen.filter { it > newest - 1_000_000_000L }
-        if (recent.size < 2) return recent.size
+        if (recent.size < 2) { frameAvgMs = 0.0; frameMaxMs = 0.0; return recent.size }
+        val gaps = recent.zipWithNext { a, b -> (b - a) / 1e6 }
+        frameAvgMs = gaps.average(); frameMaxMs = gaps.max()
         return Math.round((recent.size - 1) * 1e9 / (newest - recent.first()).toDouble()).toInt()
     }
 

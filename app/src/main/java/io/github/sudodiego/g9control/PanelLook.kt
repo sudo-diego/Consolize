@@ -393,7 +393,6 @@ private fun PanelHeader(ui: PanelUi) {
                 Spacer(Modifier.width(10.dp))
                 Row(Modifier.clip(RoundedCornerShape(12.dp)).background(tileColor).padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    if (ui.bypass) { Icon(Icons.Outlined.Power, "Bypass", Modifier.size(16.dp), tint = TILE_ON); Spacer(Modifier.width(3.dp)) }
                     if (ui.battery >= 0) {
                         BatteryGlyph(ui.battery, ui.charging, ui.bypass, ui.held)
                         Spacer(Modifier.width(6.dp))

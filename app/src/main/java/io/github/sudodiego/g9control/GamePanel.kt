@@ -802,9 +802,16 @@ class GamePanel(private val svc: AutoModeService) {
             val hasAuto = svc.bypassHasAuto()
             val isAuto = hasAuto && !ZuiBattery.manualOverride
             add(PanelItem("Bypass", Icons.Outlined.Power, active = bypassOn, sub = when {
-                isAuto -> if (bypassOn) tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
+                isAuto -> if (bypassOn) ZuiBattery.autoWhy?.let { tr("Auto: ", "Auto: ") + it.first } ?: tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
                 bypassOn -> tr("Encendido", "On")
                 else -> tr("Apagado", "Off")
+            }, foot = when {
+                // Automático y activo: con los números de por qué (batería, temperatura o límite).
+                isAuto && bypassOn -> (ZuiBattery.autoWhy?.second?.let { "$it · " } ?: "") + tr("A encender a mano · B cerrar", "A turn on manually · B close")
+                isAuto -> tr("A encender a mano · B cerrar", "A turn on manually · B close")
+                bypassOn -> tr("A apagar · B cerrar", "A turn off · B close")
+                hasAuto -> tr("A volver al automático · B cerrar", "A back to automatic · B close")
+                else -> tr("A encender · B cerrar", "A turn on · B close")
             }) {
                 hide()
                 if (!isAuto && !bypassOn && hasAuto) {

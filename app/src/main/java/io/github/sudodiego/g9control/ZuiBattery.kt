@@ -40,6 +40,12 @@ object ZuiBattery {
         manualOn = prefs!!.getBoolean("bypass_manual_on", false)
     }
 
+    /**
+     * Por qué el automático lo quiere encendido, para el panel: corto ("por carga") y con los números ("Batería 72 % ≥
+     * 60 %"). Null si no lo quiere.
+     */
+    @Volatile var autoWhy: Pair<String, String>? = null
+
     /** El bypass encendido lo puso el automático (o el límite propio), no el usuario: para mostrarlo en el panel. */
     @Volatile var byAuto = false
         private set
