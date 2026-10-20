@@ -43,7 +43,7 @@ private fun GuidePanel(a: MainActivity) {
     var burst by remember { mutableStateOf(AutoRules.burstShots(a)) }
     var streamTip by remember { mutableStateOf(AutoRules.streamTip(a)) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Botón guía", "Guide button"), tr("El botón del centro del control", "The button in the middle of the controller"),
+        Panel(tr("Botón guía", "Guide button"), null,
             trailing = { Switch(on, { on = it; AutoRules.setLegionKeys(a, it) }, enabled = LocalGateOk.current) }) {
             CompositionLocalProvider(LocalEditable provides (on && LocalGateOk.current)) {
                 fun row(g: AutoRules.Guide) = states.getValue(g)
