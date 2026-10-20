@@ -206,7 +206,12 @@ private fun SideBar(s: AppState, a: MainActivity) {
                 // Una sección de una sola pestaña se elige como pestaña; las demás llevan a su primera y se abren.
                 SectionRow(sec, selected = current && pages.size == 1, current = current,
                     focus = if (pages.size == 1) focus.getValue(pages[0].page) else null) { s.goTo(sec) }
-                if (current && pages.size > 1) Column(Modifier.padding(start = 14.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                // Las pestañas se despliegan al entrar y se pliegan al salir (aparecer de golpe se sentía brusco).
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = current && pages.size > 1,
+                    enter = androidx.compose.animation.expandVertically(tween(220)) + fadeIn(tween(220)),
+                    exit = androidx.compose.animation.shrinkVertically(tween(180)) + fadeOut(tween(120))
+                ) { Column(Modifier.padding(start = 14.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     pages.forEach { item ->
                         if (item.page == Page.HOME) Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("LEGION G9", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = c.onSurfaceVariant)
@@ -214,7 +219,7 @@ private fun SideBar(s: AppState, a: MainActivity) {
                         }
                         SideItem(item, s.page == item.page, focus.getValue(item.page)) { s.page = item.page }
                     }
-                }
+                } }
             }
         }
         // Conexión del G9: en sus páginas (tocarla vuelve a leer el control).
@@ -262,7 +267,7 @@ private fun SectionRow(sec: Section, selected: Boolean, current: Boolean, focus:
     CompositionLocalProvider(LocalRippleConfiguration provides null) {
         Surface(
             onClick = onClick, shape = RoundedCornerShape(14.dp),
-            color = if (selected) c.primaryContainer else Color.Transparent,
+            color = androidx.compose.animation.animateColorAsState(if (selected) c.primaryContainer else Color.Transparent, tween(200), label = "sec").value,
             border = if (focused) BorderStroke(2.dp, c.primary) else null,
             interactionSource = source, modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
         ) {
@@ -287,7 +292,7 @@ private fun SideItem(item: NavItem, sel: Boolean, focus: FocusRequester, onClick
     CompositionLocalProvider(LocalRippleConfiguration provides null) {
         Surface(
             onClick = onClick, shape = RoundedCornerShape(14.dp),
-            color = if (sel) c.primaryContainer else Color.Transparent,
+            color = androidx.compose.animation.animateColorAsState(if (sel) c.primaryContainer else Color.Transparent, tween(200), label = "tab").value,
             border = if (focused) BorderStroke(2.dp, c.primary) else null,
             interactionSource = source, modifier = Modifier.fillMaxWidth().focusRequester(focus)
         ) {
