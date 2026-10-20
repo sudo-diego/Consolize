@@ -34,7 +34,7 @@ fun TabletHomePage(s: AppState, a: MainActivity) {
     // Dos líneas en la tarjeta de Inicio: Resumen (estado y accesos) y Apps abiertas. Los controles y sus atajos ya
     // están en Controles.
     Centered {
-        if (s.only?.contains(tr("Apps abiertas", "Open apps")) == true) MemoryPanel(s, a)
+        if (LocalOnlyPanels.current?.contains(tr("Apps abiertas", "Open apps")) == true) MemoryPanel(s, a)
         else {
             ServiceWarning(s, a)
             ShizukuWarning(a)
@@ -271,7 +271,7 @@ private fun ShortcutsHelp(s: AppState, a: MainActivity) {
  * con "MB" y "%" sin títulos y un historial de "Vuelven solas": no se entendía.
  */
 @Composable
-private fun MemoryPanel(s: AppState, a: MainActivity) {
+internal fun MemoryPanel(s: AppState, a: MainActivity) {
     val scope = rememberCoroutineScope()
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(3000); tick++ } }
@@ -335,4 +335,15 @@ private fun android.graphics.drawable.Drawable.toBitmapSafe(): android.graphics.
     val b = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
     setBounds(0, 0, 96, 96); draw(android.graphics.Canvas(b))
     return b
+}
+
+/** El resumen de Inicio, directo en su tarjeta (sin entrar a una línea): avisos, estado y accesos rápidos. */
+@Composable
+fun HomeSummary(s: AppState, a: MainActivity) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        ServiceWarning(s, a)
+        ShizukuWarning(a)
+        TabletNowTiles(a)
+        QuickTiles(s, a)
+    }
 }

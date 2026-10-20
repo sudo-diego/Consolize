@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.border
@@ -169,7 +171,8 @@ fun App(s: AppState, a: MainActivity) {
             // Como el inicio de una consola: arriba, dos barras de vidrio (secciones con LB/RB a la izquierda; batería y hora a
             // la derecha); al medio, los mosaicos de la sección o la página; abajo, la ayuda. Igual en horizontal y vertical.
             Column(Modifier.fillMaxSize()) {
-                TopStatus()
+                // En la tarjeta de Inicio la batería ya está en el resumen: arriba solo la hora.
+                TopStatus(showBattery = !(s.inHub && s.section == Section.HOME))
                 // La franja de Vista + Menú, solo en el inicio del G9 (en las demás páginas basta el aviso de cada una).
                 if (s.page == Page.HOME && !s.inHub) ModeStrip(s)
                 PageHost(s, a, Modifier.weight(1f))
@@ -327,11 +330,8 @@ private fun SideItem(item: NavItem, sel: Boolean, compact: Boolean, focus: Focus
 
 /** Con la barra compacta no se ven los nombres: el de la página va arriba del contenido. */
 @Composable
-private fun PageTitle(s: AppState) {
-    val item = NAV.firstOrNull { it.page == s.page } ?: return
-    val base = sectionName(s.section)
-    val title = listOfNotNull(base, s.sub, s.detail).joinToString(" · ")
-    if (s.inHub) return
+private fun PageTitle(s: AppState, section: Section, sub: String?) {
+    val title = listOfNotNull(sectionName(section), sub, s.detail.takeIf { !s.inHub }).joinToString(" · ")
     Text(title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
 }
 /** Pestañas horizontales, como en una consola: LB/RB a los lados para cambiar. */
@@ -562,10 +562,19 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     // tamaño.
     Box(modifier.padding(horizontal = 16.dp)) { CategoryFrame(s) {
     AnimatedContent(
-        targetState = Triple(s.section, if (s.inHub) null else s.page, s.sub),
-        transitionSpec = { (fadeIn() togetherWith fadeOut()).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() }) },
+        // Lo que se ve, completo: al volver con B, lo que se va sigue mostrando lo suyo mientras se desvanece (antes
+        // leía el estado nuevo y por un instante salía otra parte de la página).
+        targetState = Screen(s.section, if (s.inHub) null else s.page, s.sub, s.only),
+        transitionSpec = {
+            val from = Section.entries.indexOf(initialState.section); val to = Section.entries.indexOf(targetState.section)
+            // Entre categorías, la tarjeta se desliza hacia el lado al que se va; entrar o volver, fundido.
+            val move = if (from == to || initialState.page != null || targetState.page != null) null else if (to > from) 1 else -1
+            val enter = if (move == null) fadeIn(tween(160)) else slideInHorizontally(tween(220)) { it / 6 * move } + fadeIn(tween(220))
+            val exit = if (move == null) fadeOut(tween(120)) else slideOutHorizontally(tween(220)) { -it / 6 * move } + fadeOut(tween(160))
+            (enter togetherWith exit).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() })
+        },
         label = "page"
-    ) { (section, pageOrHub, sub) ->
+    ) { (section, pageOrHub, sub, only) ->
         val page = pageOrHub ?: s.page
         val scroll = rememberScrollState()
         // Al abrir un menú, el foco entra a su primera opción (si no, se perdía y saltaba a la barra lateral).
@@ -577,12 +586,12 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
         var hadWin by remember { mutableStateOf(winFocused) }
         LaunchedEffect(winFocused) { if (winFocused && !hadWin) { kotlinx.coroutines.delay(60); runCatching { enter.requestFocus() } }; hadWin = winFocused }
         if (pageOrHub == null) Box(Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup()) { CategoryHub(s) }
-        else CompositionLocalProvider(LocalOnlyPanels provides s.only) { Column(
+        else CompositionLocalProvider(LocalOnlyPanels provides only) { Column(
             Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup().verticalScroll(scroll)
                 .padding(horizontal = 36.dp).padding(top = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            PageTitle(s)
+            PageTitle(s, section, sub)
             // Páginas que no hacen nada sin el servicio de accesibilidad (dibujar sobre los juegos, leer el control en
             // cualquier app, pedir la frecuencia): lo dicen arriba, con el botón para activarlo.
             if (page in SERVICE_PAGES && !s.autoServiceOn) NeedsBanner(
@@ -614,6 +623,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
                         Page.CONTROLS -> ShortcutsPage(s, a)
                         Page.G9_PREFS -> G9PrefsPage(s, a)
                         Page.DIAGNOSTICS -> DiagnosticsPage(s, a)
+                        Page.USAGE -> UsagePage(s, a)
                     }
                 }
             }
@@ -725,8 +735,12 @@ val LocalCentered = androidx.compose.runtime.compositionLocalOf { false }
 fun DrawingPane(
     drawing: @Composable ColumnScope.() -> Unit, side: @Composable ColumnScope.() -> Unit
 ) {
-    // Una sola columna (como el resto de la app): el dibujo arriba y lo demás debajo, en una hoja.
-    Centered {
+    // En horizontal, el dibujo a la izquierda (a tamaño razonable) y lo demás a la derecha: en una columna el mando quedaba
+    // gigante y tapaba las opciones.
+    if (LocalWide.current) Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        Column(Modifier.weight(1.2f), verticalArrangement = Arrangement.spacedBy(16.dp), content = drawing)
+        Column(Modifier.weight(1f)) { Sheet(content = side) }
+    } else Centered {
         drawing()
         Sheet(content = side)
     }
@@ -1180,12 +1194,19 @@ fun AccentPicker(current: Accent, onPick: (Accent) -> Unit) {
     // FlowRow: en una fila, sin ancho para el código, el texto se partía letra por letra y dejaba un hueco alto.
     @OptIn(ExperimentalLayoutApi::class)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        @Composable fun dot(sel: Boolean, fill: Modifier, desc: String, onClick: () -> Unit) = Box(
-            Modifier.size(36.dp).clip(CircleShape)
-                .then(Modifier.border(if (sel) 3.dp else 1.dp, if (sel) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, CircleShape))
-                .padding(if (sel) 5.dp else 3.dp).clip(CircleShape).then(fill)
-                .clickable(onClick = onClick).semantics { contentDescription = desc }
-        )
+        // Con el control: el que tiene el foco crece y lleva un anillo del color de la app (antes no se notaba dónde estaba).
+        @Composable fun dot(sel: Boolean, fill: Modifier, desc: String, onClick: () -> Unit) {
+            val src = remember { MutableInteractionSource() }
+            val focused by src.collectIsFocusedAsState()
+            val c = MaterialTheme.colorScheme
+            Box(
+                Modifier.size(36.dp).drawScale(if (focused) 1.18f else 1f)
+                    .clip(CircleShape)
+                    .clickable(interactionSource = src, indication = null, onClick = onClick).semantics { contentDescription = desc }
+                    .border(if (focused || sel) 3.dp else 1.dp, if (focused) c.primary else if (sel) c.onSurface else c.outline, CircleShape)
+                    .padding(if (focused || sel) 5.dp else 3.dp).clip(CircleShape).then(fill)
+            )
+        }
         Accent.PRESETS.forEach { acc -> dot(acc == current, Modifier.background(acc.color(!dark)), acc.hex) { onPick(acc) } }
         // Personalizado: arcoíris (o el color elegido si no es un atajo).
         dot(!isPreset, if (isPreset) Modifier.background(androidx.compose.ui.graphics.Brush.sweepGradient(
@@ -1230,3 +1251,6 @@ private fun CustomColorDialog(start: Accent, onDismiss: () -> Unit, onDone: (Acc
         dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancelar", "Cancel")) } }
     )
 }
+
+/** Lo que muestra el centro: la tarjeta de [section] (page null) o una de sus líneas abierta. */
+private data class Screen(val section: Section, val page: Page?, val sub: String?, val only: Set<String>?)

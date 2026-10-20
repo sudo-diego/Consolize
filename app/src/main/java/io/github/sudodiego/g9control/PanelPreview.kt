@@ -67,10 +67,13 @@ val LocalPanelInert = compositionLocalOf { false }
  */
 @Composable
 fun PanelPage(s: AppState, a: MainActivity) {
-    // Una columna: la vista previa arriba y las opciones debajo.
-    Centered {
-        // Chica y al centro: que se vean las opciones debajo sin bajar.
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Box(Modifier.widthIn(max = 560.dp)) { PanelPreviewCard(a) } }
+    // Aquí sí dos columnas en horizontal: la vista previa a la izquierda y las opciones a la derecha, así se ve el cambio
+    // al hacerlo (en una columna las opciones quedaban debajo y no se notaba que estaban).
+    if (LocalWide.current) Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        Column(Modifier.weight(1.1f)) { PanelPreviewCard(a) }
+        Column(Modifier.weight(1f)) { Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } } }
+    } else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        PanelPreviewCard(a)
         Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } }
     }
 }

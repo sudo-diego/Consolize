@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -45,10 +46,8 @@ class Entry(val label: () -> String, val page: Page, val parts: (() -> Set<Strin
  * si la app vio uno.
  */
 fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
-    Section.HOME -> listOf(
-        Entry({ tr("Resumen", "Overview") }, Page.TABLET_HOME),
-        Entry({ tr("Apps abiertas", "Open apps") }, Page.TABLET_HOME) { setOf(tr("Apps abiertas", "Open apps")) },
-    )
+    // Inicio no tiene líneas: su tarjeta muestra el resumen directo.
+    Section.HOME -> emptyList()
     Section.GAMES -> listOf(
         Entry({ tr("Biblioteca", "Library") }, Page.GAMES),
         Entry({ tr("Hz en juegos", "Refresh rate in games") }, Page.GAMEPANEL) { setOf(tr("Hz en juegos", "Refresh rate in games")) },
@@ -59,7 +58,7 @@ fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
         val preview = { tr("Vista previa", "Preview") }
         listOf(
             Entry({ tr("Panel de juego", "Game panel") }, Page.PANEL) { setOf(preview(), tr("Panel de juego", "Game panel"), tr("Diseño", "Layout")) },
-            Entry({ tr("Fondo y colores", "Background and colors") }, Page.PANEL) { setOf(preview(), tr("Fondo", "Background"), tr("Colores", "Colors")) },
+            Entry({ tr("Apariencia", "Appearance") }, Page.PANEL) { setOf(preview(), tr("Fondo", "Background"), tr("Colores", "Colors")) },
             Entry({ tr("Capturas y monitor", "Screenshots and monitor") }, Page.CAPTURES),
         )
     }    Section.CONTROLS -> listOf(
@@ -79,8 +78,7 @@ fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
     Section.SYSTEM -> listOf(
         Entry({ tr("Batería", "Battery") }, Page.BATTERY) { setOf(tr("Batería", "Battery"), tr("Ahora", "Now")) },
         Entry({ tr("Avisos de batería", "Battery notices") }, Page.BATTERY) { setOf(tr("Avisos de batería", "Battery notices")) },
-        Entry({ tr("Consumo por app", "Draw per app") }, Page.BATTERY) { setOf(tr("Consumo por app", "Draw per app")) },
-        Entry({ tr("Sesiones de juego", "Game sessions") }, Page.BATTERY) { setOf(tr("Sesiones de juego", "Game sessions")) },
+        Entry({ tr("Uso", "Usage") }, Page.USAGE),
         Entry({ tr("Pantalla", "Screen") }, Page.SCREEN) { setOf(tr("Pantalla", "Screen")) },
         Entry({ tr("Monitor", "Monitor") }, Page.SCREEN) { setOf(tr("Monitor", "Monitor")) },
     )
@@ -137,7 +135,9 @@ fun CategoryHub(s: AppState) {
     val all = Section.entries
     val idx = all.indexOf(sec)
     fun go(d: Int) { all.getOrNull(idx + d)?.let { s.goTo(it) } }
-    val content: @Composable () -> Unit = { EntryList(s, sec) { d -> go(d) } }
+    val content: @Composable () -> Unit = {
+        if (sec == Section.HOME) HomeSummary(s, LocalContext.current as MainActivity) else EntryList(s, sec) { d -> go(d) }
+    }
     if (LocalWide.current) Row(Modifier.fillMaxSize().padding(36.dp), verticalAlignment = Alignment.CenterVertically) {
         CategoryHeader(s, sec, Modifier.weight(0.8f).padding(start = 24.dp))
         Spacer(Modifier.width(32.dp))
@@ -157,10 +157,7 @@ private fun CategoryHeader(s: AppState, sec: Section, modifier: Modifier) {
     val c = MaterialTheme.colorScheme
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val live = when (sec) {
-        Section.HOME -> ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))?.let {
-            val l = it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 / it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
-            tr("Batería $l %", "Battery $l %")
-        }
+        // Inicio: la batería ya está en su resumen.
         Section.GAMES -> GamesCache.apps?.count { it.game }?.let { tr("$it juegos", "$it games") }
         Section.CONTROLS -> android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
             .firstOrNull { !it.isVirtual && (it.sources and android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD }?.name
@@ -252,19 +249,21 @@ private fun Dock(s: AppState) {
 }
 /** Arriba a la derecha, chico (como la versión en la Wii U): la batería y la hora. */
 @Composable
-fun TopStatus() {
+fun TopStatus(showBattery: Boolean = true) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); tick++ } }
-    val level = remember(tick) {
-        ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
-            ?.let { it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 / it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1) }
-    }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(5_000); tick++ } }
+    // Cada 5 s: nivel, si carga y si está enchufada sin cargar (límite); el bypass, el que lee el servicio.
+    val bat = remember(tick) { ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)) }
+    val level = bat?.let { it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 / it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1) }
+    val charging = bat?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) == android.os.BatteryManager.BATTERY_STATUS_CHARGING
+    val plugged = (bat?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0
+    val bypass = ZuiBattery.bypassNow == true && plugged
     val time = remember(tick) { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
     Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 28.dp, top = 14.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
         // Con el mismo ícono de batería que el panel y el inicio.
-        if (level != null) { BatteryGlyph(level, charging = false, bypass = false); Spacer(Modifier.width(8.dp)) }
-        Text(listOfNotNull(level?.let { "$it %" }, time).joinToString("   "), fontSize = 22.sp, fontWeight = FontWeight.Medium,
+        if (showBattery && level != null) { BatteryGlyph(level, charging = charging && !bypass, bypass = bypass, held = plugged && !charging && !bypass); Spacer(Modifier.width(8.dp)) }
+        Text(listOfNotNull(level?.takeIf { showBattery }?.let { "$it %" }, time).joinToString("   "), fontSize = 22.sp, fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
     }
 }

@@ -28,7 +28,8 @@ fun BatteryPage(s: AppState, a: MainActivity) {
             Gate(s.autoServiceOn) { LowBatteryPanel(a) }
             ShizukuHint()
         },
-        second = { BatteryNowPanel(a); Gate(s.autoServiceOn) { PowerByAppPanel(a); SessionsPanel(a) } }
+        // Consumo por app y sesiones: en Sistema → Uso, junto a las apps abiertas.
+        second = { BatteryNowPanel(a) }
     )
 }
 
@@ -37,7 +38,7 @@ fun BatteryPage(s: AppState, a: MainActivity) {
  * juego un rato en cada modo, desenchufada.
  */
 @Composable
-private fun SessionsPanel(a: MainActivity) {
+internal fun SessionsPanel(a: MainActivity) {
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(10_000); tick++ } }
     val modes = remember(tick) { Sessions.byMode(a) }
@@ -79,7 +80,7 @@ private fun SessionsPanel(a: MainActivity) {
  * 5 s). Sirve para saber más o menos cuánto dura la batería con cada juego o emulador.
  */
 @Composable
-private fun PowerByAppPanel(a: MainActivity) {
+internal fun PowerByAppPanel(a: MainActivity) {
     var apps by remember { mutableStateOf(PowerLog.apps(a)) }
     LaunchedEffect(Unit) { while (true) { delay(10_000); apps = PowerLog.apps(a) } }
     val c = MaterialTheme.colorScheme
@@ -488,3 +489,16 @@ private fun ScreenRow(a: MainActivity) {
     }
 }
 
+/**
+ * Uso: qué gasta la tableta, para decidir qué conviene. Lo que está abierto ahora (RAM), cuánto consume cada app y
+ * cómo fueron las sesiones de juego (W, CPU, temperatura). Antes estaba repartido entre Inicio y Batería.
+ */
+@Composable
+fun UsagePage(s: AppState, a: MainActivity) {
+    Centered {
+        Sheet {
+            MemoryPanel(s, a)
+            Gate(s.autoServiceOn) { PowerByAppPanel(a); SessionsPanel(a) }
+        }
+    }
+}
