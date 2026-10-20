@@ -62,9 +62,10 @@ private fun SessionsPanel(a: MainActivity) {
         }
         if (list.isNotEmpty()) {
             Text(tr("Últimas", "Latest"), fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-            list.forEach { s ->
+            // Las de juegos desinstalados no salen (mostraban el nombre del paquete).
+            list.mapNotNull { s -> appLabel(a, s.pkg)?.let { s to it } }.forEach { (s, name) ->
                 Column {
-                    Text(RecentApps.label(a, s.pkg) + " · " + modeLabel(s.mode) + (s.hz?.let { " · $it Hz" } ?: ""), fontSize = 14.sp, maxLines = 1)
+                    Text(name + " · " + modeLabel(s.mode) + (s.hz?.let { " · $it Hz" } ?: ""), fontSize = 14.sp, maxLines = 1)
                     Text(listOfNotNull(ZuiBattery.formatTime(s.seconds * 1000L), s.avgWatts?.let { "%.1f W".format(it) },
                         s.avgCpuMhz?.let { "CPU " + Stats.cpuText(it) }, s.cpuMax?.let { "CPU $it °C" }, s.gpuMax?.let { "GPU $it °C" },
                         s.batMax?.let { tr("bat. $it °C", "bat. $it °C") }).joinToString(" · "), fontSize = 12.sp, color = c.onSurfaceVariant)
@@ -88,10 +89,9 @@ private fun PowerByAppPanel(a: MainActivity) {
     }) {
         if (apps.isEmpty()) Hint(tr("Se mide a batería con la pantalla encendida: usa la tablet desenchufada un rato y aquí sale el promedio de cada app.",
             "Measured on battery with the screen on: use the tablet unplugged for a while and each app's average shows up here."))
-        val pm = a.packageManager
         val full = remember { ZuiBattery.fullWh(a) }
-        apps.take(10).forEach { u ->
-            val label = remember(u.pkg) { runCatching { pm.getApplicationLabel(pm.getApplicationInfo(u.pkg, 0)).toString() }.getOrDefault(u.pkg) }
+        // Solo las instaladas: una desinstalada salía con el nombre del paquete.
+        apps.mapNotNull { u -> appLabel(a, u.pkg)?.let { u to it } }.take(10).forEach { (u, label) ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(label, fontSize = 15.sp, maxLines = 1)

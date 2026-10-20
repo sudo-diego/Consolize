@@ -5,6 +5,13 @@ import android.content.Intent
 import androidx.compose.ui.graphics.asImageBitmap
 
 /**
+ * Nombre de una app instalada, o null si ya no está (se desinstaló). Las listas guardadas por paquete (recientes,
+ * consumo por app) la quitan en vez de mostrar "com.empresa.juego".
+ */
+fun appLabel(ctx: Context, pkg: String): String? =
+    runCatching { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
+
+/**
  * Apps usadas hace poco, para volver a ellas desde el panel como a un juego en suspensión. Las anota el servicio al
  * cambiar de app (sabe cuál está al frente, sin permisos de uso): solo las que se abren desde el cajón, sin esta, las
  * pantallas de inicio ni Game Assistant. Volver abre su tarea donde quedó (no la reinicia).
@@ -46,10 +53,10 @@ object RecentApps {
         sp(ctx).edit().putString("list", list(ctx).filter { it != pkg }.joinToString(",")).remove("task_$pkg").apply()
     }
 
-    fun list(ctx: Context): List<String> = sp(ctx).getString("list", "")!!.split(',').filter { it.isNotBlank() }
+    /** Las recientes que siguen instaladas (una desinstalada salía con el nombre del paquete). */
+    fun list(ctx: Context): List<String> = sp(ctx).getString("list", "")!!.split(',').filter { it.isNotBlank() && appLabel(ctx, it) != null }
 
-    fun label(ctx: Context, pkg: String) =
-        runCatching { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
+    fun label(ctx: Context, pkg: String) = appLabel(ctx, pkg) ?: pkg
 
     /** Ícono de la app (se guarda: el panel lo pide cada vez que se abre). */
     fun icon(ctx: Context, pkg: String): androidx.compose.ui.graphics.ImageBitmap? = icons[pkg] ?: runCatching {
