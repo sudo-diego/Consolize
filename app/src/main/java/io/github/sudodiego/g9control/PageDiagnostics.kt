@@ -45,7 +45,7 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                 Text(tr("Color de la app", "App color"), fontSize = 14.sp)
                 AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
                 var full by remember { mutableStateOf(Prefs.fullscreen(a)) }
-                SwitchRow(tr("Pantalla completa", "Full screen"), full, tr("Sin las barras de Android; deslizando desde el borde vuelven", "Without Android's bars; swipe from the edge to show them")) {
+                SwitchRow(tr("Pantalla completa", "Full screen"), full) {
                     full = it; Prefs.setFullscreen(a, it); a.applyFullscreen()
                 }
                 SoundSettings(a)
@@ -211,25 +211,25 @@ private fun ConsolePanel(s: AppState, a: MainActivity) {
 @Composable
 fun GamePanelPage(s: AppState, a: MainActivity) {
     TwoPane(
-        // Capturas, monitor y frecuencia los hace el servicio de accesibilidad; Game Assistant tiene sus propios permisos.
-        first = { Gate(s.autoServiceOn) { GamePanelSettings(s, a) } },
-        second = { Gate(s.autoServiceOn) { GamesHzPanel(a) }; GameAssistantSettings(s, a); RaProxyPanel(s, a) }
+        // Lo de los juegos: Hz y Game Assistant; los logros a la derecha. Las capturas y el monitor pasaron a Panel.
+        first = { Gate(s.autoServiceOn) { GamesHzPanel(a) }; GameAssistantSettings(s, a) },
+        second = { RaProxyPanel(s, a) }
     )
 }
+
+/** Panel → Capturas y monitor: lo que se ve sobre el juego además del panel (antes estaba en "Juego"). */
+@Composable
+fun CapturesPage(s: AppState, a: MainActivity) = Gate(s.autoServiceOn) { GamePanelSettings(s, a) }
 
 /** Frecuencia para todos los juegos: sin esto el sistema la mueve entre 30 y 120 (en Ahorro, a 30). */
 @Composable
 private fun GamesHzPanel(a: MainActivity) {
     var hz by remember { mutableIntStateOf(RefreshRate.forGames(a) ?: 0) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Frecuencia en juegos", "Refresh rate in games"),
-            tr("Cada juego puede tener la suya desde el panel", "Each game can have its own from the panel")) {
+        Panel(tr("Hz en juegos", "Refresh rate in games")) {
             ChoiceChips(listOf(0 to tr("Sistema", "System")) + RefreshRate.supported(a).map { it to "$it Hz" }, hz) {
                 hz = it; RefreshRate.setForGames(a, it.takeIf { v -> v > 0 })
             }
-            Text(if (hz == 0) tr("Sistema: de 30 a 120 Hz según el juego.", "System: 30 to 120 Hz depending on the game.")
-                else tr("Siempre $hz Hz en los juegos.", "Always $hz Hz in games."),
-                fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -290,7 +290,7 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
     var perfPos by remember { mutableStateOf(AutoRules.perfPos(a)) }
     var perfFull by remember { mutableStateOf(AutoRules.perfFull(a)) }
     var perfList by remember { mutableStateOf(AutoRules.perfList(a)) }
-    CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
+    CompositionLocalProvider(LocalEditable provides LocalGateOk.current) { TwoPane(first = {
         Panel(tr("Capturas y grabación", "Screenshots and recording")) {
             NoticeBox(tr("Aviso", "Notice"), tr("Miniatura en la esquina", "Thumbnail in the corner"),
                 if (s.autoServiceOn) { { AutoRules.preview(a, "shot") } } else null,
@@ -299,22 +299,19 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
                 ChoiceChips(ShotSound.entries.map { it to it.label }, shotSound) { shotSound = it; AutoRules.setShotSound(a, it) }
             }
             SwitchRow(tr("Aviso con cualquier captura", "Notice for any screenshot"), s.anyShot,
-                tr("También con los botones de la tablet o los ajustes rápidos. Pide el permiso de fotos, solo para esto",
-                    "Also with the tablet buttons or quick settings. Asks for the photos permission, only for this")) { a.setAnyShot(it) }
+                tr("También las de Android · pide el permiso de fotos", "Android's too · asks for the photos permission")) { a.setAnyShot(it) }
             var overToast by remember { mutableStateOf(AutoRules.shotOverToast(a)) }
-            SwitchRow(tr("Tapar el aviso del sistema", "Cover the system notice"), overToast,
-                tr("Con las capturas de Android: abajo al centro, encima de su aviso", "With Android's screenshots: bottom center, over its notice")) {
+            SwitchRow(tr("Tapar el aviso de Android", "Cover Android's notice"), overToast) {
                 overToast = it; AutoRules.setShotOverToast(a, it)
             }
             // Grabación: dos, que no van juntas (las maneja el panel; ver la grabación en GamePanel).
-            InfoRow(tr("Grabar", "Record"), tr("Guía + LT · Pictures/screenrecorder", "Guide + LT · Pictures/screenrecorder"))
-            InfoRow("Shadow Rec", tr("Guía + RT guarda los últimos segundos · Movies/Highlight", "Guide + RT saves the last seconds · Movies/Highlight"))
-            Hint(tr("Shadow Rec graba siempre en un juego y guarda lo último al pedirlo. Con él encendido, la grabadora de Legion no funciona. En X-Input LT y RT no sirven: usa los mosaicos del panel.",
-                "Shadow Rec always records in a game and saves the latest when asked. While it's on, Legion's recorder doesn't work. In X-Input LT and RT don't work: use the panel tiles."))
+            InfoRow(tr("Grabar", "Record"), tr("Guía + LT", "Guide + LT"))
+            InfoRow("Shadow Rec", tr("Guía + RT · guarda lo último", "Guide + RT · saves the latest"))
             OutlinedButton(onClick = {
                 runCatching { a.startActivity(android.content.Intent().setClassName(ZuiGame.PACKAGE, "com.zui.ugame.gamesetting.ui.options.OptionActivity")) }
-            }) { Text(tr("Calidad y duración de Shadow Rec", "Shadow Rec quality and length")) }
+            }) { Text(tr("Calidad de Shadow Rec", "Shadow Rec quality")) }
         }
+        }, second = {
         Panel(tr("Monitor de rendimiento", "Performance monitor"), trailing = { Switch(perfHud, { perfHud = it; AutoRules.setPerfHud(a, it) }, enabled = LocalGateOk.current) }) {
             NoticeBox(tr("Datos", "Data"), tr("FPS, CPU, GPU y batería", "FPS, CPU, GPU and battery"), null,
                 side = { PosGrid(perfPos) { perfPos = it; AutoRules.setPerfPos(a, it) } }) {
@@ -329,7 +326,7 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
                 }
             }
         }
-    }
+        }) }
 }
 
 /**
@@ -353,9 +350,9 @@ private fun RaProxyPanel(s: AppState, a: MainActivity) {
         if (installed) Text(when (active) { true -> tr("Activo", "On"); false -> tr("Apagado", "Off"); null -> "" },
             fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
     }) {
-        Text(tr("RAOfflineProxy guarda los logros de RetroAchievements sin internet y los envía al volver (modo casual).",
-            "RAOfflineProxy keeps RetroAchievements unlocks offline and sends them when you're back online (casual mode)."),
-            fontSize = 14.sp)
+        Text(tr("Con RAOfflineProxy, los logros se guardan sin internet y se envían al volver.",
+            "With RAOfflineProxy, achievements are kept offline and sent when you're back online."),
+            fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (!installed) {
             Hint(tr("No está instalado: búscalo como RAOfflineProxy en GitHub u Obtainium. En esta tablet se usa con «Manual Emulator Setup» y Shizuku.",
                 "Not installed: look for RAOfflineProxy on GitHub or Obtainium. On this tablet use \u201cManual Emulator Setup\u201d and Shizuku."))
@@ -363,8 +360,8 @@ private fun RaProxyPanel(s: AppState, a: MainActivity) {
         }
         setups.forEach { st ->
             InfoRow(st.name, when {
-                !st.loggedIn -> tr("Falta iniciar sesión en RetroAchievements (en el emulador; sin internet funciona con el proxy encendido)", "Sign in to RetroAchievements (in the emulator; works offline with the proxy on)")
-                active == true && !st.toProxy -> tr("No apunta al proxy: apágalo y enciéndelo", "Not using the proxy: turn it off and on")
+                !st.loggedIn -> tr("Falta iniciar sesión", "Not signed in")
+                active == true && !st.toProxy -> tr("No usa el proxy: reinícialo", "Not using the proxy: restart it")
                 active == true -> tr("Listo", "Ready")
                 else -> tr("Sesión iniciada", "Signed in")
             })
@@ -388,7 +385,7 @@ private fun RaProxyPanel(s: AppState, a: MainActivity) {
         Hint(tr("«Preparar y abrir» cierra los emuladores y abre RAOfflineProxy para Start (después de reiniciar, abrirlo basta: se enciende solo). Apágalo con su Stop proxy, que deja todo como estaba.",
             "“Prepare and open” closes the emulators and opens RAOfflineProxy for Start (after a reboot, opening it is enough: it turns on by itself). Turn it off with its Stop proxy, which restores everything."))
         }
-        SwitchRow(tr("Aviso sin internet", "Offline notice"), hint, tr("Al abrir un emulador sin internet y con el proxy apagado", "When opening an emulator offline with the proxy off")) {
+        SwitchRow(tr("Avisar si está apagado sin internet", "Warn if it's off while offline"), hint) {
             hint = it; AutoRules.setRaProxyHint(a, it)
         }
     }
@@ -416,9 +413,7 @@ internal fun PanelLookPanel(a: MainActivity) {
         if (AutoModeService.active == null) Text(tr("Activa el servicio de accesibilidad para usar el panel.", "Turn on the accessibility service to use the panel."),
             fontSize = 13.sp, color = MaterialTheme.colorScheme.secondary)
         var duck by remember { mutableStateOf(Prefs.panelDuck(a)) }
-        SwitchRow(tr("Bajar el audio con el panel abierto", "Lower the audio while the panel is open"), duck,
-            tr("Como en una consola: el juego se oye más bajo mientras está abierto. Con Shizuku también los juegos; sin él, solo la música de otras apps.",
-                "Like a console: the game plays quieter while it's open. With Shizuku also games; without it, only other apps' music.")) { duck = it; Prefs.setPanelDuck(a, it) }
+        SwitchRow(tr("Bajar el audio con el panel abierto", "Lower the audio while the panel is open"), duck) { duck = it; Prefs.setPanelDuck(a, it) }
         if (duck) {
             var level by remember { mutableStateOf(Prefs.panelDuckLevel(a)) }
             ChoiceChips(listOf(0.6f to tr("Un poco", "A little"), 0.3f to tr("Bastante", "A lot"), 0f to tr("Silencio", "Mute")), level) {
@@ -427,8 +422,6 @@ internal fun PanelLookPanel(a: MainActivity) {
         }
         Text(tr("Estilo", "Style"), fontSize = 14.sp)
         ChoiceChips(PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
-        if (ThemeState.panelSide) Hint(tr("Pegado a la derecha, de alto completo, como el acceso rápido del Steam Deck. La imagen va de cabecera o de fondo.",
-            "Docked to the right, full height, like the Steam Deck's quick access menu. The image goes as the header or the background."))
         Text(tr("Fondo", "Background"), fontSize = 14.sp)
         ChoiceChips(PanelBackground.entries.map { it to it.label }, ThemeState.panelBackground) {
             if (it == PanelBackground.IMAGE && ThemeState.panelUri == null) a.pickPanelBackground()
@@ -491,7 +484,7 @@ internal fun PanelLookPanel(a: MainActivity) {
             }
         }
         SliderRow(tr("Tamaño (%)", "Size (%)"), ThemeState.panelScale, 60..120) { ThemeState.panelScale = it; Prefs.setPanelScale(a, it) }
-        SwitchRow(tr("Mini monitor", "Mini monitor"), stats, tr("RAM libre, watts, CPU y temperatura arriba del panel", "Free RAM, watts, CPU and temperature at the top of the panel")) {
+        SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
             stats = it; Prefs.setPanelStats(a, it)
         }
     }
@@ -511,7 +504,7 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
     var shizukuTile by remember { mutableStateOf(AutoRules.shizukuTile(a)) }
     Panel(tr("Permisos", "Permissions")) {
         PermRow(tr("Servicio de accesibilidad", "Accessibility service"), s.autoServiceOn,
-            tr("Panel de juego, atajos, capturas y lo automático", "Game panel, shortcuts, screenshots and automatic features")) {
+            tr("Panel, atajos y capturas", "Panel, shortcuts and screenshots")) {
             Hint(tr("Si sale «Ajuste restringido»: Ajustes → Apps → TBF Companion → ⋮ → Permitir ajustes restringidos.",
                 "If “Restricted setting” appears: Settings → Apps → TBF Companion → ⋮ → Allow restricted settings."))
             Button(onClick = { AutoRules.openServiceSettings(a) }) { Text(tr("Abrir accesibilidad", "Open accessibility")) }
@@ -523,8 +516,7 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         PermRow(tr("Shizuku (opcional)", "Shizuku (optional)"), shizuku == Shell.State.READY,
-            tr("Bypass y límite de carga, modos de rendimiento, que Ahorro no baje los Hz, ocultar Game Assistant, FPS, apps corriendo, WiFi y Bluetooth, revisar los emuladores para los logros, arrastrar con el mouse y la tablet apagada con un monitor",
-                "Bypass and charge limit, performance modes, keeping Saver from lowering the refresh rate, hiding Game Assistant, FPS, running apps, Wi-Fi and Bluetooth, checking emulators for achievements, dragging with the mouse and the tablet off with a monitor"),
+            tr("Bypass, rendimiento, FPS, apps abiertas y más", "Bypass, performance, FPS, open apps and more"),
             off = if (shizuku == Shell.State.NO_PERMISSION) tr("Falta el permiso", "Permission missing") else tr("No está iniciado", "Not started")
         ) {
             val launch = remember { Shell.launchIntent(a) }
@@ -544,8 +536,7 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         PermRow(tr("Permiso de pantalla", "Screen permission"), Aspect.canWrite(a),
-            tr("16:9, bloquear gestos y brillo automático en juegos · una vez desde un computador",
-                "16:9, gesture lock and auto brightness in games · once from a computer"), off = tr("Falta", "Missing")) {
+            tr("16:9 y brillo en juegos · se da una vez desde un computador", "16:9 and brightness in games · granted once from a computer"), off = tr("Falta", "Missing")) {
             Hint(Aspect.GRANT_COMMAND)
         }
     }

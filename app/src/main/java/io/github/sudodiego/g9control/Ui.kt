@@ -85,7 +85,7 @@ val LocalSliderHeld = compositionLocalOf<(Boolean) -> Unit> { {} }
 private val EDIT_PAGES = setOf(Page.LIGHTS, Page.STICKS, Page.VIBRATION)
 
 /** Páginas que dependen del servicio de accesibilidad (toda o una parte). */
-private val SERVICE_PAGES = setOf(Page.CONTROLS, Page.GAMEPANEL, Page.PANEL, Page.SCREEN, Page.AUTO, Page.BATTERY)
+private val SERVICE_PAGES = setOf(Page.CONTROLS, Page.GAMEPANEL, Page.PANEL, Page.CAPTURES, Page.SCREEN, Page.AUTO, Page.BATTERY)
 
 /** false dentro de un [Gate] cerrado: lo de adentro no se puede usar (ni aunque un panel diga editable). */
 val LocalGateOk = compositionLocalOf { true }
@@ -125,7 +125,8 @@ private val NAV = listOf(
     NavItem(Page.BATTERY, "Batería", "Battery", Icons.Outlined.BatteryChargingFull, Icons.Filled.BatteryChargingFull),
     NavItem(Page.SCREEN, "Pantalla", "Screen", Icons.Outlined.Monitor, Icons.Filled.Monitor),
     NavItem(Page.GAMEPANEL, "General", "General", Icons.Outlined.SportsEsports, Icons.Filled.SportsEsports),
-    NavItem(Page.PANEL, "Panel", "Panel", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
+    NavItem(Page.PANEL, "Aspecto", "Look", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
+    NavItem(Page.CAPTURES, "Capturas", "Screenshots", Icons.Outlined.Screenshot, Icons.Filled.Screenshot),
     NavItem(Page.CONTROLS, "Atajos", "Shortcuts", Icons.Outlined.Gesture, Icons.Filled.Gesture),
     // G9 (en Controles, bajo "Legion G9"; Por app en Juegos).
     NavItem(Page.HOME, "Control", "Controller", Icons.Outlined.Home, Icons.Filled.Home),
@@ -567,6 +568,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
                         Page.BATTERY -> BatteryPage(s, a)
                         Page.SCREEN -> ScreenPage(s, a)
                         Page.GAMEPANEL -> GamePanelPage(s, a)
+                        Page.CAPTURES -> CapturesPage(s, a)
                         Page.PANEL -> CompositionLocalProvider(LocalPageScroll provides scroll) { PanelPage(s, a) }
                         Page.CONTROLS -> ShortcutsPage(s, a)
                         Page.G9_PREFS -> G9PrefsPage(s, a)

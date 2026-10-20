@@ -47,8 +47,7 @@ private fun SessionsPanel(a: MainActivity) {
     Panel(tr("Sesiones de juego", "Game sessions"), trailing = {
         if (list.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { Sessions.reset(a); tick++ }
     }) {
-        if (list.isEmpty()) Hint(tr("Se anotan solas en los juegos (modo, Hz, W, CPU y temperaturas). Para comparar modos: el mismo juego unos minutos en cada uno, desenchufada.",
-            "Logged by themselves in games (mode, Hz, W, CPU and temperatures). To compare modes: the same game a few minutes in each, unplugged."))
+        if (list.isEmpty()) Hint(tr("Se anotan solas al jugar.", "Logged by themselves while playing."))
         if (modes.isNotEmpty()) {
             Text(tr("Por modo", "By mode"), fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
             modes.forEach { m ->
@@ -87,8 +86,7 @@ private fun PowerByAppPanel(a: MainActivity) {
     Panel(tr("Consumo por app", "Draw per app"), trailing = {
         if (apps.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { PowerLog.reset(a); apps = emptyList() }
     }) {
-        if (apps.isEmpty()) Hint(tr("Se mide a batería con la pantalla encendida: usa la tablet desenchufada un rato y aquí sale el promedio de cada app.",
-            "Measured on battery with the screen on: use the tablet unplugged for a while and each app's average shows up here."))
+        if (apps.isEmpty()) Hint(tr("Se mide con la tablet desenchufada.", "Measured with the tablet unplugged."))
         val full = remember { ZuiBattery.fullWh(a) }
         // Solo las instaladas: una desinstalada salía con el nombre del paquete.
         apps.mapNotNull { u -> appLabel(a, u.pkg)?.let { u to it } }.take(10).forEach { (u, label) ->
@@ -160,19 +158,19 @@ fun BatteryNowPanel(a: MainActivity) {
 private fun LowBatteryPanel(a: MainActivity) {
     Panel(tr("Avisos de batería", "Battery notices")) {
         var charge by remember { mutableStateOf(AutoRules.chargeNotice(a)) }
-        SwitchRow(tr("Al enchufar", "When plugged in"), charge, tr("Cuánto falta para el límite o para 100 %", "Time left to the limit or to 100 %")) {
+        SwitchRow(tr("Al enchufar", "When plugged in"), charge) {
             charge = it; AutoRules.setChargeNotice(a, it)
         }
         var chargeSound by remember { mutableStateOf(AutoRules.chargeSound(a)) }
         SwitchRow(tr("Sonido al enchufar", "Sound when plugged in"), chargeSound) { chargeSound = it; AutoRules.setChargeSound(a, it) }
         var low by remember { mutableStateOf(AutoRules.lowBattery(a)) }
-        SwitchRow(tr("Batería baja", "Low battery"), low, tr("Tarjeta a 15, 10 y 5 % sin cargador", "Card at 15, 10 and 5 % unplugged")) {
+        SwitchRow(tr("Batería baja", "Low battery"), low, tr("A 15, 10 y 5 %", "At 15, 10 and 5 %")) {
             low = it; AutoRules.setLowBattery(a, it)
         }
         var lowSound by remember { mutableStateOf(AutoRules.lowBatterySound(a)) }
         SwitchRow(tr("Con sonido", "With sound"), lowSound) { lowSound = it; AutoRules.setLowBatterySound(a, it) }
         var overToast by remember { mutableStateOf(AutoRules.lowBatteryOverToast(a)) }
-        SwitchRow(tr("Tapar el aviso del sistema", "Cover the system notice"), overToast, tr("Los dos avisos, abajo al centro, encima de los de ZUI", "Both notices, bottom center, over ZUI's")) {
+        SwitchRow(tr("Tapar el aviso de Android", "Cover Android's notice"), overToast) {
             overToast = it; AutoRules.setLowBatteryOverToast(a, it)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -274,8 +272,7 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
             }
             Gate(ready) {
                 SwitchRow(
-                    tr("Bypass", "Bypass"), bypass == true,
-                    tr("El cargador alimenta la tablet y la batería no carga.", "The charger powers the tablet; the battery doesn't charge.")
+                    tr("Bypass", "Bypass"), bypass == true, null
                 ) { want ->
                     if (ready) scope.launch { if (ZuiBattery.setBypass(want)) bypass = want }
                 }
@@ -289,7 +286,7 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                     if (games) tr("en un juego", "in a game") else null,
                     conds
                 ).joinToString(" · ")
-                SwitchRow(tr("Bypass automático", "Automatic bypass"), smart, if (smart) summary else tr("Se activa solo cuando conviene.", "Turns on by itself when it makes sense.")) {
+                SwitchRow(tr("Bypass automático", "Automatic bypass"), smart, if (smart) summary else null) {
                     smart = it; AutoRules.setSmartBypass(a, it)
                     // Que no peleen: el inteligente de Game Assistant queda en Manual (se puede con WRITE_SECURE_SETTINGS).
                     if (it && Aspect.canWrite(a)) runCatching { Settings.Global.putInt(a.contentResolver, "intelligent_bypass_charging_value", 0) }
@@ -301,8 +298,6 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                     SliderRow(tr("Batería desde", "Battery from"), level, 10..90, "$level %", snaps = listOf(20, 40, 60, 80)) {
                         level = it; AutoRules.setSmartBypassLevel(a, it)
                     }
-                    Hint(tr("Desde ese nivel deja de cargar y la batería se queda ahí. Entre 40 y 60 % es lo que más la cuida (el litio envejece menos a media carga); 80 % si quieres salir con más batería.",
-                        "From that level it stops charging and the battery stays there. 40–60 % is easiest on it (lithium ages less at half charge); 80 % if you want to leave with more battery."))
                     limit?.takeIf { level >= it - 5 }?.let { Hint(tr("El límite de ZUI ($it %) casi no deja llegar.", "ZUI's limit ($it %) barely lets it get there.")) }
                     // 30 en la barra = "Cualquiera" (se guarda 0). Se pega en 35, 38 y 41 °C.
                     SliderRow(tr("Temperatura de la batería desde", "Battery temperature from"), if (temp == 0) 30 else temp, 30..45,
@@ -316,8 +311,6 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                                 "When hot it turns on even with low battery (it stays at that level while it lasts).")
                             else tr("Solo cuando tiene esa batería y además está así de caliente.", "Only when it has that battery and is that hot too."))
                     }
-                    Hint(tr("Cargar con calor es lo que más gasta la batería. Bajo 35 °C cargar no la daña; desde 38 °C conviene no cargar mientras juegas; sobre 41 °C envejece bastante más rápido (y cerca de 45 °C Android corta la carga).",
-                        "Charging while hot wears the battery the most. Below 35 °C charging is fine; from 38 °C it's better not to charge while playing; above 41 °C it ages much faster (and near 45 °C Android stops charging)."))
                 }
             }
             OutlinedButton(onClick = { runCatching { a.startActivity(Intent(Intent.ACTION_POWER_USAGE_SUMMARY)) } }) {
@@ -354,8 +347,7 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
         }) {
             if (Aspect.available(a)) {
                 SwitchRow(
-                    tr("16:9 en cualquier monitor", "16:9 on any monitor"), all169,
-                    tr("Al conectar en espejo", "When connected in mirror mode. Back to 16:10 when unplugged.")
+                    tr("16:9 en cualquier monitor", "16:9 on any monitor"), all169, null
                 ) { all169 = it; Monitor.setAll169(a, it) }
             }
             Text(tr("Pantalla de la tablet", "Tablet screen"), fontSize = 14.sp)
@@ -376,8 +368,7 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
                 OutlinedButton(onClick = { AutoRules.darkenTablet(a); tick++ }) { Text(tr("Oscurecer ahora", "Darken now")) }
             }
             if (screen >= Monitor.Screen.NO_LIGHT && !ready) Hint(tr("Sin Shizuku queda oscura.", "Without Shizuku it's just dimmed."))
-            if (screen != Monitor.Screen.NORMAL) Hint(tr("Con el monitor en espejo. Si algo falla, el botón de encendido dos veces la enciende.",
-                "With the monitor in mirror mode. If anything goes wrong, pressing power twice turns it on."))
+            if (screen != Monitor.Screen.NORMAL) Hint(tr("Si algo falla: encendido dos veces la enciende.", "If anything fails: press power twice to turn it on."))
             if (known.isNotEmpty() && Aspect.available(a)) {
                 Text(tr("Monitores", "Monitors"), fontSize = 14.sp)
                 known.forEach { k ->
@@ -444,8 +435,7 @@ fun GameAssistantSettings(s: AppState, a: MainActivity) {
             Text(if (game) tr("En un juego", "In a game") else tr("Sin juego", "No game"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }) {
             // La única explicación de qué es "juego" en la app: lo que depende de Game Assistant (ZuiGame.inGame).
-            Hint(tr("«Juegos» son las apps que Game Assistant reconoce como juego. Para agregar o quitar una: Ajustes de Game Assistant → Manage my games.",
-                "“Games” are the apps Game Assistant treats as games. To add or remove one: Game Assistant settings → Manage my games."))
+            Hint(tr("Los juegos son los que reconoce Game Assistant (Manage my games).", "Games are the ones Game Assistant recognizes (Manage my games)."))
             CompositionLocalProvider(LocalEditable provides (ready && LocalGateOk.current)) {
                 SwitchRow(
                     tr("Ocultar Game Assistant", "Hide Game Assistant"), gaHidden == true
@@ -464,8 +454,7 @@ fun GameAssistantSettings(s: AppState, a: MainActivity) {
             }
             CompositionLocalProvider(LocalEditable provides (canWrite && LocalGateOk.current)) {
                 SwitchRow(
-                    tr("Brillo automático en juegos", "Auto brightness in games"), autoInGames,
-                    tr("Que Game Assistant no lo apague", "Keep Game Assistant from turning it off")
+                    tr("Brillo automático en juegos", "Auto brightness in games"), autoInGames, null
                 ) { want ->
                     if (runCatching { Settings.Global.putInt(a.contentResolver, GA_NO_AUTO_BRIGHTNESS, if (want) 0 else 1) }.isSuccess) autoInGames = want
                 }
@@ -510,7 +499,7 @@ private fun ScreenRow(a: MainActivity) {
     }
     SwitchRow(
         tr("Pantalla 16:9", "16:9 screen"), wide,
-        tr("Monitor sin bordes · cierra Dolphin si está abierto", "External monitor without borders. Switching closes Dolphin if it's open.")
+        tr("Cierra Dolphin si está abierto", "Closes Dolphin if it's open")
     ) { want ->
         scope.launch {
             if (want != Aspect.is169(a)) Aspect.toggle(a)
@@ -529,8 +518,7 @@ private fun GameAspectPanel(a: MainActivity) {
     val scope = rememberCoroutineScope()
     var apps by remember { mutableStateOf(GameAspect.apps(a)) }
     Panel(tr("Proporción por juego", "Aspect ratio per game")) {
-        Hint(tr("16:9 o 4:3 solo en ese juego, centrado y con franjas, sin cambiar la resolución de la tablet. Se elige en el panel de juego (mosaico Proporción) y se ve al volver a abrir el juego. Necesita Shizuku.",
-            "16:9 or 4:3 only in that game, centered with bars, without changing the tablet's resolution. Pick it in the game panel (Aspect tile); it shows when you reopen the game. Needs Shizuku."))
+        Hint(tr("Se elige en el panel (Proporción).", "Pick it in the panel (Aspect)."))
         if (apps.isEmpty()) Text(tr("Ningún juego todavía.", "No games yet."), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         apps.forEach { pkg ->
             Row(verticalAlignment = Alignment.CenterVertically) {

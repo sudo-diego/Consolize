@@ -1039,7 +1039,7 @@ class MainActivity : ComponentActivity() {
  * Páginas. HOME…PROFILES y AUTO son del G9 (HOME = su inicio, AUTO = modo por app, TEST = "Botones"); TABLET_HOME,
  * BATTERY, SCREEN y GAMEPANEL son de la tablet (sirven sin el G9); DIAGNOSTICS = "Ajustes", en las dos secciones.
  */
-enum class Page { HOME, LIGHTS, STICKS, VIBRATION, TEST, BACK, PROFILES, AUTO, G9_PREFS, TABLET_HOME, BATTERY, SCREEN, GAMEPANEL, CONTROLS, DIAGNOSTICS, PANEL }
+enum class Page { HOME, LIGHTS, STICKS, VIBRATION, TEST, BACK, PROFILES, AUTO, G9_PREFS, TABLET_HOME, BATTERY, SCREEN, GAMEPANEL, CONTROLS, DIAGNOSTICS, PANEL, CAPTURES }
 
 /**
  * Las partes de la app, por lo que se hace (no por aparato): Inicio, Juegos, Panel, Controles (con el G9 adentro, como
@@ -1049,7 +1049,7 @@ enum class Page { HOME, LIGHTS, STICKS, VIBRATION, TEST, BACK, PROFILES, AUTO, G
 enum class Section(val pages: List<Page>) {
     HOME(listOf(Page.TABLET_HOME)),
     GAMES(listOf(Page.GAMEPANEL, Page.AUTO)),
-    PANEL(listOf(Page.PANEL)),
+    PANEL(listOf(Page.PANEL, Page.CAPTURES)),
     CONTROLS(listOf(Page.CONTROLS, Page.TEST, Page.HOME, Page.LIGHTS, Page.STICKS, Page.VIBRATION, Page.BACK, Page.G9_PREFS)),
     SYSTEM(listOf(Page.BATTERY, Page.SCREEN)),
     SETTINGS(listOf(Page.DIAGNOSTICS)),

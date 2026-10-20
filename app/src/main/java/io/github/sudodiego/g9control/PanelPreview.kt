@@ -87,7 +87,6 @@ private fun PanelPreviewCard(a: MainActivity) {
         }) { Text(if (ThemeState.previewUri == null) tr("Usar una imagen", "Use an image") else tr("Quitar imagen", "Remove image")) }
     }) {
         PanelPreview()
-        Hint(tr("Así se ve sobre un juego. Los cambios se ven al instante.", "This is how it looks over a game. Changes show right away."))
     }
 }
 

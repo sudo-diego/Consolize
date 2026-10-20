@@ -74,14 +74,10 @@ private fun GuidePanel(a: MainActivity) {
                     row(AutoRules.Guide.RT_SHADOW).value = it; AutoRules.setGuide(a, AutoRules.Guide.RT_SHADOW, it)
                 }
             }
-            SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip, tr("Panel, menú y capturas en Artemis o Moonlight", "Panel, menu and screenshots in Artemis or Moonlight")) {
+            // Sin la nota larga de cómo se hace todo transmitiendo: lo dicen las filas de arriba ("Transmitiendo").
+            SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip, tr("Recuerda estos atajos en Artemis y Moonlight", "Reminds these shortcuts in Artemis and Moonlight")) {
                 streamTip = it; AutoRules.setStreamTip(a, it)
             }
-            // M dos veces es del G9 en DS5: solo se nombra si la tablet ya vio un G9.
-            Hint(if (Prefs.g9Seen(a)) tr("Transmitiendo (Artemis, Moonlight) la guía va al PC: el panel se abre con L3 + R3, el menú de la app con Start + Select y las capturas con M dos veces (G9 en DS5) o manteniendo L3 + R3.",
-                "While streaming (Artemis, Moonlight) the guide goes to the PC: open the panel with L3 + R3, the app menu with Start + Select, and take screenshots with M twice (G9 in DS5) or by holding L3 + R3.")
-            else tr("Transmitiendo (Artemis, Moonlight) la guía va al PC: el panel se abre con L3 + R3, el menú de la app con Start + Select y las capturas manteniendo L3 + R3.",
-                "While streaming (Artemis, Moonlight) the guide goes to the PC: open the panel with L3 + R3, the app menu with Start + Select, and take screenshots by holding L3 + R3."))
         }
     }
 }
@@ -108,14 +104,13 @@ private fun GuideTapPanel(a: MainActivity) {
                 if (tap == AutoRules.GuideTap.PASS) {
                     // Capturas nítidas con shaders como BFI o CRT beam simulator: que las saque el emulador.
                     var byGame by remember(pkg) { mutableStateOf(AutoRules.shotByGame(a, pkg)) }
-                    SwitchRow(tr("Guía + RB: captura del emulador", "Guide + RB: emulator screenshot"), byGame,
-                        tr("Sin filtros (BFI, CRT). En RetroArch asigna «Captura de pantalla» a RB", "Without filters (BFI, CRT). In RetroArch bind “Screenshot” to RB")) {
+                    SwitchRow(tr("Guía + RB: captura del emulador", "Guide + RB: emulator screenshot"), byGame) {
                         byGame = it; AutoRules.setShotByGame(a, pkg, it)
                     }
                 }
             }
-            Hint(tr("«Pasar al juego»: el emulador recibe la guía. En RetroArch, en Teclas rápidas: «Tecla para activar teclas rápidas» = la guía y «Mostrar menú» = otro botón (queda Guía + ese botón).",
-                "\u201cPass to the game\u201d: the emulator gets the guide. In RetroArch Hotkeys: \u201cHotkey enable\u201d = the guide and \u201cMenu toggle\u201d = another button (it becomes Guide + that button)."))
+            Hint(tr("«Pasar al juego»: el emulador recibe la guía (para sus teclas rápidas).",
+                "\u201cPass to the game\u201d: the emulator gets the guide (for its hotkeys)."))
         }
     }
 }
