@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Power
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -60,11 +61,17 @@ private fun TabletNowTiles(a: MainActivity) {
     val cpu = remember(tick) { cpuMhz() }
     Panel {
             b?.let {
+                // Las mismas palabras e íconos que el panel de juego (StatChip del mini monitor): bypass y "sin cargar" con
+                // el enchufe, cargando con el rayo.
+                val bypass = it.plugged && !it.charging && ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY
+                val held = it.plugged && !it.charging && !bypass
                 val state = when {
-                    it.plugged && !it.charging -> if (ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY) tr("Enchufada · bypass", "Plugged in · bypass") else ZuiBattery.heldLabel(a, it.level)
+                    bypass -> tr("Bypass · Activo", "Bypass · On")
+                    held -> ZuiBattery.heldLabel(a, it.level) + tr(" · Sin cargar", " · Not charging")
                     it.charging -> tr("Cargando", "Charging")
                     else -> tr("Con batería", "On battery")
                 }
+                val stateIcon = if (bypass || held) Icons.Outlined.Power else if (it.charging) Icons.Outlined.Bolt else null
                 // Debajo: lo que consume y cuánto dura, o cargando cuánto falta (hasta el límite, si hay) y lo que entra.
                 val w = remember(tick) { ZuiBattery.watts(a) }
                 val extra = when {
@@ -75,12 +82,21 @@ private fun TabletNowTiles(a: MainActivity) {
                     else -> listOfNotNull(w?.let { x -> "%.1f W".format(x) }, PowerLog.recentAvg?.let { x -> tr("prom. %.1f W", "avg %.1f W").format(x) },
                         remember(tick) { ZuiBattery.estimatedLeft(a) }?.let { ms -> ZuiBattery.formatTime(ms) }).joinToString(" · ")
                 }?.takeIf { s -> s.isNotEmpty() }
+                // Qué es el número: "Batería" con el mismo ícono de batería que el encabezado del panel.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BatteryGlyph(it.level, it.charging, bypass, held)
+                    Spacer(Modifier.width(8.dp))
+                    Text(tr("Batería", "Battery"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text("${it.level}", fontSize = 56.sp, fontWeight = FontWeight.SemiBold, lineHeight = 56.sp)
                     Text(" %", fontSize = 24.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
                     Spacer(Modifier.width(16.dp))
                     Column(Modifier.padding(bottom = 8.dp)) {
-                        Text(state, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            stateIcon?.let { ic -> Icon(ic, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(6.dp)) }
+                            Text(state, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        }
                         extra?.let { x -> Text(x, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
                     }
                 }
@@ -234,8 +250,9 @@ private fun HelpRow(title: String, desc: String) {
 }
 
 /**
- * Memoria: cuánta RAM queda, liberar (cierra lo que quedó en segundo plano) y, con Shizuku, las apps activas (con un
- * video, música o una descarga corriendo) para detenerlas, como "Apps activas" de los ajustes rápidos.
+ * Apps abiertas, como en una consola: cuánta RAM está en uso, cerrar lo que quedó de fondo antes de jugar y, con
+ * Shizuku, cada app con lo que gasta en palabras ("655 MB de RAM", "usando CPU") para cerrarla. Antes era una tabla
+ * con "MB" y "%" sin títulos y un historial de "Vuelven solas": no se entendía.
  */
 @Composable
 private fun MemoryPanel(s: AppState, a: MainActivity) {
@@ -248,95 +265,54 @@ private fun MemoryPanel(s: AppState, a: MainActivity) {
     LaunchedEffect(ready, tick / 2) { if (ready) tasks = Memory.tasks(a) }
     var busy by remember { mutableStateOf(false) }
     val c = MaterialTheme.colorScheme
-    Panel(tr("Memoria", "Memory"), trailing = {
-        Text(tr("${Memory.gb(info.freeBytes)} libres de ${Memory.gb(info.totalBytes)}", "${Memory.gb(info.freeBytes)} free of ${Memory.gb(info.totalBytes)}"),
-            fontSize = 14.sp, color = c.onSurfaceVariant)
-    }) {
-        val used = 1f - info.freeBytes.toFloat() / info.totalBytes.coerceAtLeast(1)
-        LinearProgressIndicator({ used }, Modifier.fillMaxWidth().height(8.dp), color = c.secondary, trackColor = c.surfaceVariant)
+    Panel(tr("Apps abiertas", "Open apps")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("Cierra las apps en segundo plano (no las activas, como un video sonando)", "Closes background apps (not active ones, like a playing video)"),
-                Modifier.weight(1f), fontSize = 14.sp, color = c.onSurfaceVariant)
+            Column(Modifier.weight(1f)) {
+                Text(tr("RAM en uso", "RAM in use"), fontSize = 13.sp, color = c.onSurfaceVariant)
+                Text(tr("${Memory.gb(info.totalBytes - info.freeBytes)} de ${Memory.gb(info.totalBytes)}", "${Memory.gb(info.totalBytes - info.freeBytes)} of ${Memory.gb(info.totalBytes)}"),
+                    fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            }
+            // Cierra lo que quedó en segundo plano; lo activo (un video sonando, una descarga) sigue.
             Button(onClick = {
                 busy = true
                 scope.launch {
                     val freed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Memory.freeAll(a) }
                     busy = false; tick++
-                    s.status = tr("Memoria liberada: ${Memory.gb(freed)}.", "Memory freed: ${Memory.gb(freed)}.")
+                    s.status = tr("Se liberaron ${Memory.gb(freed)}.", "Freed ${Memory.gb(freed)}.")
                 }
-            }, enabled = !busy) { Text(if (busy) tr("Liberando…", "Freeing…") else tr("Liberar memoria", "Free memory")) }
+            }, enabled = !busy) { Text(if (busy) tr("Cerrando…", "Closing…") else tr("Cerrar las de fondo", "Close background apps")) }
         }
-        // Administrador de tareas (con Shizuku): RAM y CPU de cada app, las activas marcadas, y detenerlas.
-        Text(tr("Apps corriendo", "Running apps"), fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        if (!ready) Hint(tr("Ver cuánta RAM y CPU usa cada app y detenerlas necesita Shizuku. Sin él, las activas se detienen en Ajustes rápidos → Apps activas.",
-            "Seeing each app's RAM and CPU and stopping them needs Shizuku. Without it, active apps are stopped in Quick settings → Active apps."))
+        val used = 1f - info.freeBytes.toFloat() / info.totalBytes.coerceAtLeast(1)
+        LinearProgressIndicator({ used }, Modifier.fillMaxWidth().height(6.dp), color = c.primary, trackColor = c.onSurface.copy(alpha = 0.08f))
+        if (!ready) Hint(tr("Para ver y cerrar cada app hace falta Shizuku.", "Seeing and closing each app needs Shizuku."))
         else if (tasks.isEmpty()) Text(tr("Leyendo…", "Reading…"), fontSize = 14.sp, color = c.onSurfaceVariant)
         else tasks.take(8).forEach { task ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 task.app.icon?.let { d ->
                     androidx.compose.foundation.Image(remember(task.app.pkg) { androidx.compose.ui.graphics.painter.BitmapPainter(d.toBitmapSafe().asImageBitmap()) },
-                        null, Modifier.size(28.dp))
-                    Spacer(Modifier.width(12.dp))
+                        null, Modifier.size(32.dp))
+                    Spacer(Modifier.width(14.dp))
                 }
-                // El nombre y sus marcas en pastillas: Activa (algo corriendo) y ↻ si volvió sola después de detenerla.
-                // El nombre entero arriba y las marcas debajo (en la misma línea no cabían).
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.weight(1f)) {
                     Text(task.app.label, fontSize = 15.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    val ret = Memory.returnOf(a, task.app.pkg)
-                    if (task.active || ret != null) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (task.active) TaskTag(null, tr("Activa", "Active"))
-                        // Solo el ícono de "vuelve" y el tiempo: con "Vuelve en…" no cabía en la columna del nombre.
-                        ret?.let { r -> TaskTag(Icons.Outlined.Autorenew, returnDelay(r.lastDelayMs)) }
-                    }
+                    // Lo que gasta, en palabras. La CPU solo si de verdad está trabajando (casi siempre es 0,0 %).
+                    val detail = listOfNotNull(
+                        tr("${task.ramMb} MB de RAM", "${task.ramMb} MB of RAM"),
+                        if (task.cpu >= 5) tr("usando CPU", "using CPU") else null,
+                        if (task.active) tr("en uso", "in use") else null,
+                        if (Memory.returnOf(a, task.app.pkg) != null) tr("se abre sola", "reopens by itself") else null
+                    ).joinToString(" · ")
+                    Text(detail, fontSize = 13.sp, color = c.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 }
-                Text("${task.ramMb} MB", Modifier.width(84.dp), fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End)
-                Text(if (task.cpu < 10) "%.1f %%".format(task.cpu) else "%.0f %%".format(task.cpu), Modifier.width(72.dp), fontSize = 14.sp, color = c.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.End)
                 Spacer(Modifier.width(8.dp))
                 OutlinedButton(onClick = {
                     tasks = tasks - task
                     scope.launch { Memory.stop(a, task.app.pkg); tick++ }
-                }) { Text(tr("Detener", "Stop")) }
-            }
-        }
-        // Historial guardado: las que se detuvieron aquí y volvieron solas, aunque ahora no estén corriendo.
-        if (ready) {
-            var hist by remember { mutableStateOf(Memory.returners(a)) }
-            LaunchedEffect(tick) { hist = Memory.returners(a) }
-            if (hist.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("Vuelven solas", "Come back by themselves"), Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                    ConfirmButton(tr("Borrar", "Clear")) { Memory.clearHistory(a); hist = emptyMap() }
-                }
-                val pm = a.packageManager
-                hist.entries.sortedByDescending { it.value.count }.forEach { (pkg, r) ->
-                    val label = remember(pkg) { runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg) }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.Autorenew, null, Modifier.size(18.dp), tint = c.secondary)
-                        Spacer(Modifier.width(10.dp))
-                        Text(label, Modifier.weight(1f), fontSize = 14.sp, maxLines = 1)
-                        Text(returnDelay(r.lastDelayMs) + if (r.count > 1) tr(" · ${r.count} veces", " · ${r.count} times") else "",
-                            fontSize = 14.sp, color = c.onSurfaceVariant)
-                    }
-                }
+                }) { Text(tr("Cerrar", "Close")) }
             }
         }
     }
 }
-/** Cuánto tardó en volver: "al instante" (menos de 15 s), "en 3 min", "en 1 h 5 min". */
-private fun returnDelay(ms: Long) = if (ms < 15_000) tr("al instante", "instantly") else tr("en ", "in ") + ZuiBattery.formatTime(ms)
-
-/** Una marca de la lista de apps: una pastilla chica con ícono opcional. */
-@Composable
-private fun TaskTag(icon: androidx.compose.ui.graphics.vector.ImageVector?, text: String) {
-    val c = MaterialTheme.colorScheme
-    Row(Modifier.background(c.secondaryContainer, RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        icon?.let { Icon(it, null, Modifier.size(14.dp), tint = c.onSecondaryContainer); Spacer(Modifier.width(4.dp)) }
-        Text(text, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = c.onSecondaryContainer, maxLines = 1, softWrap = false)
-    }
-}
-
 /** Ícono de app como bitmap (los adaptativos no son BitmapDrawable). */
 private fun android.graphics.drawable.Drawable.toBitmapSafe(): android.graphics.Bitmap {
     (this as? android.graphics.drawable.BitmapDrawable)?.bitmap?.let { return it }
