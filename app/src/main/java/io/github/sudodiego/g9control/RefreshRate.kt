@@ -102,6 +102,7 @@ object RefreshRate {
      */
     fun applyFor(ctx: Context, pkg: String?, done: () -> Unit = {}) {
         val want = wanted(ctx, pkg)
+        readingLowRefresh(ctx, pause = want != null || (ZuiGame.inGame(ctx) && !isHome(ctx, pkg)))
         main.post { window(ctx, want); done() }
         if (want != null) Log.d(AutoModeService.TAG, "pantalla a $want Hz ($pkg)")
         main.removeCallbacks(verify)
@@ -113,6 +114,31 @@ object RefreshRate {
         else if (forced != null) { restoreFor = { restoreSettings(ctx) }; main.postDelayed(restoreLater, if (want == null) 4000 else 0) }
         verifyFor = want?.let { w -> { check(ctx, pkg, w) } }
         if (want != null) main.postDelayed(verify, 1200)
+    }
+
+    /**
+     * Ahorro de energía del modo lectura de ZUI (`Global readingmode_lowrefresh`): con el modo lectura activo en la app,
+     * ZUI pone `readingmode_refreshrate` = 1 y el sistema limita la pantalla a max(min_refresh_rate, 30) con un voto de
+     * prioridad 17, más alto que el de la ventana de los Hz (visto en DisplayModeDirector/ZuiReadingModeService de
+     * services.jar). El límite se calcula solo al cambiar ese ajuste: según min_refresh_rate en ese momento bajaba a
+     * 30 o no, y por eso pasaba a veces. En un juego (o con Hz elegidos para la app, aunque sea "Sistema" en el juego)
+     * se apaga el ahorro mientras está al frente (ZUI quita el límite al instante; los colores del modo lectura siguen)
+     * y al salir se deja como estaba. Bajar a 30 sirve para leer; en un juego solo estorba.
+     */
+    private fun readingLowRefresh(ctx: Context, pause: Boolean) {
+        val cr = ctx.contentResolver
+        val p = sp(ctx)
+        runCatching {
+            if (pause && android.provider.Settings.Global.getInt(cr, "readingmode_lowrefresh", 0) == 1) {
+                p.edit().putBoolean("reading_low_paused", true).commit()
+                android.provider.Settings.Global.putInt(cr, "readingmode_lowrefresh", 0)
+                Log.d(AutoModeService.TAG, "ahorro del modo lectura apagado mientras haya Hz elegidos")
+            } else if (!pause && p.getBoolean("reading_low_paused", false)) {
+                android.provider.Settings.Global.putInt(cr, "readingmode_lowrefresh", 1)
+                p.edit().remove("reading_low_paused").commit()
+                Log.d(AutoModeService.TAG, "ahorro del modo lectura devuelto")
+            }
+        }.onFailure { Log.w(AutoModeService.TAG, "ahorro del modo lectura: $it") }
     }
 
     /** Apps (y Hz) que en Ahorro necesitaron los ajustes del sistema: al volver a ellas se fuerza de inmediato. */
