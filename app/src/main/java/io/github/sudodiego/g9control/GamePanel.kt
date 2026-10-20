@@ -1,5 +1,6 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.sync.withLock
 
 import android.accessibilityservice.AccessibilityService
@@ -143,9 +144,50 @@ class GamePanel(private val svc: AutoModeService) {
 
     val isOpen get() = view != null
 
-    fun toggle() = if (isOpen) hide() else show()
+    fun toggle() = if (isOpen || freezing) hide() else show()
 
+    /** Fondo "Juego en pausa": la imagen del juego a pantalla completa mientras el panel está abierto. */
+    private var freezeView: android.widget.ImageView? = null
+    private var freezing = false
+
+    /**
+     * Con el fondo "Juego en pausa": primero una imagen del juego (antes de que exista la ventana del panel, para que no
+     * salga en ella), que se pone a pantalla completa y un poco oscura, como un juego en pausa; detrás del panel va la
+     * misma, desenfocada. El juego sigue corriendo debajo (otra app no se puede pausar). Si no hay imagen, panel normal.
+     */
     fun show() {
+        if (ThemeState.panelBackground != PanelBackground.GAME || isOpen) return showNow()
+        if (freezing) return
+        freezing = true
+        scope.launch {
+            val shot = screenshotDisplay(whole = true)
+            if (!freezing) return@launch   // se cerró mientras tanto
+            freezing = false
+            if (shot != null) {
+                PanelFreeze.frame = shot.asImageBitmap()
+                val iv = android.widget.ImageView(svc).apply {
+                    setImageBitmap(shot); scaleType = android.widget.ImageView.ScaleType.FIT_XY
+                    setColorFilter(android.graphics.Color.argb(90, 0, 0, 0))
+                }
+                val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    PixelFormat.OPAQUE).apply { gravity = Gravity.TOP or Gravity.START; windowAnimations = android.R.style.Animation_Toast }
+                runCatching { wm.addView(iv, lp) }.onSuccess { freezeView = iv }
+            }
+            showNow()
+        }
+    }
+
+    private fun dropFreeze() {
+        freezing = false
+        PanelFreeze.frame = null
+        freezeView?.let { v -> v.animate().alpha(0f).setDuration(160).withEndAction { runCatching { wm.removeView(v) } }.start() }
+        freezeView = null
+    }
+
+    private fun showNow() {
         // Para el tema "Sistema" del panel.
         ThemeState.systemDark = (svc.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
@@ -441,6 +483,7 @@ class GamePanel(private val svc: AutoModeService) {
             ?.split(';')?.firstOrNull { it.startsWith("$uid/") }?.substringAfter('/')?.toFloatOrNull()?.coerceIn(0f, 1f) ?: 1f
 
     fun hide() {
+        dropFreeze()
         duckOff()
         main.removeCallbacks(live)
         fadeAnim?.cancel(); fadeAnim = null; ui.fade = 1f
@@ -1646,7 +1689,8 @@ class GamePanel(private val svc: AutoModeService) {
      * Imagen del juego ahora, para congelarla: solo su ventana (Android 14+), así no sale el panel mientras se
      * desvanece ni otra superposición; si no se puede, toda la pantalla. Como mucho una por segundo. Null si no se pudo.
      */
-    private suspend fun screenshotDisplay(): Bitmap? {
+    /** [whole]: toda la pantalla (el juego en pausa: con 16:9 la ventana del juego no llena la pantalla y se estiraba). */
+    private suspend fun screenshotDisplay(whole: Boolean = false): Bitmap? {
         if (Build.VERSION.SDK_INT < 30) return null
         val id = focusedAppWindow().takeIf { it >= 0 } ?: svc.appWindowId
         return suspendCancellableCoroutine { c ->
@@ -1660,7 +1704,7 @@ class GamePanel(private val svc: AutoModeService) {
                 }
                 override fun onFailure(code: Int) { if (c.isActive) c.resume(null) }
             }
-            if (Build.VERSION.SDK_INT >= 34 && id >= 0) svc.takeScreenshotOfWindow(id, io, callback)
+            if (!whole && Build.VERSION.SDK_INT >= 34 && id >= 0) svc.takeScreenshotOfWindow(id, io, callback)
             else svc.takeScreenshot(android.view.Display.DEFAULT_DISPLAY, io, callback)
         }
     }

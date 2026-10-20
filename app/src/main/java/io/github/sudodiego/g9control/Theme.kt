@@ -117,10 +117,11 @@ enum class PanelShape(val cols: Int, val ratio: Float? = null) {
 
 
 /** Fondo del panel de juego (aparte del de la app): el fondo de pantalla no se puede, el juego está detrás. */
-enum class PanelBackground { CLEAR, GRADIENT, IMAGE, PLAIN;
+/** GAME: el juego congelado (una imagen al abrir) a pantalla completa y desenfocado detrás del panel. */
+enum class PanelBackground { CLEAR, GRADIENT, IMAGE, GAME, PLAIN;
     val label get() = when (this) {
         CLEAR -> tr("Transparente", "Clear"); GRADIENT -> tr("Degradado", "Gradient")
-        IMAGE -> tr("Imagen o GIF", "Image or GIF"); PLAIN -> tr("Liso", "Plain")
+        IMAGE -> tr("Imagen o GIF", "Image or GIF"); GAME -> tr("Juego en pausa", "Paused game"); PLAIN -> tr("Liso", "Plain")
     }
 }
 

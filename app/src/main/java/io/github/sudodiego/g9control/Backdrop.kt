@@ -10,6 +10,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.layout.positionInWindow
 import android.graphics.ImageDecoder
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -85,6 +86,7 @@ private fun PanelBackdropLayer() {
         PanelBackground.CLEAR -> Box(Modifier.fillMaxSize().background((if (ThemeState.panelLight) Color(0xFFF2F5FA) else Color(0xFF0A0F1F))
             .copy(alpha = ThemeState.panelFill / 100f * 0.9f)))
         PanelBackground.GRADIENT -> GradientBackdrop(true, ThemeState.panelAccent)
+        PanelBackground.GAME -> FrozenGame(ThemeState.panelBlur)
         PanelBackground.IMAGE -> {
             val uri = ThemeState.panelUri
             if (uri == null) GradientBackdrop(true, ThemeState.panelAccent) else ImageBackdrop(uri, ThemeState.panelBlur, ThemeState.panelLoop, true, "panel",
@@ -345,5 +347,28 @@ fun Modifier.glassBg(color: Color, radius: androidx.compose.ui.unit.Dp): Modifie
         drawLayer(inner)
         drawRect(color.copy(alpha = color.alpha * p.tint / 100f))
         if (p.highlight > 0) drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = p.highlight / 100f * 0.2f), 0.5f to Color.Transparent))
+    }
+}
+
+/** La imagen del juego tomada al abrir el panel con el fondo "Juego en pausa" (null si no hay). */
+object PanelFreeze { var frame by mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+
+/**
+ * Detrás del panel: la parte del juego congelado que queda debajo de él (la imagen es de toda la pantalla; se corre
+ * según dónde está el panel en la pantalla), desenfocada. Sin imagen, oscuro.
+ */
+@Composable
+fun FrozenGame(blur: Int) {
+    val f = PanelFreeze.frame ?: return Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1F)))
+    val view = androidx.compose.ui.platform.LocalView.current
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    Canvas(Modifier.fillMaxSize().onGloballyPositioned {
+        val loc = IntArray(2); view.getLocationOnScreen(loc)
+        origin = it.positionInWindow() + Offset(loc[0].toFloat(), loc[1].toFloat())
+    }.graphicsLayer {
+        val r = maxOf(blur, 20).toFloat()
+        if (Build.VERSION.SDK_INT >= 31) renderEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP).asComposeRenderEffect()
+    }) {
+        translate(-origin.x, -origin.y) { drawImage(f) }
     }
 }
