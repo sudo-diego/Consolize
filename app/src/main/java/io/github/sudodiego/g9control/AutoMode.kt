@@ -1159,9 +1159,12 @@ class AutoModeService : AccessibilityService() {
         if (android.os.Build.VERSION.SDK_INT < 34 || on == panelSticks) return
         panelSticks = on
         // Recién abierto: hasta ver los sticks al centro (como mucho 2 s), ver [onMotionEvent].
+        main.removeCallbacks(recapture)
+        // Con Shizuku: el juego recibe "sticks al centro" antes de que el panel los tome (así se detiene aunque se
+        // mantenga el stick). Sin Shizuku, lo de antes: devolverle el stick mientras venga inclinado.
+        if (on && StickReset.center()) { settleUntil = 0; settleFirstBy = 0; main.postDelayed({ applyMotionSources() }, 30); return }
         settleUntil = if (on) android.os.SystemClock.uptimeMillis() + 2000 else 0
         settleFirstBy = if (on) android.os.SystemClock.uptimeMillis() + 300 else 0
-        main.removeCallbacks(recapture)
         applyMotionSources()
     }
 

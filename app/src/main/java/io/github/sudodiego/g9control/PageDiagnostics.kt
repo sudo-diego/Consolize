@@ -476,8 +476,7 @@ internal fun PanelLookPanel(a: MainActivity) {
                 SliderRow(tr("Transparencia", "Transparency"), ThemeState.panelSee, 0..100) { ThemeState.panelSee = it; Prefs.setPanelSee(a, it) }
             PanelBackground.GAME -> {
                 // El juego congelado a pantalla completa: cuánto se oscurece, y el desenfoque de lo que va detrás del panel.
-                var dim by remember { mutableIntStateOf(Prefs.panelPauseDim(a)) }
-                SliderRow(tr("Oscurecer", "Dim"), dim, 0..90) { dim = it; Prefs.setPanelPauseDim(a, it) }
+                SliderRow(tr("Oscurecer", "Dim"), ThemeState.panelPauseDim, 0..90) { ThemeState.panelPauseDim = it; Prefs.setPanelPauseDim(a, it) }
                 SliderRow(tr("Desenfoque", "Blur"), ThemeState.panelBlur, 0..100) { ThemeState.panelBlur = it; Prefs.setPanelBlur(a, it) }
             }
             PanelBackground.IMAGE -> {

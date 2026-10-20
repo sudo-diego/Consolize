@@ -210,3 +210,39 @@ object Shell {
         }.onFailure { Log.w(AutoModeService.TAG, "Shizuku: $command falló", it) }.getOrNull()
     }
 }
+
+/**
+ * Le dice al juego "sticks al centro" (con Shizuku: inyectar eventos de entrada es de shell). Al abrir el panel los
+ * sticks pasan a él y, si se mantenía uno inclinado, el juego nunca se enteraba de que se soltó: el personaje seguía
+ * caminando. Un evento por cada control, con todos los ejes en 0, antes de que el panel tome los sticks.
+ */
+object StickReset {
+    private val inject: Pair<Any, java.lang.reflect.Method>? by lazy {
+        runCatching {
+            val binder = rikka.shizuku.ShizukuBinderWrapper(rikka.shizuku.SystemServiceHelper.getSystemService("input"))
+            val im = Class.forName("android.hardware.input.IInputManager\$Stub").getMethod("asInterface", android.os.IBinder::class.java).invoke(null, binder)!!
+            im to im.javaClass.getMethod("injectInputEvent", android.view.InputEvent::class.java, Int::class.javaPrimitiveType)
+        }.onFailure { Log.w(AutoModeService.TAG, "sin inyección de eventos", it) }.getOrNull()
+    }
+
+    /** True si se mandó a todos los controles. */
+    fun center(): Boolean {
+        if (Shell.state != Shell.State.READY) return false
+        val (im, m) = inject ?: return false
+        val now = android.os.SystemClock.uptimeMillis()
+        var ok = true
+        for (devId in android.view.InputDevice.getDeviceIds()) {
+            val d: android.view.InputDevice = android.view.InputDevice.getDevice(devId) ?: continue
+            if (d.isVirtual || (d.sources and android.view.InputDevice.SOURCE_JOYSTICK) != android.view.InputDevice.SOURCE_JOYSTICK) continue
+            run {
+                val props = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0; toolType = android.view.MotionEvent.TOOL_TYPE_UNKNOWN })
+                val coords = arrayOf(android.view.MotionEvent.PointerCoords())   // todos los ejes en 0
+                val e = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE, 1, props, coords, 0, 0, 1f, 1f,
+                    d.id, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
+                ok = ok && runCatching { m.invoke(im, e, 0) as? Boolean ?: true }.getOrDefault(false)
+                e.recycle()
+            }
+        }
+        return ok
+    }
+}

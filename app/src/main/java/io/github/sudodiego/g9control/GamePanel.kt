@@ -179,7 +179,7 @@ class GamePanel(private val svc: AutoModeService) {
             freezing = false
             if (shot != null) {
                 PanelFreeze.frame = shot.asImageBitmap()
-                freezeView?.apply { setImageBitmap(shot); setColorFilter(android.graphics.Color.argb(Prefs.panelPauseDim(svc) * 255 / 100, 0, 0, 0)) }
+                freezeView?.apply { alpha = 0f; setImageBitmap(shot); setColorFilter(android.graphics.Color.argb(Prefs.panelPauseDim(svc) * 255 / 100, 0, 0, 0)); animate().alpha(1f).setDuration(140).start() }
             }
             showNow()
         }
@@ -187,7 +187,11 @@ class GamePanel(private val svc: AutoModeService) {
     private fun dropFreeze() {
         freezing = false
         // Después de que se fue el panel (160 ms) y suave: al mismo tiempo, parpadeaba.
-        freezeView?.let { v -> v.animate().alpha(0f).setStartDelay(170).setDuration(220).withEndAction { runCatching { wm.removeView(v) }; if (!isOpen && !freezing) PanelFreeze.frame = null }.start() }
+        freezeView?.let { v -> v.animate().alpha(0f).setStartDelay(170).setDuration(220).withEndAction {
+            // Vacía primero y se quita dos cuadros después: quitarla de una mostraba un cuadro con la imagen oscura otra vez.
+            v.setImageDrawable(null); v.visibility = android.view.View.INVISIBLE
+            main.postDelayed({ runCatching { wm.removeView(v) }; if (!isOpen && !freezing) PanelFreeze.frame = null }, 50)
+        }.start() }
         // La imagen de detrás del panel se borra recién al final: borrarla al cerrar dejaba un fondo oscuro mientras el panel
         // se desvanecía (el parpadeo).
         freezeView = null

@@ -350,6 +350,9 @@ fun Modifier.glassBg(color: Color, radius: androidx.compose.ui.unit.Dp): Modifie
     }
 }
 
+/** La vista previa del panel: su juego de muestra, para el fondo "Juego en pausa" (no hay imagen real). */
+val LocalPreviewScene = compositionLocalOf<(@Composable () -> Unit)?> { null }
+
 /** La imagen del juego tomada al abrir el panel con el fondo "Juego en pausa" (null si no hay). */
 object PanelFreeze { var frame by mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
 
@@ -359,7 +362,12 @@ object PanelFreeze { var frame by mutableStateOf<androidx.compose.ui.graphics.Im
  */
 @Composable
 fun FrozenGame(blur: Int) {
-    val f = PanelFreeze.frame ?: return Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1F)))
+    // En la vista previa no hay imagen del juego: el juego de muestra, desenfocado.
+    val f = PanelFreeze.frame ?: return LocalPreviewScene.current?.let { scene ->
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            if (Build.VERSION.SDK_INT >= 31) maxOf(blur, 20).toFloat().let { r -> renderEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP).asComposeRenderEffect() }
+        }) { scene() }
+    } ?: Box(Modifier.fillMaxSize().background(Color(0xFF0A0F1F)))
     val view = androidx.compose.ui.platform.LocalView.current
     var origin by remember { mutableStateOf(Offset.Zero) }
     Canvas(Modifier.fillMaxSize().onGloballyPositioned {

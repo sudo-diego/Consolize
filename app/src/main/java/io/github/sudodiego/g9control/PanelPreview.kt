@@ -1,5 +1,6 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.ui.focus.focusProperties
@@ -100,6 +101,10 @@ private fun PanelPreviewCard(a: MainActivity) {
         }) { Text(if (ThemeState.previewUri == null) tr("Usar una imagen", "Use an image") else tr("Quitar imagen", "Remove image")) }
     }) {
         PanelPreview()
+        // Aviso discreto: en ese modo el juego no se pausa, solo se congela la imagen.
+        if (ThemeState.panelBackground == PanelBackground.GAME) Text(
+            tr("El juego no se pausa: se congela la imagen y sigue corriendo detrás.", "The game doesn't pause: the picture freezes and it keeps running behind."),
+            fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -126,8 +131,12 @@ fun PanelPreview() {
         // no llegan (la capa de encima se los queda).
         Box(Modifier.requiredWidth(w.dp).height(h).clip(RoundedCornerShape(14.dp))) {
             GameScene(Modifier.fillMaxSize())
+            // Juego en pausa: el juego oscurecido como al abrir el panel.
+            if (ThemeState.panelBackground == PanelBackground.GAME)
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = ThemeState.panelPauseDim / 100f)))
             val base = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(base.density * panelScale * f, base.fontScale), LocalPanelInert provides true) {
+            CompositionLocalProvider(LocalDensity provides Density(base.density * panelScale * f, base.fontScale), LocalPanelInert provides true,
+                LocalPreviewScene provides { GameScene(Modifier.fillMaxSize()) }) {
                 val side = ThemeState.panelSide
                 Box(Modifier.fillMaxSize(), contentAlignment = if (side) Alignment.CenterEnd else Alignment.Center) {
                     PanelCard(ui, Modifier.wrapContentWidth(unbounded = true), onPick = { ui.sel = it }, onSet = { _, _ -> })
