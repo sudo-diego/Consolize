@@ -1331,13 +1331,13 @@ class AutoModeService : AccessibilityService() {
     }
 
     /**
-     * RAOfflineProxy apagado con los emuladores apuntándole (pasa al reiniciar): avisar. Al desbloquear y también al
-     * arrancar el servicio: tras un reinicio, el servicio de accesibilidad se conecta DESPUÉS del desbloqueo y ese aviso
-     * no llegaba. Shizuku puede tardar en arrancar ("Start on boot"): se espera. Una vez cada 10 min como mucho.
+     * Al desbloquear y al arrancar el servicio (tras un reinicio se conecta DESPUÉS del desbloqueo): Shizuku no arrancó
+     * solo y algo elegido lo necesita, avisar. Shizuku puede tardar en arrancar ("Start on boot"): se espera. Una vez
+     * cada 10 min como mucho. RAOfflineProxy apagado ya no se avisa aquí: solo al entrar a un emulador ([raProxyHint]),
+     * porque al encender la tablet no se sabe si se va a jugar con logros.
      */
     private var lastRaBootCheck = 0L
     private fun raBootCheck() {
-        if (!AutoRules.raProxyHint(this) || !RaProxy.installed(this)) return
         val now = android.os.SystemClock.uptimeMillis()
         if (now - lastRaBootCheck < 10 * 60_000L && lastRaBootCheck > 0) return
         lastRaBootCheck = now
@@ -1346,11 +1346,6 @@ class AutoModeService : AccessibilityService() {
             // Shizuku no arrancó solo (su inicio al encender falla a veces: ver CONTEXTO) y algo elegido lo necesita: avisar.
             Shell.refresh()
             if (Shell.state != Shell.State.READY && Shell.wanted(this)) panel.shizukuHint()
-            scope.launch {
-                val stranded = RaProxy.stranded(this@AutoModeService)
-                Log.d(TAG, "logros al arrancar o desbloquear: proxy ${RaProxy.activeNow}, apagado con emuladores apuntándole $stranded")
-                if (stranded) main.post { panel.raStrandedHint() }
-            }
         }, 10_000)
     }
 

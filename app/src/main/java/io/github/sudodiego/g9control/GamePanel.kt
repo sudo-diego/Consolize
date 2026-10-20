@@ -504,10 +504,6 @@ class GamePanel(private val svc: AutoModeService) {
     fun raProxyHint() = flash.show(flash.appIcon(RaProxy.PACKAGE), tr("Sin internet", "Offline"),
         tr("Para tus logros, enciende RAOfflineProxy", "For your achievements, turn on RAOfflineProxy"), 4500)
 
-    /** Proxy apagado con los emuladores apuntándole (tras reiniciar): sin logros ni con internet hasta encenderlo. */
-    fun raStrandedHint() = flash.show(flash.appIcon(RaProxy.PACKAGE), tr("RAOfflineProxy está apagado", "RAOfflineProxy is off"),
-        tr("Sin él no hay logros, ni con internet: ábrelo (se vuelve a encender solo)", "Without it there are no achievements, even online: open it (it turns back on by itself)"), 7000)
-
     private var alert: RaAlert? = null
     val alertOpen get() = alert != null
     fun alertKey(e: KeyEvent) { alert?.onKey(e) }
