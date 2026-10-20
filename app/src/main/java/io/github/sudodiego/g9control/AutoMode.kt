@@ -420,6 +420,7 @@ class AutoModeService : AccessibilityService() {
         override fun onInputDeviceRemoved(id: Int) { lockIfGuidePoweredOff(id); forgetPad(id); changed() }
         override fun onInputDeviceChanged(id: Int) = changed()
         private fun changed() {
+            guardGestureLock()
             ModeTileService.refreshAll(this@AutoModeService)
             updateTouchpad()
             updatePadWatch()
@@ -431,6 +432,8 @@ class AutoModeService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         active = this
+        // Al arrancar sin control con los gestos bloqueados (por ejemplo, el control se apagó con la tablet apagada).
+        main.postDelayed({ guardGestureLock() }, 3000)
         UiSounds.preload(this)
         raBootCheck()
         ThemeState.systemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
@@ -813,6 +816,28 @@ class AutoModeService : AccessibilityService() {
      * estaba apretado ya no llega. Sin esto la guía quedaba "apretada" y, al volver, RB contaba como Guía + RB (captura)
      * o el primer toque de la guía se perdía. Va después de [lockIfGuidePoweredOff], que necesita lo de la guía.
      */
+    /**
+     * Gestos bloqueados (Game Assistant) sin ningún control conectado: no había cómo salir del juego. Al irse el último
+     * control se desbloquean (y se avisa); al volver uno, se bloquean de nuevo. Solo si los desbloqueó esto.
+     */
+    private fun guardGestureLock() {
+        val sp = getSharedPreferences("g9", MODE_PRIVATE)
+        val pads = android.view.InputDevice.getDeviceIds().any { id ->
+            android.view.InputDevice.getDevice(id)?.let { d -> !d.isVirtual &&
+                (d.sources and android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD } == true
+        }
+        val released = sp.getBoolean("gestures_released", false)
+        if (!pads && ZuiGame.gesturesLocked(this)) {
+            if (ZuiGame.setGesturesLocked(this, false)) {
+                sp.edit().putBoolean("gestures_released", true).apply()
+                panel.message(tr("Gestos desbloqueados", "Gestures unlocked"), tr("No hay un control conectado.", "No controller connected."))
+            }
+        } else if (pads && released) {
+            ZuiGame.setGesturesLocked(this, true)
+            sp.edit().putBoolean("gestures_released", false).apply()
+        }
+    }
+
     private fun forgetPad(id: Int) {
         // L3 + R3 y Start + Select: con un stick o Start apretado al cortarse, al volver bastaba el otro para el atajo.
         sticksDown.clear(); chordPending = false; chordKey = -1; main.removeCallbacks(chordHold)
