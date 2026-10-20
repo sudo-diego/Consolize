@@ -107,7 +107,7 @@ fun PanelPreview() {
     val ctx = LocalContext.current
     val conf = ctx.resources.configuration
     val ui = remember { sampleUi() }
-    ui.stats = Prefs.panelStats(ctx)
+    ui.stats = ThemeState.panelStats
     BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         // Siempre una pantalla horizontal (los juegos se juegan así): en vertical, con la forma de la pantalla, quedaba
         // angosta y altísima.

@@ -425,7 +425,7 @@ internal fun PanelLookPanel(a: MainActivity) {
             }
         }
         SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
-            stats = it; Prefs.setPanelStats(a, it)
+            stats = it; Prefs.setPanelStats(a, it); ThemeState.panelStats = it
         }
     }
     Panel(tr("Diseño", "Layout")) {
