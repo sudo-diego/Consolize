@@ -191,6 +191,13 @@ object AutoRules {
     /** Botones de volumen de la tablet invertidos (el de abajo sube, el de arriba baja). Los del control no cambian. */
     fun swapVolume(ctx: Context) = sp(ctx).getBoolean("swap_volume", false)
     fun setSwapVolume(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("swap_volume", v).apply()
+    /**
+     * En qué orientaciones se invierte (Surface.ROTATION_*): según dónde queden los botones, en unas el de arriba
+     * sube y en otras baja. Por defecto horizontal (90) y vertical invertido (180), como en la Y700.
+     */
+    fun swapRotations(ctx: Context): Set<Int> = (sp(ctx).getString("swap_volume_rotations", null) ?: "1,2")
+        .split(',').mapNotNull { it.toIntOrNull() }.toSet()
+    fun setSwapRotations(ctx: Context, v: Set<Int>) = sp(ctx).edit().putString("swap_volume_rotations", v.sorted().joinToString(",")).apply()
 
     /** Botón Legion (Home del control): tocar = Atrás, mantener = panel de juego. */
     fun legionKeys(ctx: Context) = sp(ctx).getBoolean("legion_keys", true)

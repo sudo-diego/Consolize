@@ -156,6 +156,15 @@ private fun TabletButtonsPanel(a: MainActivity) {
             SwitchRow(tr("Invertir el volumen", "Swap volume buttons"), swap) {
                 swap = it; AutoRules.setSwapVolume(a, it)
             }
+            if (swap) {
+                var rotations by remember { mutableStateOf(AutoRules.swapRotations(a)) }
+                Text(tr("Solo con la tablet en", "Only with the tablet in"), fontSize = 14.sp)
+                MultiChips(listOf(1 to tr("Horizontal", "Landscape"), 3 to tr("Horizontal invertido", "Reverse landscape"),
+                    0 to tr("Vertical", "Portrait"), 2 to tr("Vertical invertido", "Reverse portrait")), rotations) { r, on ->
+                    rotations = if (on) rotations + r else rotations - r
+                    AutoRules.setSwapRotations(a, rotations)
+                }
+            }
         }
     }
 }

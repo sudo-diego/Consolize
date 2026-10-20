@@ -695,6 +695,11 @@ class AutoModeService : AccessibilityService() {
         val k = e.keyCode
         if (k != KeyEvent.KEYCODE_VOLUME_UP && k != KeyEvent.KEYCODE_VOLUME_DOWN) return false
         if (!AutoRules.swapVolume(this)) return false
+        // Solo en las orientaciones elegidas (en las demás los botones ya quedan bien).
+        val rotation = getSystemService(android.hardware.display.DisplayManager::class.java)
+            .getDisplay(android.view.Display.DEFAULT_DISPLAY)?.rotation ?: return false
+        // El soltar del botón que se está repitiendo pasa siempre (la tablet pudo girar mientras se mantenía).
+        if (rotation !in AutoRules.swapRotations(this) && !(e.action == KeyEvent.ACTION_UP && k == volKey)) return false
         val dev = e.device ?: return false
         if (dev.isExternal || dev.isVirtual) return false
         when (e.action) {
