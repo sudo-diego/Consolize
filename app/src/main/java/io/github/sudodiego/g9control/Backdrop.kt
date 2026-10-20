@@ -298,3 +298,51 @@ half4 main(float2 p) {
     return content.eval(clamp(p + off, float2(0.0), size));
 }
 """
+
+/**
+ * Vidrio líquido en el panel de juego: el fondo propio del panel (degradado o imagen) se graba en [layer] y cada mosaico
+ * lo dibuja detrás, desenfocado y con refracción. Lo de detrás de la ventana (el juego) no se puede: la tablet no tiene
+ * desenfoque entre ventanas.
+ */
+class PanelGlass(val layer: androidx.compose.ui.graphics.layer.GraphicsLayer) { var origin by mutableStateOf(Offset.Zero) }
+val LocalPanelGlass = compositionLocalOf<PanelGlass?> { null }
+
+/** Graba lo que dibuja este nodo (el fondo del panel) en la capa de [g] y lo muestra igual. */
+fun Modifier.recordPanelGlass(g: PanelGlass?): Modifier = if (g == null) this else this
+    .onGloballyPositioned { g.origin = it.positionInRoot() }
+    .drawWithContent { g.layer.record { this@drawWithContent.drawContent() }; drawLayer(g.layer) }
+
+/** Detrás de un mosaico del panel: el fondo del panel desenfocado y refractado (con [LocalPanelGlass]). */
+@Composable
+fun androidx.compose.foundation.layout.BoxScope.LiquidBehind(radius: androidx.compose.ui.unit.Dp) {
+    val g = LocalPanelGlass.current ?: return
+    var o by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+    val r = with(androidx.compose.ui.platform.LocalDensity.current) { radius.toPx() }
+    val p = ThemeState.liquidParams
+    Box(Modifier.matchParentSize().onGloballyPositioned { o = it.positionInRoot(); size = it.size.toSize() }
+        .graphicsLayer { renderEffect = liquidEffect(p, size, r)?.asComposeRenderEffect() }
+        .drawBehind { translate(g.origin.x - o.x, g.origin.y - o.y) { drawLayer(g.layer) } })
+    if (p.highlight > 0) Box(Modifier.matchParentSize().background(Brush.verticalGradient(
+        0f to Color.White.copy(alpha = p.highlight / 100f * 0.2f), 0.45f to Color.Transparent)))
+}
+
+/**
+ * Fondo de un elemento del panel (mini monitor, barras, botones): con vidrio líquido, el fondo del panel desenfocado y
+ * refractado detrás y el color encima más suave; sin él, el color de siempre. Va después del clip (toma su forma).
+ */
+@Composable
+fun Modifier.glassBg(color: Color, radius: androidx.compose.ui.unit.Dp): Modifier {
+    val g = LocalPanelGlass.current ?: return this.background(color)
+    val inner = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    var o by remember { mutableStateOf(Offset.Zero) }
+    val r = with(androidx.compose.ui.platform.LocalDensity.current) { radius.toPx() }
+    val p = ThemeState.liquidParams
+    return this.onGloballyPositioned { o = it.positionInRoot() }.drawBehind {
+        inner.renderEffect = liquidEffect(p, size, r)?.asComposeRenderEffect()
+        inner.record { translate(g.origin.x - o.x, g.origin.y - o.y) { drawLayer(g.layer) } }
+        drawLayer(inner)
+        drawRect(color.copy(alpha = color.alpha * p.tint / 100f))
+        if (p.highlight > 0) drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = p.highlight / 100f * 0.2f), 0.5f to Color.Transparent))
+    }
+}

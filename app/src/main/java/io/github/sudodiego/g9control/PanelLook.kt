@@ -1,5 +1,6 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.ContentValues
@@ -292,9 +293,12 @@ internal fun PanelCard(ui: PanelUi, modifier: Modifier = Modifier, onPick: (Int)
     Surface(color = if (ThemeState.panelSeeThrough) Color.Transparent else PANEL_BG, shape = shape,
         modifier = modifier.then(dims.height?.let { Modifier.height(it) } ?: Modifier.heightIn(max = maxH)),
         border = if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null) {
+      val gl = androidx.compose.ui.graphics.rememberGraphicsLayer()
+      val pg = remember(gl) { PanelGlass(gl) }.takeIf { ThemeState.panelLiquid && glassPanel && android.os.Build.VERSION.SDK_INT >= 31 }
+      androidx.compose.runtime.CompositionLocalProvider(LocalPanelGlass provides pg) {
       Box {
         // Fondo propio del panel (degradado, imagen o GIF) con un velo para que se lea sobre cualquier imagen.
-        if (glassPanel) Box(Modifier.matchParentSize().clip(shape)) {
+        if (glassPanel) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
             PanelBackdrop()
             if (!ThemeState.panelSeeThrough) Box(Modifier.matchParentSize().background(PANEL_VEIL))
             // En claro el fondo se aclara siempre (si no, las partes oscuras de la imagen o del juego dejaban el texto
@@ -312,6 +316,7 @@ internal fun PanelCard(ui: PanelUi, modifier: Modifier = Modifier, onPick: (Int)
             Spacer(Modifier.height(14.dp))
             PanelFooter(ui, Modifier.align(Alignment.CenterHorizontally))
         }
+      }
       }
     }
 }
@@ -349,14 +354,30 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
             }
             drawPath(path, GLASS_EDGE, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
         } else Modifier)) {
+      val gl = androidx.compose.ui.graphics.rememberGraphicsLayer()
+      // Vidrio líquido: con fondo (el del panel) o con cabecera (el reflejo de la imagen debajo, ver abajo).
+      val pg = remember(gl) { PanelGlass(gl) }.takeIf { ThemeState.panelLiquid && (glassPanel || banner) && android.os.Build.VERSION.SDK_INT >= 31 }
+      androidx.compose.runtime.CompositionLocalProvider(LocalPanelGlass provides pg) {
       Box {
-        if (glassPanel) Box(Modifier.matchParentSize().clip(shape)) {
+        if (glassPanel) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
             PanelBackdrop()
             if (!ThemeState.panelSeeThrough) Box(Modifier.matchParentSize().background(PANEL_VEIL))
             else if (light && ThemeState.panelBackground != PanelBackground.CLEAR)
                 Box(Modifier.matchParentSize().background(PANEL_VEIL.copy(alpha = 0.6f * (1f - ThemeState.panelSee / 160f))))
         }
-        if (banner && ThemeState.panelSeeThrough) Box(Modifier.matchParentSize().clip(shape).background(body))
+        // Con cabecera, debajo de ella: el color del panel y, con vidrio líquido, un reflejo de la imagen muy desenfocado
+        // que se apaga hacia abajo (sin él no había nada detrás de los mosaicos que doblar o desenfocar).
+        if (banner && (ThemeState.panelSeeThrough || pg != null)) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
+            Box(Modifier.matchParentSize().background(body))
+            if (pg != null) {
+                PanelImage(Modifier.matchParentSize().graphicsLayer {
+                    alpha = 0.6f
+                    renderEffect = android.graphics.RenderEffect.createBlurEffect(50f, 50f, android.graphics.Shader.TileMode.CLAMP).asComposeRenderEffect()
+                })
+                Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0f to Color.Transparent, 0.35f to body.copy(alpha = body.alpha * 0.35f), 1f to body.copy(alpha = body.alpha * 0.8f))))
+            }
+        }
         Column(Modifier.fillMaxSize().graphicsLayer { alpha = ui.fade }) {
             // Cabecera: la imagen o el GIF, fundida hacia abajo. De fondo, sin ese espacio arriba.
             // La imagen misma se vuelve transparente hacia abajo (máscara DstIn): así lo de abajo es exactamente el
@@ -391,6 +412,7 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
             PanelFooter(ui, Modifier.align(Alignment.CenterHorizontally).padding(vertical = 12.dp))
         }
       }
+      }
     }
 }
 
@@ -407,7 +429,7 @@ private fun PanelHeader(ui: PanelUi) {
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (!ui.sub) {
                 Spacer(Modifier.width(10.dp))
-                Row(Modifier.clip(RoundedCornerShape(12.dp)).background(tileColor).padding(horizontal = 10.dp, vertical = 5.dp),
+                Row(Modifier.clip(RoundedCornerShape(12.dp)).glassBg(tileColor, 12.dp).padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     if (ui.battery >= 0) {
                         BatteryGlyph(ui.battery, ui.charging, ui.bypass, ui.held)
@@ -561,7 +583,7 @@ internal fun PanelStats() {
 
 @Composable
 internal fun StatChip(icon: ImageVector, value: String, label: String, modifier: Modifier) {
-    Row(modifier.clip(RoundedCornerShape(16.dp)).background(tileColor).padding(horizontal = 12.dp, vertical = 8.dp),
+    Row(modifier.clip(RoundedCornerShape(16.dp)).glassBg(tileColor, 16.dp).padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, Modifier.size(18.dp), tint = PANEL_ACCENT)
         Spacer(Modifier.width(10.dp))
@@ -618,7 +640,7 @@ internal fun BatteryGlyph(level: Int, charging: Boolean, bypass: Boolean, held: 
 internal fun PanelToggle(item: PanelItem, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(26.dp)
     Box(
-        Modifier.size(52.dp).clip(shape).background(if (item.active) TILE_ON else tileColor)
+        Modifier.size(52.dp).clip(shape).then(if (item.active) Modifier.background(TILE_ON) else Modifier.glassBg(tileColor, 26.dp))
             .then(if (selected) Modifier.border(2.5.dp, SELECTED, shape) else Modifier).clickable(enabled = !LocalPanelInert.current, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -666,14 +688,18 @@ internal fun PanelTile(item: PanelItem, selected: Boolean, modifier: Modifier, o
 private fun BadgeTile(item: PanelItem, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val danger = item.danger
+    val liquid = LocalPanelGlass.current != null && !danger
     Surface(
-        color = if (danger) Color(0xFFE5484D).copy(alpha = 0.9f) else tileColor, shape = shape,
+        color = if (danger) Color(0xFFE5484D).copy(alpha = 0.9f) else if (liquid) Color.Transparent else tileColor, shape = shape,
         border = if (selected) BorderStroke(2.dp, SELECTED) else if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null,
         modifier = modifier.clip(shape)
             .combinedClickable(enabled = !LocalPanelInert.current, onClick = onClick, onLongClick = item.alt)
             .graphicsLayer { alpha = if (item.enabled) 1f else 0.45f }
     ) {
-        Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+      Box {
+        // Vidrio líquido: el fondo del panel desenfocado detrás, con el tinte del mosaico más suave encima.
+        if (liquid) { LiquidBehind(16.dp); Box(Modifier.matchParentSize().background(tileColor.copy(alpha = tileColor.alpha * ThemeState.liquidParams.tint / 100f))) }
+        Row(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (item.appIcon != null) androidx.compose.foundation.Image(item.appIcon, null, Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)))
             else Box(
                 Modifier.size(36.dp).clip(RoundedCornerShape(11.dp))
@@ -690,6 +716,7 @@ private fun BadgeTile(item: PanelItem, selected: Boolean, modifier: Modifier, on
                 }
             }
         }
+      }
     }
 }
 
@@ -701,7 +728,7 @@ private fun BadgeTile(item: PanelItem, selected: Boolean, modifier: Modifier, on
 internal fun PanelSlider(item: PanelItem, selected: Boolean, editing: Boolean, modifier: Modifier, onSet: (Float) -> Unit) {
     val shape = RoundedCornerShape(26.dp)
     Box(
-        modifier.height(52.dp).clip(shape).background(tileColor)
+        modifier.height(52.dp).clip(shape).glassBg(tileColor, 26.dp)
             .then(if (selected) Modifier.border(2.5.dp, SELECTED, shape) else Modifier)
             .pointerInput(Unit) { detectTapGestures { onSet(it.x / size.width) } }
             .pointerInput(Unit) { detectHorizontalDragGestures { change, _ -> onSet(change.position.x / size.width) } }
