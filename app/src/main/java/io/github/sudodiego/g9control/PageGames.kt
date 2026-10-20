@@ -53,9 +53,8 @@ fun GamesPage(s: AppState, a: MainActivity) {
     val list = apps?.filter { all || it.game }.orEmpty()
     if (selected == null || list.none { it.pkg == selected }) selected = list.firstOrNull()?.pkg
     TwoPaneWeighted(1.25f, first = {
-        Panel(tr("Biblioteca", "Library"), trailing = {
+        Panel {
             ChoiceChips(listOf(false to tr("Juegos", "Games"), true to tr("Todas las apps", "All apps")), all) { all = it }
-        }) {
             if (apps == null) Text(tr("Cargando…", "Loading…"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             else if (list.isEmpty()) Text(tr("No hay juegos instalados.", "No games installed."), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             list.chunked(4).forEach { row ->

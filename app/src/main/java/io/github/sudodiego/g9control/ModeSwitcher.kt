@@ -18,6 +18,10 @@ object Prefs {
     fun setupDone(ctx: Context) = sp(ctx).getBoolean("setup_done", false)
     fun setSetupDone(ctx: Context) = sp(ctx).edit().putBoolean("setup_done", true).apply()
 
+    /** Barra lateral compacta (solo íconos). */
+    fun navCompact(ctx: Context) = sp(ctx).getBoolean("nav_compact", false)
+    fun setNavCompact(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("nav_compact", v).apply()
+
     /** La app en pantalla completa (sin las barras de Android). */
     fun fullscreen(ctx: Context) = sp(ctx).getBoolean("fullscreen", true)
     fun setFullscreen(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("fullscreen", v).apply()

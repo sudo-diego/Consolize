@@ -167,6 +167,7 @@ fun App(s: AppState, a: MainActivity) {
             if (wide) Row(Modifier.fillMaxSize()) {
                 SideBar(s, a)
                 Column(Modifier.weight(1f).fillMaxHeight()) {
+                    if (s.navCompact) PageTitle(s)
                     if (s.page == Page.HOME) ModeStrip(s)
                     PageHost(s, a, Modifier.weight(1f))
                     HintBar(s)
@@ -185,21 +186,30 @@ fun App(s: AppState, a: MainActivity) {
 
 /**
  * Barra lateral (pantalla ancha): las secciones una debajo de otra; la actual con sus pestañas debajo, con sangría
- * (las del G9 bajo "Legion G9"). Arriba LB y abajo RB: recorren la lista de arriba abajo; LT/RT saltan de sección
- * (en la ayuda de abajo). Abajo, la conexión del G9 en sus páginas.
+ * (las del G9 bajo "Legion G9"). Arriba y abajo, el botón que sube o baja por la lista (LT/RT; LB/RB donde LT/RT prueban
+ * los gatillos). El botón de arriba la pliega a solo íconos (más espacio para la página) o la abre; se recuerda.
  */
 @Composable
 private fun SideBar(s: AppState, a: MainActivity) {
     val c = MaterialTheme.colorScheme
+    val compact = s.navCompact
     val focus = remember { Page.entries.associateWith { FocusRequester() } }
     var hasFocus by remember { mutableStateOf(false) }
-    // Con el foco en la barra, LB/RB lo llevan a la pestaña nueva (si no, quedaba en la anterior).
+    // Con el foco en la barra, LT/RT lo llevan a la pestaña nueva (si no, quedaba en la anterior).
     LaunchedEffect(s.page) { if (hasFocus) runCatching { focus.getValue(s.page).requestFocus() } }
+    val width by androidx.compose.animation.core.animateDpAsState(if (compact) 88.dp else 220.dp, tween(220), label = "nav")
     Column(
-        Modifier.width(220.dp).fillMaxHeight().padding(start = 16.dp, top = 12.dp, bottom = 12.dp)
+        Modifier.width(width).fillMaxHeight().padding(start = 16.dp, top = 12.dp, bottom = 12.dp)
             .clip(RoundedCornerShape(24.dp)).background(c.surfaceContainerHigh.copy(alpha = 0.6f))
             .onFocusChanged { hasFocus = it.hasFocus }
     ) {
+        // Plegar o abrir.
+        Box(Modifier.fillMaxWidth().padding(top = 8.dp, start = 10.dp, end = 10.dp), contentAlignment = if (compact) Alignment.Center else Alignment.CenterStart) {
+            IconButton(onClick = { s.navCompact = !compact; Prefs.setNavCompact(a, !compact) }) {
+                Icon(if (compact) Icons.Filled.KeyboardDoubleArrowRight else Icons.Filled.KeyboardDoubleArrowLeft, tr("Plegar o abrir la barra", "Collapse or expand the bar"),
+                    Modifier.size(22.dp), tint = c.onSurfaceVariant)
+            }
+        }
         // LT/RT recorren la lista (LB/RB también); en Vibración y Sticks LT/RT prueban los gatillos, así que ahí LB/RB.
         val keys = if (s.page in TRIGGER_PAGES) "LB" to "RB" else "LT" to "RT"
         NavKey(keys.first, up = true)
@@ -208,26 +218,34 @@ private fun SideBar(s: AppState, a: MainActivity) {
                 val pages = NAV.filter { it.page in s.pages(sec) }
                 val current = s.section == sec
                 // Una sección de una sola pestaña se elige como pestaña; las demás llevan a su primera y se abren.
-                SectionRow(sec, selected = current && pages.size == 1, current = current,
+                SectionRow(sec, selected = current && pages.size == 1, current = current, compact = compact,
                     focus = if (pages.size == 1) focus.getValue(pages[0].page) else null) { s.goTo(sec) }
                 // Las pestañas se despliegan al entrar y se pliegan al salir (aparecer de golpe se sentía brusco).
                 androidx.compose.animation.AnimatedVisibility(
                     visible = current && pages.size > 1,
                     enter = androidx.compose.animation.expandVertically(tween(220)) + fadeIn(tween(220)),
                     exit = androidx.compose.animation.shrinkVertically(tween(180)) + fadeOut(tween(120))
-                ) { Column(Modifier.padding(start = 14.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    pages.forEach { item ->
-                        if (item.page == Page.HOME) Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("LEGION G9", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = c.onSurfaceVariant)
-                            if (s.padMode != null) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF34C759))) }
+                ) {
+                    // Compacta: las pestañas en un grupo con fondo suave, para que se vea que son de esa sección.
+                    Column(
+                        if (compact) Modifier.padding(vertical = 4.dp).clip(RoundedCornerShape(16.dp)).background(c.onSurface.copy(alpha = 0.05f)).padding(vertical = 4.dp)
+                        else Modifier.padding(start = 14.dp, bottom = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        pages.forEach { item ->
+                            if (item.page == Page.HOME && !compact) Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("LEGION G9", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = c.onSurfaceVariant)
+                                if (s.padMode != null) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF34C759))) }
+                            }
+                            if (item.page == Page.HOME && compact) HorizontalDivider(Modifier.padding(horizontal = 14.dp, vertical = 4.dp), color = c.outlineVariant)
+                            SideItem(item, s.page == item.page, compact, focus.getValue(item.page)) { s.page = item.page }
                         }
-                        SideItem(item, s.page == item.page, focus.getValue(item.page)) { s.page = item.page }
                     }
-                } }
+                }
             }
         }
         // Conexión del G9: en sus páginas (tocarla vuelve a leer el control).
-        if (s.page in G9_PAGES) Box(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp)) { ConnectionPill(s) { if (!s.busy) a.readAll() } }
+        if (s.page in G9_PAGES && !compact) Box(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp)) { ConnectionPill(s) { if (!s.busy) a.readAll() } }
         NavKey(keys.second, up = false)
     }
 }
@@ -237,7 +255,7 @@ private fun SideBar(s: AppState, a: MainActivity) {
 private fun NavKey(key: String, up: Boolean) {
     Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
         PadBadge(key)
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(4.dp))
         Icon(if (up) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -264,7 +282,7 @@ fun sectionIcon(sec: Section) = when (sec) {
 /** Fila de una sección: la actual con su nombre en el color de acento; [selected] (sin pestañas) con fondo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SectionRow(sec: Section, selected: Boolean, current: Boolean, focus: FocusRequester?, onClick: () -> Unit) {
+private fun SectionRow(sec: Section, selected: Boolean, current: Boolean, compact: Boolean, focus: FocusRequester?, onClick: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
@@ -276,20 +294,23 @@ private fun SectionRow(sec: Section, selected: Boolean, current: Boolean, focus:
             interactionSource = source, modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
         ) {
             val tint = when { selected -> c.onPrimaryContainer; current -> c.primary; else -> c.onSurfaceVariant }
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(sectionIcon(sec), null, Modifier.size(22.dp), tint = tint)
-                Spacer(Modifier.width(12.dp))
-                Text(sectionName(sec), fontSize = 16.sp, fontWeight = if (current) FontWeight.SemiBold else FontWeight.Medium,
-                    color = when { selected -> c.onPrimaryContainer; current -> c.primary; else -> c.onSurface })
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start) {
+                Icon(sectionIcon(sec), sectionName(sec), Modifier.size(22.dp), tint = tint)
+                if (!compact) {
+                    Spacer(Modifier.width(12.dp))
+                    Text(sectionName(sec), fontSize = 16.sp, fontWeight = if (current) FontWeight.SemiBold else FontWeight.Medium,
+                        color = when { selected -> c.onPrimaryContainer; current -> c.primary; else -> c.onSurface }, maxLines = 1, softWrap = false)
+                }
             }
         }
     }
 }
 
-/** Pestaña de la barra lateral: ícono y nombre; la elegida con fondo, el foco del control con contorno. */
+/** Pestaña de la barra lateral: ícono y nombre (compacta, solo el ícono); la elegida con fondo, el foco con contorno. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SideItem(item: NavItem, sel: Boolean, focus: FocusRequester, onClick: () -> Unit) {
+private fun SideItem(item: NavItem, sel: Boolean, compact: Boolean, focus: FocusRequester, onClick: () -> Unit) {
     val c = MaterialTheme.colorScheme
     val source = remember { MutableInteractionSource() }
     val focused by source.collectIsFocusedAsState()
@@ -300,17 +321,27 @@ private fun SideItem(item: NavItem, sel: Boolean, focus: FocusRequester, onClick
             border = if (focused) BorderStroke(2.dp, c.primary) else null,
             interactionSource = source, modifier = Modifier.fillMaxWidth().focusRequester(focus)
         ) {
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(if (sel) item.selectedIcon else item.icon, null, Modifier.size(20.dp),
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (compact) Arrangement.Center else Arrangement.Start) {
+                Icon(if (sel) item.selectedIcon else item.icon, item.label, Modifier.size(20.dp),
                     tint = if (sel) c.onPrimaryContainer else c.onSurfaceVariant)
-                Spacer(Modifier.width(10.dp))
-                Text(item.label, fontSize = 14.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (sel) c.onPrimaryContainer else c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!compact) {
+                    Spacer(Modifier.width(10.dp))
+                    Text(item.label, fontSize = 14.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (sel) c.onPrimaryContainer else c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
         }
     }
 }
 
+/** Con la barra compacta no se ven los nombres: el de la página va arriba del contenido. */
+@Composable
+private fun PageTitle(s: AppState) {
+    val item = NAV.firstOrNull { it.page == s.page } ?: return
+    val title = if (s.pages(s.section).size > 1) "${sectionName(s.section)} · ${item.label}" else sectionName(s.section)
+    Text(title, Modifier.padding(start = 20.dp, top = 18.dp, bottom = 2.dp), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+}
 /** Pestañas horizontales, como en una consola: LB/RB a los lados para cambiar. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
