@@ -44,6 +44,8 @@ object RefreshRate {
      * dentro de 30–120 según lo que dibuja el juego: en Ahorro la CPU va lenta, el juego dibuja menos y baja a 30.
      */
     fun forGames(ctx: Context): Int? = sp(ctx).getInt("hz_games", 0).takeIf { it > 0 }
+    /** Hay Hz elegidos (para los juegos o para alguna app). */
+    fun anySet(ctx: Context) = sp(ctx).all.any { (k, v) -> k.startsWith("hz_") && (v as? Int ?: 0) > 0 }
     fun setForGames(ctx: Context, hz: Int?) = sp(ctx).edit().putInt("hz_games", hz ?: 0).apply()
 
     /** Lo que toca para esa app: su elección, o la de los juegos si es un juego. */

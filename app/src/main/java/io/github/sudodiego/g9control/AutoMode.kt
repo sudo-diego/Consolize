@@ -1341,12 +1341,23 @@ class AutoModeService : AccessibilityService() {
         val now = android.os.SystemClock.uptimeMillis()
         if (now - lastRaBootCheck < 10 * 60_000L && lastRaBootCheck > 0) return
         lastRaBootCheck = now
-        main.postDelayed({
-            if (getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked) { lastRaBootCheck = 0; return@postDelayed }
-            // Shizuku no arrancó solo (su inicio al encender falla a veces: ver CONTEXTO) y algo elegido lo necesita: avisar.
-            Shell.refresh()
-            if (Shell.state != Shell.State.READY && Shell.wanted(this)) panel.shizukuHint()
-        }, 10_000)
+        main.removeCallbacks(shizukuCheck)
+        shizukuTries = 0
+        main.postDelayed(shizukuCheck, 10_000)
+    }
+
+    private var shizukuTries = 0
+    /**
+     * Shizuku no arrancó solo (su inicio al encender falla a veces: ver CONTEXTO) y algo elegido lo necesita: avisar.
+     * Si a los 10 s no está, otra vez a los 30 s antes de avisar: a veces arranca un poco después.
+     */
+    private val shizukuCheck: Runnable = Runnable {
+        if (getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked) { lastRaBootCheck = 0; return@Runnable }
+        Shell.refresh()
+        Log.d(TAG, "Shizuku al desbloquear: ${Shell.state}, hace falta ${Shell.wanted(this)} (revisión ${shizukuTries + 1})")
+        // Sin Shizuku instalado no se avisa (quien no lo usa no tiene que verlo cada vez que desbloquea).
+        if (Shell.state == Shell.State.READY || !Shell.wanted(this) || Shell.launchIntent(this) == null) return@Runnable
+        if (++shizukuTries < 2) main.postDelayed(shizukuCheck, 20_000) else panel.shizukuHint()
     }
 
     /** Abrir el panel desde la app (botón en Juego → Panel de juego). */

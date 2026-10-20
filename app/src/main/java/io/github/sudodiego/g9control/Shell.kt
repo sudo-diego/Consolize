@@ -152,8 +152,14 @@ object Shell {
     fun launchIntent(ctx: Context): android.content.Intent? =
         ctx.packageManager.getLaunchIntentForPackage(PACKAGE)?.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
 
-    /** Hay algo elegido que necesita Shizuku (bypass automático, ocultar Game Assistant, tablet sin luz o apagada con el monitor): vale la pena avisar si falta. */
-    fun wanted(ctx: Context) = AutoRules.smartBypass(ctx) || ZuiBattery.ownLimit(ctx) != null || AutoRules.gaHidden(ctx) == true || Monitor.screen(ctx).let { it == Monitor.Screen.OFF || it == Monitor.Screen.NO_LIGHT }
+    /**
+     * Hay algo elegido que necesita Shizuku (bypass automático o límite propio, ocultar Game Assistant, tablet sin luz
+     * o apagada con el monitor, Hz por juego, bajar el audio del juego con el panel, FPS del monitor): vale la pena
+     * avisar si falta. Antes solo contaban los cuatro primeros y con lo demás el aviso no salía.
+     */
+    fun wanted(ctx: Context) = AutoRules.smartBypass(ctx) || ZuiBattery.ownLimit(ctx) != null || AutoRules.gaHidden(ctx) == true ||
+        Monitor.screen(ctx).let { it == Monitor.Screen.OFF || it == Monitor.Screen.NO_LIGHT } ||
+        RefreshRate.anySet(ctx) || Prefs.panelDuck(ctx) || AutoRules.perfHud(ctx)
 
     fun requestPermission() {
         if (runCatching { Shizuku.pingBinder() }.getOrDefault(false)) Shizuku.requestPermission(REQUEST)
