@@ -37,7 +37,7 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
         first = {
             // Dos tarjetas: cómo se ve y lo demás (antes, todo en una sola "Aplicación" muy larga).
             // En acordeón: tema y color por un lado, el fondo (con todas sus opciones) por otro.
-            val acc = remember { mutableStateOf<String?>(tr("Tema y color", "Theme and color")) }
+            val acc = rememberAccordion("appearance", tr("Tema y color", "Theme and color"))
             Panel(tr("Apariencia", "Appearance")) {
               CompositionLocalProvider(LocalOnlyPanels provides null, LocalAccordion provides acc) {
                 Panel(tr("Tema y color", "Theme and color")) {
@@ -234,7 +234,7 @@ fun GamePanelPage(s: AppState, a: MainActivity) {
 @Composable
 fun CapturesPage(s: AppState, a: MainActivity) {
     // En acordeón: capturas y grabación, o el monitor de rendimiento (dos grupos largos).
-    val acc = remember { mutableStateOf<String?>(tr("Capturas y grabación", "Screenshots and recording")) }
+    val acc = rememberAccordion("captures", tr("Capturas y grabación", "Screenshots and recording"))
     CompositionLocalProvider(LocalAccordion provides acc) { Gate(s.autoServiceOn) { GamePanelSettings(s, a) } }
 }
 

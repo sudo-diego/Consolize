@@ -547,7 +547,7 @@ fun UsagePage(s: AppState, a: MainActivity) {
             }
 
             // Tus apps y la comparación por modo, en acordeón (la RAM queda siempre a la vista).
-            val acc = remember { mutableStateOf<String?>(tr("Tus apps", "Your apps")) }
+            val acc = rememberAccordion("usage", tr("Tus apps", "Your apps"))
             CompositionLocalProvider(LocalAccordion provides acc) {
             Panel(tr("Tus apps", "Your apps"), trailing = {
                 if (power.isNotEmpty() || sessions.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { PowerLog.reset(a); Sessions.reset(a); tick++ }

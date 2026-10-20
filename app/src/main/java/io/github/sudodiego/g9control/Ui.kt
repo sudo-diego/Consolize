@@ -660,6 +660,17 @@ fun ConnectionPill(s: AppState, onConnect: () -> Unit) {
 // Componentes compartidos
 // ---------------------------------------------------------------------------------------------
 
+/** Lo abierto en cada acordeón, mientras la app sigue abierta: al volver a la página queda como estaba. */
+private val accordionMemory = mutableMapOf<String, String?>()
+
+/** El acordeón de [key] (una página): empieza con [default] abierta o con lo que se dejó la última vez. */
+@Composable
+fun rememberAccordion(key: String, default: String?): MutableState<String?> {
+    val st = remember(key) { mutableStateOf(if (accordionMemory.containsKey(key)) accordionMemory[key] else default) }
+    LaunchedEffect(key, st.value) { accordionMemory[key] = st.value }
+    return st
+}
+
 /** Secciones en acordeón: el título de la abierta (null = ninguna). Solo donde se pide (opciones del panel). */
 val LocalAccordion = compositionLocalOf<MutableState<String?>?> { null }
 
