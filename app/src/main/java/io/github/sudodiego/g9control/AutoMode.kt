@@ -690,7 +690,8 @@ class AutoModeService : AccessibilityService() {
      * Volumen invertido en los botones de la tablet: el servicio se queda con la tecla y sube o baja al revés,
      * como lo haría Android (el volumen que corresponda y su barra). Solo los botones físicos de la tablet (no
      * externos ni virtuales): los del control y las teclas inyectadas quedan igual. La captura con encendido +
-     * bajar volumen la procesa Android antes y sigue con el botón físico de siempre.
+     * bajar volumen la procesa Android antes y sigue con el botón físico de siempre. Con la tablet bloqueada (pantalla
+     * encendida o apagada) Android maneja el volumen sin pasar por la accesibilidad: ahí no se invierte (probado).
      */
     private fun volumeSwap(e: KeyEvent): Boolean {
         val k = e.keyCode

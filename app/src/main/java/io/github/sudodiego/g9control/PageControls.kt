@@ -153,7 +153,8 @@ private fun TabletButtonsPanel(a: MainActivity) {
     var swap by remember { mutableStateOf(AutoRules.swapVolume(a)) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
         Panel(tr("Botones de la tablet", "Tablet buttons")) {
-            SwitchRow(tr("Invertir el volumen", "Swap volume buttons"), swap) {
+            SwitchRow(tr("Invertir el volumen", "Swap volume buttons"), swap,
+                tr("Con la tablet bloqueada funcionan normal (Android no deja cambiarlos ahí)", "When the tablet is locked they work as usual (Android doesn't allow changing them there)")) {
                 swap = it; AutoRules.setSwapVolume(a, it)
             }
             if (swap) {
