@@ -648,17 +648,15 @@ private fun SoundSettings(a: MainActivity) {
             navVol = it; Prefs.setNavVolume(a, it); UiSounds.play(a, UiSounds.Kind.MOVE)
         }
     }
-    // Música: tres pistas propias de la app (o un archivo tuyo). Al elegir una suena al instante.
-    SwitchRow(tr("Música", "Music"), music) { AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a) }
-    if (music) {
-        ChoiceChips(MusicTrack.entries.map { it to it.label }, AmbientMusic.track) { t ->
-            if (t == MusicTrack.OWN && !hasMusic) a.pickMusic()
-            else { AmbientMusic.track = t; Prefs.setMusicTrack(a, t); AmbientMusic.restart(a) }
-        }
-        if (AmbientMusic.track == MusicTrack.OWN) OutlinedButton(onClick = { a.pickMusic() }) { Text(tr("Cambiar archivo", "Change file")) }
+    SwitchRow(tr("Música ambiental", "Background music"), music && hasMusic,
+        if (hasMusic) null else tr("Elige un archivo de audio", "Pick an audio file")) {
+        if (!hasMusic) a.pickMusic() else { AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a) }
+    }
+    if (music && hasMusic) {
         SliderRow(tr("Volumen de la música", "Music volume"), musicVol, 5..100, "$musicVol %") {
             musicVol = it; Prefs.setMusicVolume(a, it); AmbientMusic.setVolume(a)
         }
+        OutlinedButton(onClick = { a.pickMusic() }) { Text(tr("Cambiar música", "Change music")) }
     }
 }
 

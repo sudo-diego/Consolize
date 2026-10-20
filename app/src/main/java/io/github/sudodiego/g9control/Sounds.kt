@@ -60,19 +60,7 @@ object UiSounds {
 }
 
 /**
- * Pistas de música de la app: originales, hechas en el PC con tools/music/make_music.py (res/raw/music_*.ogg).
- * OWN: un archivo de audio propio.
- */
-enum class MusicTrack(val raw: Int?) {
-    SETTINGS(R.raw.music_ajustes), POCKET(R.raw.music_bolsillo), CRYSTAL(R.raw.music_cristal), OWN(null);
-    val label get() = when (this) {
-        SETTINGS -> tr("Configuración", "Settings"); POCKET -> tr("Bolsillo", "Pocket")
-        CRYSTAL -> tr("Cristal", "Crystal"); OWN -> tr("Mi archivo", "My file")
-    }
-}
-
-/**
- * Música ambiental de la app: una de las pistas propias o un archivo de audio que se elige, en bucle,
+ * Música ambiental de la app: un archivo de audio que se elige (no se incluye música: derechos de autor), en bucle,
  * solo mientras la app está adelante. Pide el foco de audio al empezar (lo que suene detrás se pausa) y
  * lo suelta al salir, para que lo de detrás vuelva. Si otra app pide el audio, se pausa.
  */
@@ -80,15 +68,13 @@ object AmbientMusic {
     /** Para Ajustes: encendida y con archivo (cambia al elegir uno, sin volver a abrir la página). */
     var on by androidx.compose.runtime.mutableStateOf(false)
     var hasFile by androidx.compose.runtime.mutableStateOf(false)
-    var track by androidx.compose.runtime.mutableStateOf(MusicTrack.SETTINGS)
-    fun load(ctx: Context) { on = Prefs.music(ctx); hasFile = Prefs.musicUri(ctx) != null; track = Prefs.musicTrack(ctx) }
+    fun load(ctx: Context) { on = Prefs.music(ctx); hasFile = Prefs.musicUri(ctx) != null }
 
     private var player: MediaPlayer? = null
     private var focus: AudioFocusRequest? = null
 
     fun start(ctx: Context) {
-        val t = Prefs.musicTrack(ctx)
-        val uri = t.raw?.let { "android.resource://${ctx.packageName}/$it" } ?: Prefs.musicUri(ctx)
+        val uri = Prefs.musicUri(ctx)
         if (!Prefs.music(ctx) || uri == null || player != null) return
         val audio = ctx.getSystemService(AudioManager::class.java)
         val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
