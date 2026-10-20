@@ -1160,6 +1160,7 @@ class AutoModeService : AccessibilityService() {
         panelSticks = on
         // Recién abierto: hasta ver los sticks al centro (como mucho 2 s), ver [onMotionEvent].
         settleUntil = if (on) android.os.SystemClock.uptimeMillis() + 2000 else 0
+        settleFirstBy = if (on) android.os.SystemClock.uptimeMillis() + 300 else 0
         main.removeCallbacks(recapture)
         applyMotionSources()
     }
@@ -1170,6 +1171,8 @@ class AutoModeService : AccessibilityService() {
      * se suelta) y se toman de nuevo para mirar; con todo al centro, quedan para el panel.
      */
     private var settleUntil = 0L
+    /** Hasta cuándo el primer evento cuenta como "venía inclinado" (0: ya llegó el primero). */
+    private var settleFirstBy = 0L
     private var stickLent = false
     private val recapture = Runnable { if (stickLent) { stickLent = false; applyMotionSources() } }
     private fun deflected(e: MotionEvent) = listOf(MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ,
@@ -1189,7 +1192,12 @@ class AutoModeService : AccessibilityService() {
      */
     override fun onMotionEvent(event: MotionEvent) {
         if (event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
-            if (panel.isOpen && android.os.SystemClock.uptimeMillis() < settleUntil) {
+            val now = android.os.SystemClock.uptimeMillis()
+            // Solo si ya venía inclinado al abrir: el primer evento llega enseguida (si no, es que estaba quieto y lo que
+            // venga es para navegar el panel; antes eso se le pasaba al juego).
+            if (panel.isOpen && settleUntil > 0 && !stickLent && settleFirstBy in 1 until now) settleUntil = 0
+            settleFirstBy = 0
+            if (panel.isOpen && now < settleUntil) {
                 if (deflected(event)) { stickLent = true; applyMotionSources(); main.removeCallbacks(recapture); main.postDelayed(recapture, 60); return }
                 settleUntil = 0   // al centro: desde ahora, para el panel
             }
