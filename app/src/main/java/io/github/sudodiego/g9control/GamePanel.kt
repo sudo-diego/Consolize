@@ -477,7 +477,8 @@ class GamePanel(private val svc: AutoModeService) {
         flash.show(flash.batteryIcon(level), tr("Batería baja · $level %", "Low battery · $level %"),
             listOfNotNull(left?.let { tr("Quedan $it", "$it left") }, tr("Conecta el cargador", "Plug in the charger")).joinToString(" · "), 6000,
             // Sobre el toast de ZUI (abajo al centro), que no se puede quitar: así no se ven los dos.
-            if (AutoRules.lowBatteryOverToast(svc)) NoticePos.entries.first { it.h == 0 && it.v == 1 } else null)
+            if (AutoRules.lowBatteryOverToast(svc)) NoticePos.entries.first { it.h == 0 && it.v == 1 } else null,
+            overToast = AutoRules.lowBatteryOverToast(svc))
     }
 
     /** Al enchufar: el nivel y cuánto falta para el límite (o para llenarse). Con el color de acento del panel. */
@@ -489,7 +490,8 @@ class GamePanel(private val svc: AutoModeService) {
                 else -> tr("Llena en $left", "Full in $left")
             }, 4500,
             // Igual que el de batería baja: si se pidió, abajo al centro, encima del aviso de carga de ZUI.
-            if (AutoRules.lowBatteryOverToast(svc)) NoticePos.entries.first { it.h == 0 && it.v == 1 } else null)
+            if (AutoRules.lowBatteryOverToast(svc)) NoticePos.entries.first { it.h == 0 && it.v == 1 } else null,
+            overToast = AutoRules.lowBatteryOverToast(svc))
 
     /** Jingle de carga (al enchufar). */
     fun chargeJingle() = sounds.play(R.raw.charge)
@@ -1142,7 +1144,7 @@ class GamePanel(private val svc: AutoModeService) {
                         main.postDelayed({
                             // La sacó Android: si se pidió, encima de su toast ("Captura guardada"), que no se puede quitar.
                             if (!save && AutoRules.shotOverToast(svc)) flash.show(thumb, tr("Captura guardada", "Screenshot saved"), null, 3500,
-                                NoticePos.entries.first { it.h == 0 && it.v == 1 })
+                                NoticePos.entries.first { it.h == 0 && it.v == 1 }, overToast = true)
                             else flash.show(thumb)
                             sounds.play(AutoRules.shotSound(svc))
                         }, wait)

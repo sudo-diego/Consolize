@@ -509,6 +509,21 @@ internal class ShotFlash(private val svc: AccessibilityService) {
     private var frame: android.widget.FrameLayout? = null
     private val slideOut = Runnable { leave() }
 
+    /** Altura del toast de Android sobre el borde de abajo (`toast_y_offset` del sistema; 24 dp si no se encuentra). */
+    private fun toastOffset(): Int {
+        val r = android.content.res.Resources.getSystem()
+        val id = r.getIdentifier("toast_y_offset", "dimen", "android")
+        return if (id != 0) r.getDimensionPixelSize(id) else (24 * dp).toInt()
+    }
+
+    /** Alto de la barra de navegación si está escondida (0 si se ve: ahí esta ventana ya queda sobre ella). */
+    private fun hiddenNavBar(): Int {
+        if (android.os.Build.VERSION.SDK_INT < 30) return 0
+        val insets = wm.currentWindowMetrics.windowInsets
+        val nav = android.view.WindowInsets.Type.navigationBars()
+        return (insets.getInsetsIgnoringVisibility(nav).bottom - insets.getInsets(nav).bottom).coerceAtLeast(0)
+    }
+
     /** Miniatura de la captura (56 dp de alto). Se puede llamar desde cualquier hilo. */
     fun thumbnail(bmp: Bitmap): Bitmap {
         val h = (56 * dp).toInt()
@@ -518,7 +533,8 @@ internal class ShotFlash(private val svc: AccessibilityService) {
     fun show(thumb: Bitmap) = show(thumb, tr("Captura guardada", "Screenshot saved"), null, 2200)
 
     /** La misma tarjeta con otra imagen y texto (batería baja): [ms] lo que se queda antes de salir. */
-    fun show(thumb: Bitmap, title: String, line: String?, ms: Long, at: NoticePos? = null) {
+    /** [overToast]: abajo al centro, a la altura del toast de Android, para taparlo (ver [toastOffset]). */
+    fun show(thumb: Bitmap, title: String, line: String?, ms: Long, at: NoticePos? = null, overToast: Boolean = false) {
         hide()
         val px = { v: Int -> (v * dp).toInt() }
         val image = android.widget.ImageView(svc).apply {
@@ -542,7 +558,8 @@ internal class ShotFlash(private val svc: AccessibilityService) {
             setPadding(px(8), px(8), px(16), px(8))
             // Con el tema del panel (claro u oscuro), como todo lo que se dibuja sobre el juego.
             background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(if (light) 0xF2F3F6FB.toInt() else 0xEE0E1424.toInt()); cornerRadius = 16 * dp
+                setColor(if (overToast) (if (light) 0xFFF3F6FB.toInt() else 0xFF0E1424.toInt())
+                    else if (light) 0xF2F3F6FB.toInt() else 0xEE0E1424.toInt()); cornerRadius = 16 * dp
             }
             addView(image, android.widget.LinearLayout.LayoutParams(thumb.width, thumb.height))
             addView(text)
@@ -561,6 +578,16 @@ internal class ShotFlash(private val svc: AccessibilityService) {
         ).apply {
             gravity = when (pos.h) { -1 -> Gravity.START; 1 -> Gravity.END; else -> Gravity.CENTER_HORIZONTAL } or
                 when (pos.v) { -1 -> Gravity.TOP; 1 -> Gravity.BOTTOM; else -> Gravity.CENTER_VERTICAL }
+            if (overToast) {
+                // A la altura del toast: Android lo pone sobre la barra de navegación aunque esté escondida (en un juego
+                // a pantalla completa queda más arriba que el borde). Esta ventana no respeta esos márgenes, así que se
+                // suma a mano lo escondido de la barra. Centrada en el toast: su centro queda ~36 dp sobre `toast_y_offset`
+                // (medido en la Y700); la tarjeta es más alta y opaca, para que no se transparente su texto.
+                val card = thumb.height + 16 * dp
+                val center = hiddenNavBar() + toastOffset() + 36 * dp
+                y = (center - card / 2 - 16 * dp).toInt().coerceAtLeast(0)
+                android.util.Log.d(AutoModeService.TAG, "aviso sobre el toast: barra escondida ${hiddenNavBar()}, toast ${toastOffset()}, y $y")
+            }
         }
         if (runCatching { wm.addView(f, lp) }.isFailure) return
         frame = f
