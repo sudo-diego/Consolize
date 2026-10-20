@@ -42,7 +42,7 @@ fun VibrationPage(s: AppState, a: MainActivity) {
     )
     Panel {
         SwitchRow(tr("Probar con LT y RT", "Test with LT and RT"), s.triggerPreview) { s.triggerPreview = it }
-        Hint(tr("En modo Android los juegos hacen vibrar la tablet, no el control.", "In Android mode, games vibrate the tablet, not the controller."))
+        Hint(tr("En modo Android los juegos no hacen vibrar el control.", "In Android mode, games don't vibrate the controller."))
     }
 }
 

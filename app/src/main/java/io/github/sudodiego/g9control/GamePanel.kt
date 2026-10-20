@@ -933,7 +933,7 @@ class GamePanel(private val svc: AutoModeService) {
                 val want = if (isAuto) true else !bypassOn
                 scope.launch {
                     if (!ZuiBattery.setBypass(want)) toast(tr("No se pudo cambiar el bypass", "Couldn't change bypass"), kind = NoteKind.FAIL)
-                    else if (want) toast(tr("Bypass encendido", "Bypass on"), tr("El cargador alimenta la tablet y la batería no carga.", "The charger powers the tablet and the battery doesn't charge."), NoteKind.OK)
+                    else if (want) toast(tr("Bypass encendido", "Bypass on"), tr("La batería no carga mientras esté enchufada.", "The battery doesn't charge while plugged in."), NoteKind.OK)
                     else toast(tr("Bypass apagado", "Bypass off"), tr("La batería vuelve a cargar.", "The battery charges again."), NoteKind.OK)
                 }
             })
@@ -978,7 +978,7 @@ class GamePanel(private val svc: AutoModeService) {
         // Con un monitor en espejo y la pantalla de la tablet oscurecida (o encendida a mano): verla un rato o volver.
         if (Monitor.screen(svc) != Monitor.Screen.NORMAL && Monitor.current(svc) != null && Monitor.mirror(svc)) {
             val dark = svc.tabletDark
-            add(PanelItem(tr("Tablet oscura", "Tablet dark"), Icons.Outlined.TabletAndroid, PanelRow.SCREEN,
+            add(PanelItem(tr("Pantalla oscura", "Dark screen"), Icons.Outlined.TabletAndroid, PanelRow.SCREEN,
                 sub = if (dark) tr("Con el monitor", "With the monitor") else tr("Encendida", "On"), active = dark) {
                 hide(); svc.toggleTabletScreen()
             })

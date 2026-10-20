@@ -70,7 +70,7 @@ fun ProfilesPage(s: AppState, a: MainActivity) {
         is ProfileDialog.Delete -> AlertDialog(
             onDismissRequest = { dialog = null },
             title = { Text(tr("¿Eliminar «${d.p.name}»?", "Delete “${d.p.name}”?")) },
-            text = { Text(tr("Se borra solo de la tablet; el control no cambia.", "It's only deleted from the tablet; the controller doesn't change.")) },
+            text = { Text(tr("Se borra de la app; el control no cambia.", "It's deleted from the app; the controller doesn't change.")) },
             confirmButton = {
                 TextButton(onClick = {
                     a.saveProfiles(s.profiles.filter { it.id != d.p.id })

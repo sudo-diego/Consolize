@@ -86,7 +86,7 @@ private fun PowerByAppPanel(a: MainActivity) {
     Panel(tr("Consumo por app", "Draw per app"), trailing = {
         if (apps.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { PowerLog.reset(a); apps = emptyList() }
     }) {
-        if (apps.isEmpty()) Hint(tr("Se mide con la tablet desenchufada.", "Measured with the tablet unplugged."))
+        if (apps.isEmpty()) Hint(tr("Se mide sin cargador.", "Measured unplugged."))
         val full = remember { ZuiBattery.fullWh(a) }
         // Solo las instaladas: una desinstalada salía con el nombre del paquete.
         apps.mapNotNull { u -> appLabel(a, u.pkg)?.let { u to it } }.take(10).forEach { (u, label) ->
@@ -263,12 +263,8 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                 ChoiceChips(listOf(0 to tr("Apagado", "Off")) + ZuiBattery.LIMITS.map { it to "$it %" }, own) { lv ->
                     own = lv; ZuiBattery.setOwnLimit(a, lv.takeIf { it > 0 })
                 }
-                Text(
-                    if (own == 0) tr("Apagado: el de ZUI corta en 80 %.", "Off: ZUI's stops at 80 %.")
-                    else tr("Deja de cargar en $own %.", "Stops charging at $own %."),
-                    fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (own > 80 && limit != null) Hint(tr("Apaga el límite de ZUI para llegar a $own %.", "Turn ZUI's limit off to reach $own %."))
+                // Sin explicar el de ZUI: las opciones dicen solas dónde corta. Solo el aviso si el del sistema no deja llegar.
+                if (own > 80 && limit != null) Hint(tr("El límite del sistema corta antes ($limit %).", "The system limit stops earlier ($limit %)."))
             }
             Gate(ready) {
                 SwitchRow(
@@ -298,7 +294,6 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                     SliderRow(tr("Batería desde", "Battery from"), level, 10..90, "$level %", snaps = listOf(20, 40, 60, 80)) {
                         level = it; AutoRules.setSmartBypassLevel(a, it)
                     }
-                    limit?.takeIf { level >= it - 5 }?.let { Hint(tr("El límite de ZUI ($it %) casi no deja llegar.", "ZUI's limit ($it %) barely lets it get there.")) }
                     // 30 en la barra = "Cualquiera" (se guarda 0). Se pega en 35, 38 y 41 °C.
                     SliderRow(tr("Temperatura de la batería desde", "Battery temperature from"), if (temp == 0) 30 else temp, 30..45,
                         if (temp == 0) tr("Cualquiera", "Any") else "$temp °C", snaps = listOf(35, 38, 41), snapPull = 1) {
@@ -307,9 +302,6 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                     if (temp > 0) {
                         Text(tr("Se activa con", "Turns on with"), fontSize = 14.sp)
                         ChoiceChips(listOf(false to tr("Las dos", "Both"), true to tr("Cualquiera", "Either")), any) { any = it; AutoRules.setSmartBypassAny(a, it) }
-                        Hint(if (any) tr("Con calor entra aunque tenga poca batería (se queda en ese nivel mientras dure el calor).",
-                                "When hot it turns on even with low battery (it stays at that level while it lasts).")
-                            else tr("Solo cuando tiene esa batería y además está así de caliente.", "Only when it has that battery and is that hot too."))
                     }
                 }
             }
@@ -350,24 +342,16 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
                     tr("16:9 en cualquier monitor", "16:9 on any monitor"), all169, null
                 ) { all169 = it; Monitor.setAll169(a, it) }
             }
-            Text(tr("Pantalla de la tablet", "Tablet screen"), fontSize = 14.sp)
+            Text(tr("Esta pantalla, con el monitor", "This screen, with the monitor"), fontSize = 14.sp)
             ChoiceChips(
                 listOf(Monitor.Screen.NORMAL to tr("Normal", "Normal"), Monitor.Screen.DIM to tr("Oscura", "Dim"),
                     Monitor.Screen.NO_LIGHT to tr("Sin luz", "No light"), Monitor.Screen.OFF to tr("Apagada", "Off")), screen
             ) { screen = it; Monitor.setScreen(a, it) }
-            Text(
-                when (screen) {
-                    Monitor.Screen.NORMAL -> tr("La tablet sigue como siempre.", "The tablet stays as usual.")
-                    Monitor.Screen.DIM -> tr("Brillo al mínimo. Sin Shizuku.", "Minimum brightness. No Shizuku needed.")
-                    Monitor.Screen.NO_LIGHT -> tr("Sin luz: la pantalla queda apagada pero encendida. Necesita Shizuku.", "Backlight off: the panel stays on but dark. Needs Shizuku.")
-                    Monitor.Screen.OFF -> tr("Panel apagado, con Shizuku.", "Panel off, with Shizuku.")
-                }, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             // Encendida con el botón de encendido: volver a oscurecerla sin control.
             if (screen != Monitor.Screen.NORMAL && monitor != null && mirror && remember(tick) { Monitor.woken }) {
                 OutlinedButton(onClick = { AutoRules.darkenTablet(a); tick++ }) { Text(tr("Oscurecer ahora", "Darken now")) }
             }
-            if (screen >= Monitor.Screen.NO_LIGHT && !ready) Hint(tr("Sin Shizuku queda oscura.", "Without Shizuku it's just dimmed."))
+            if (screen >= Monitor.Screen.NO_LIGHT && !ready) Hint(tr("Sin Shizuku solo se oscurece.", "Without Shizuku it's only dimmed."))
             if (screen != Monitor.Screen.NORMAL) Hint(tr("Si algo falla: encendido dos veces la enciende.", "If anything fails: press power twice to turn it on."))
             if (known.isNotEmpty() && Aspect.available(a)) {
                 Text(tr("Monitores", "Monitors"), fontSize = 14.sp)
@@ -434,8 +418,6 @@ fun GameAssistantSettings(s: AppState, a: MainActivity) {
         Panel("Game Assistant", trailing = {
             Text(if (game) tr("En un juego", "In a game") else tr("Sin juego", "No game"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }) {
-            // La única explicación de qué es "juego" en la app: lo que depende de Game Assistant (ZuiGame.inGame).
-            Hint(tr("Los juegos son los que reconoce Game Assistant (Manage my games).", "Games are the ones Game Assistant recognizes (Manage my games)."))
             CompositionLocalProvider(LocalEditable provides (ready && LocalGateOk.current)) {
                 SwitchRow(
                     tr("Ocultar Game Assistant", "Hide Game Assistant"), gaHidden == true
@@ -462,20 +444,15 @@ fun GameAssistantSettings(s: AppState, a: MainActivity) {
             // Otras dos de Game Assistant (Settings.Global key_game_assistant_*), que su app tiene escondidas en sus ajustes.
             CompositionLocalProvider(LocalEditable provides (canWrite && LocalGateOk.current)) {
                 listOf(
-                    Triple("key_game_assistant_notification_undisturb", tr("Sin notificaciones en juegos", "No notifications in games"), tr("Las notificaciones no aparecen encima", "Notifications don't pop up over the game")),
-                    Triple("key_game_assistant_memory_accelerate", tr("Liberar memoria al entrar", "Free memory when starting"), tr("Cierra apps en segundo plano al abrir un juego", "Closes background apps when a game opens")),
-                ).forEach { (key, label, sub) ->
+                    "key_game_assistant_notification_undisturb" to tr("Sin notificaciones en juegos", "No notifications in games"),
+                    "key_game_assistant_memory_accelerate" to tr("Cerrar apps de fondo al abrir un juego", "Close background apps when a game opens"),
+                ).forEach { (key, label) ->
                     var on by remember { mutableStateOf(runCatching { Settings.Global.getInt(a.contentResolver, key) == 1 }.getOrDefault(false)) }
-                    SwitchRow(label, on, sub) { want -> if (runCatching { Settings.Global.putInt(a.contentResolver, key, if (want) 1 else 0) }.isSuccess) on = want }
+                    SwitchRow(label, on) { want -> if (runCatching { Settings.Global.putInt(a.contentResolver, key, if (want) 1 else 0) }.isSuccess) on = want }
                 }
             }
             if (!canWrite) Hint(tr("Necesita el permiso de pantalla (Ajustes → Permisos).", "Needs the screen permission (Settings → Permissions)."))
-            // Medido en RetroArch: ninguno cambia el techo de la CPU; cambian cuánto la dejan subir.
-            Text(tr("Modos de rendimiento", "Performance modes"), fontSize = 14.sp)
-            ModeRow(tr("Ahorro de energía", "Power saving"), tr("CPU baja: gasta menos, más lag",
-                "Low CPU: uses less, more lag"))
-            ModeRow(tr("Equilibrado", "Balanced"), tr("Sube cuando el juego lo pide", "Ramps up when the game asks"))
-            ModeRow(tr("Alto rendimiento", "High performance"), tr("CPU alta: menos tirones, más calor", "High CPU: fewer stutters, more heat"))
+            // Sin la tabla de qué hace cada modo de rendimiento: se elige en el panel, que ya los nombra.
             OutlinedButton(onClick = { if (!ZuiGame.openSettings(a)) s.fail(tr("No se pudieron abrir los ajustes de Game Assistant.", "Couldn't open Game Assistant settings.")) }) {
                 Text(tr("Ajustes de Game Assistant", "Game Assistant settings"))
             }
@@ -493,13 +470,11 @@ private fun ScreenRow(a: MainActivity) {
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
     if (!Aspect.available(a)) {
         Text(tr("Pantalla 16:9", "16:9 screen"), fontSize = 14.sp)
-        Hint(tr("Monitor sin bordes. Se activa una vez desde un computador: ${Aspect.GRANT_COMMAND}",
-            "For an external monitor without borders. Enable it once from a computer: ${Aspect.GRANT_COMMAND}"))
+        Hint(tr("Se activa una vez desde un computador: ${Aspect.GRANT_COMMAND}", "Enable it once from a computer: ${Aspect.GRANT_COMMAND}"))
         return
     }
     SwitchRow(
-        tr("Pantalla 16:9", "16:9 screen"), wide,
-        tr("Cierra Dolphin si está abierto", "Closes Dolphin if it's open")
+        tr("Pantalla 16:9", "16:9 screen"), wide
     ) { want ->
         scope.launch {
             if (want != Aspect.is169(a)) Aspect.toggle(a)

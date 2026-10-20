@@ -143,7 +143,9 @@ class AutoModeService : AccessibilityService() {
             if (smartOn) { smartOn = false; scope.launch { ZuiBattery.setBypass(false, manual = false) } }
             return
         }
-        if (Shell.state != Shell.State.READY) return
+        // Shizuku tarda en estar listo al arrancar el servicio (al actualizar la app o reiniciar): se reintenta, si no el
+        // bypass seguía encendido sin razón ("Auto: activo") hasta el siguiente aviso de la batería, minutos después.
+        if (Shell.state != Shell.State.READY) { main.removeCallbacks(bypassCheck); main.postDelayed(bypassCheck, 5000); return }
         if (ZuiBattery.manualOverride) {
             // Encendido a mano: dura hasta desconectar, pero Game Assistant lo apaga al salir de un juego. Se repone.
             if (ZuiBattery.manualOn && ZuiBattery.bypassNow == false && i.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0) {
@@ -162,6 +164,9 @@ class AutoModeService : AccessibilityService() {
         // encendido por él. Si no, creería que sigue activo y no lo volvería a encender. Cada minuto se lee el estado
         // real (los avisos de la batería llegan seguido; leerlo es un comando de Shizuku).
         if (smartOn && ZuiBattery.bypassNow == false) smartOn = false
+        // Al reiniciarse el servicio (al actualizar la app) se olvidaba que el bypass era del automático: quedaba
+        // encendido sin razón ("Auto: activo") aunque ya no correspondiera. Encendido y no a mano, es suyo.
+        if (!smartOn && ZuiBattery.bypassNow == true) smartOn = true
         if (smartOn && now - lastBypassRead > 60_000) {
             lastBypassRead = now
             scope.launch { if (ZuiBattery.readBypass() == false) { Log.d(TAG, "bypass apagado desde fuera: se revisa"); evaluateBypass() } }

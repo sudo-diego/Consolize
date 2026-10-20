@@ -1073,7 +1073,7 @@ fun AccentPicker(current: Accent, onPick: (Accent) -> Unit) {
         dot(!isPreset, if (isPreset) Modifier.background(androidx.compose.ui.graphics.Brush.sweepGradient(
             listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red))) else Modifier.background(current.color(!dark)),
             tr("Personalizado", "Custom")) { custom = true }
-        Text(if (current.base == null) tr("Celeste", "Sky") else current.hex, Modifier.height(36.dp).wrapContentHeight(),
+        Text(current.base?.let { current.hex } ?: "#6EC9FF", Modifier.height(36.dp).wrapContentHeight(),
             fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
     }
     if (custom) CustomColorDialog(current, onDismiss = { custom = false }) { onPick(it); custom = false }

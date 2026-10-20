@@ -354,8 +354,8 @@ private fun RaProxyPanel(s: AppState, a: MainActivity) {
             "With RAOfflineProxy, achievements are kept offline and sent when you're back online."),
             fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (!installed) {
-            Hint(tr("No está instalado: búscalo como RAOfflineProxy en GitHub u Obtainium. En esta tablet se usa con «Manual Emulator Setup» y Shizuku.",
-                "Not installed: look for RAOfflineProxy on GitHub or Obtainium. On this tablet use \u201cManual Emulator Setup\u201d and Shizuku."))
+            Text(tr("No está instalado.", "Not installed."), fontSize = 14.sp)
+
             return@Panel
         }
         setups.forEach { st ->
@@ -380,8 +380,8 @@ private fun RaProxyPanel(s: AppState, a: MainActivity) {
             "1. Leave it always on. Online it passes your achievements right away; offline it keeps them and sends them by itself when you're back online (anywhere)."))
         Hint(tr("2. Abre cada juego una vez con internet y el proxy encendido: así guarda sus logros para jugarlo sin conexión.",
             "2. Open each game once online with the proxy on: that saves its achievements for playing offline."))
-        Hint(tr("3. Cada emulador necesita la sesión iniciada en RetroAchievements (arriba dice si falta). En Dolphin, después de iniciarla sal con Atrás: si se cierra a la fuerza, la pierde. El tiempo jugado sin internet no se registra.",
-            "3. Each emulator needs to be signed in to RetroAchievements (shown above). In Dolphin, press Back to exit after signing in: if it's force-closed, it loses it. Offline playtime isn't recorded."))
+        Hint(tr("3. Cada emulador necesita la sesión iniciada en RetroAchievements (arriba dice si falta).",
+            "3. Each emulator needs to be signed in to RetroAchievements (shown above)."))
         Hint(tr("«Preparar y abrir» cierra los emuladores y abre RAOfflineProxy para Start (después de reiniciar, abrirlo basta: se enciende solo). Apágalo con su Stop proxy, que deja todo como estaba.",
             "“Prepare and open” closes the emulators and opens RAOfflineProxy for Start (after a reboot, opening it is enough: it turns on by itself). Turn it off with its Stop proxy, which restores everything."))
         }

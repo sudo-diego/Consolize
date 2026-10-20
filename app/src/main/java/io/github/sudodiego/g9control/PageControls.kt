@@ -53,7 +53,7 @@ private fun GuidePanel(a: MainActivity) {
                 ShortcutRow(listOf(tr("Guía", "Guide")), tr("Mantener", "Hold"), tr("Panel de juego", "Game panel"), row(AutoRules.Guide.HOLD_PANEL).value) {
                     row(AutoRules.Guide.HOLD_PANEL).value = it; AutoRules.setGuide(a, AutoRules.Guide.HOLD_PANEL, it)
                 }
-                ShortcutRow(listOf(tr("Guía", "Guide")), tr("Mantener 5 s (el control se apaga)", "Hold 5 s (the controller turns off)"), tr("Bloquear la tablet", "Lock the tablet"),
+                ShortcutRow(listOf(tr("Guía", "Guide")), tr("Mantener 5 s (el control se apaga)", "Hold 5 s (the controller turns off)"), tr("Bloquear la pantalla", "Lock the screen"),
                     row(AutoRules.Guide.HOLD_LOCK).value) {
                     row(AutoRules.Guide.HOLD_LOCK).value = it; AutoRules.setGuide(a, AutoRules.Guide.HOLD_LOCK, it)
                 }
@@ -63,7 +63,7 @@ private fun GuidePanel(a: MainActivity) {
                 ShortcutRow(emptyList(), tr("Seguir manteniendo RB", "Keep holding RB"), tr("Ráfaga, una por segundo", "Burst, one per second"), burst) {
                     burst = it; AutoRules.setBurstShots(a, it)
                 }
-                ShortcutRow(listOf(tr("Guía", "Guide"), "LB"), tr("Sale del juego en Dolphin", "Quits the game in Dolphin"), tr("Mantener Atrás", "Hold Back"),
+                ShortcutRow(listOf(tr("Guía", "Guide"), "LB"), null, tr("Mantener Atrás", "Hold Back"),
                     row(AutoRules.Guide.LB_BACK).value) {
                     row(AutoRules.Guide.LB_BACK).value = it; AutoRules.setGuide(a, AutoRules.Guide.LB_BACK, it)
                 }
@@ -148,14 +148,14 @@ private fun OtherShortcutsPanel(a: MainActivity) {
 private fun TabletButtonsPanel(a: MainActivity) {
     var swap by remember { mutableStateOf(AutoRules.swapVolume(a)) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Botones de la tablet", "Tablet buttons")) {
+        Panel(tr("Botones de volumen", "Volume buttons")) {
             SwitchRow(tr("Invertir el volumen", "Swap volume buttons"), swap,
-                tr("Con la tablet bloqueada funcionan normal (Android no deja cambiarlos ahí)", "When the tablet is locked they work as usual (Android doesn't allow changing them there)")) {
+                null) {
                 swap = it; AutoRules.setSwapVolume(a, it)
             }
             if (swap) {
                 var rotations by remember { mutableStateOf(AutoRules.swapRotations(a)) }
-                Text(tr("Solo con la tablet en", "Only with the tablet in"), fontSize = 14.sp)
+                Text(tr("Solo en", "Only in"), fontSize = 14.sp)
                 MultiChips(listOf(1 to tr("Horizontal", "Landscape"), 3 to tr("Horizontal invertido", "Reverse landscape"),
                     0 to tr("Vertical", "Portrait"), 2 to tr("Vertical invertido", "Reverse portrait")), rotations) { r, on ->
                     rotations = if (on) rotations + r else rotations - r
