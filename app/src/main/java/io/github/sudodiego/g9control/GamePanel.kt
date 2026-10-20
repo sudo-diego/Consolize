@@ -1090,14 +1090,39 @@ class GamePanel(private val svc: AutoModeService) {
      * aviso y sonido que las de TBF, con una miniatura sacada aquí, sin guardar otra imagen.
      */
     fun systemShotNotice() {
-        systemShotAt = android.os.SystemClock.uptimeMillis()
+        systemShot = SystemShot()
+        main.removeCallbacks(systemShotLate)
+        main.postDelayed(systemShotLate, SYSTEM_SHOT_WAIT)
         screenshot(save = false)
     }
+
     /**
-     * Cuándo se apretó el botón de captura del control. El aviso sale 1 s después: Android saca su captura (dos, con el
-     * G8+) un rato después de la tecla y, si el aviso ya estaba, salía en la imagen.
+     * El aviso sale cuando aparece el toast de Android (ZUI no avisa a accesibilidad, así que se espera): medido en la
+     * Y700 con el G8+, su captura queda entre −30 y +90 ms de la tecla y el toast a ~+185 ms. Antes, apenas había
+     * miniatura salía en la imagen; con 1 s de espera, el toast se veía solo primero.
      */
-    private var systemShotAt = 0L
+    private val SYSTEM_SHOT_WAIT = 180L
+
+    /** El botón de captura del control: [thumb], la miniatura cuando ya está; [toast], ya pasó la espera. */
+    private class SystemShot { var thumb: Bitmap? = null; var toast = false; var failed = false }
+    private var systemShot: SystemShot? = null
+    private val systemShotLate = Runnable { systemShot?.let { it.toast = true; showSystemShot() } }
+
+    private fun showSystemShot() {
+        val s = systemShot ?: return
+        if (!s.toast || (s.thumb == null && !s.failed)) return
+        systemShot = null
+        main.removeCallbacks(systemShotLate)
+        val thumb = s.thumb
+        // Sin miniatura (no se pudo capturar la ventana): solo el sonido.
+        if (thumb != null) {
+            // Si se pidió, encima del toast de Android, que no se puede quitar.
+            if (AutoRules.shotOverToast(svc)) flash.show(thumb, tr("Captura guardada", "Screenshot saved"), null, 3500,
+                NoticePos.entries.first { it.h == 0 && it.v == 1 }, overToast = true)
+            else flash.show(thumb)
+        }
+        sounds.play(AutoRules.shotSound(svc))
+    }
 
     /** Aviso corto desde el servicio (el mismo de las acciones del panel). */
     internal fun message(title: String, line: String? = null, kind: NoteKind = NoteKind.INFO) = toast(title, line, kind)
@@ -1140,14 +1165,9 @@ class GamePanel(private val svc: AutoModeService) {
                         }
                         // El aviso (con su miniatura) apenas hay imagen; guardar el PNG sigue en segundo plano.
                         val thumb = flash.thumbnail(bmp)
-                        val wait = if (save) 0L else (systemShotAt + 1000 - android.os.SystemClock.uptimeMillis()).coerceAtLeast(0)
-                        main.postDelayed({
-                            // La sacó Android: si se pidió, encima de su toast ("Captura guardada"), que no se puede quitar.
-                            if (!save && AutoRules.shotOverToast(svc)) flash.show(thumb, tr("Captura guardada", "Screenshot saved"), null, 3500,
-                                NoticePos.entries.first { it.h == 0 && it.v == 1 }, overToast = true)
-                            else flash.show(thumb)
-                            sounds.play(AutoRules.shotSound(svc))
-                        }, wait)
+                        // La sacó Android: el aviso espera su toast (ver systemToastShown).
+                        if (!save) main.post { systemShot?.let { it.thumb = thumb; showSystemShot() } }
+                        else main.post { flash.show(thumb); sounds.play(AutoRules.shotSound(svc)) }
                         try { if (save) saveScreenshot(bmp) } finally { bmp.recycle() }
                     }
                     saved.onFailure {
@@ -1159,7 +1179,7 @@ class GamePanel(private val svc: AutoModeService) {
                     Log.w(AutoModeService.TAG, "captura de la ventana $id falló (código $code)")
                     // Muy seguido: se reintenta en su turno, no con la captura del sistema (que sale distinta).
                     // Solo el aviso (la captura ya la sacó Android): sin miniatura, el sonido.
-                    if (!save) main.post { sounds.play(AutoRules.shotSound(svc)) }
+                    if (!save) main.post { systemShot?.let { it.failed = true; showSystemShot() } }
                     else if (code == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) main.post {
                         nextShot = android.os.SystemClock.uptimeMillis() + 1100
                         if (!shotQueued) { shotQueued = true; main.postDelayed({ shotQueued = false; screenshot() }, 1100) }
@@ -1171,7 +1191,7 @@ class GamePanel(private val svc: AutoModeService) {
             return
         }
         Log.w(AutoModeService.TAG, "sin ventana para capturar (id $id)")
-        if (save) fullScreenshot() else sounds.play(AutoRules.shotSound(svc))
+        if (save) fullScreenshot() else systemShot?.let { it.failed = true; showSystemShot() }
     }
 
     /** La app es un launcher (responde a Inicio): su fondo es el fondo de pantalla del sistema. */
