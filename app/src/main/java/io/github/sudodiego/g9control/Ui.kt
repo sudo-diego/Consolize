@@ -166,8 +166,10 @@ fun App(s: AppState, a: MainActivity) {
             // Angosta (vertical): la barra de arriba, que ocupa menos ancho.
             if (wide) Row(Modifier.fillMaxSize()) {
                 SideBar(s, a)
-                Column(Modifier.weight(1f).fillMaxHeight()) {
-                    if (s.navCompact) PageTitle(s)
+                // Con el foco dentro de la página (eligiendo una opción) la barra se pliega a íconos; al volver a ella o al
+                // cambiar de pestaña (el foco sale de la página) se abre. El título va siempre, para que no salte.
+                Column(Modifier.weight(1f).fillMaxHeight().onFocusChanged { s.navCompact = it.hasFocus }) {
+                    PageTitle(s)
                     if (s.page == Page.HOME) ModeStrip(s)
                     PageHost(s, a, Modifier.weight(1f))
                     HintBar(s)
@@ -187,7 +189,7 @@ fun App(s: AppState, a: MainActivity) {
 /**
  * Barra lateral (pantalla ancha): las secciones una debajo de otra; la actual con sus pestañas debajo, con sangría
  * (las del G9 bajo "Legion G9"). Arriba y abajo, el botón que sube o baja por la lista (LT/RT; LB/RB donde LT/RT prueban
- * los gatillos). El botón de arriba la pliega a solo íconos (más espacio para la página) o la abre; se recuerda.
+ * los gatillos). Se pliega a solo íconos mientras el foco está en la página (ver App).
  */
 @Composable
 private fun SideBar(s: AppState, a: MainActivity) {
@@ -196,20 +198,14 @@ private fun SideBar(s: AppState, a: MainActivity) {
     val focus = remember { Page.entries.associateWith { FocusRequester() } }
     var hasFocus by remember { mutableStateOf(false) }
     // Con el foco en la barra, LT/RT lo llevan a la pestaña nueva (si no, quedaba en la anterior).
-    LaunchedEffect(s.page) { if (hasFocus) runCatching { focus.getValue(s.page).requestFocus() } }
+    // Al cambiar de pestaña con un control, el foco va a la pestaña nueva (si no, Android lo dejaba en la primera).
+    LaunchedEffect(s.page) { s.navCompact = false; kotlinx.coroutines.delay(50); if (hasFocus || s.anyPad) runCatching { focus.getValue(s.page).requestFocus() } }
     val width by androidx.compose.animation.core.animateDpAsState(if (compact) 88.dp else 220.dp, tween(220), label = "nav")
     Column(
         Modifier.width(width).fillMaxHeight().padding(start = 16.dp, top = 12.dp, bottom = 12.dp)
             .clip(RoundedCornerShape(24.dp)).background(c.surfaceContainerHigh.copy(alpha = 0.6f))
-            .onFocusChanged { hasFocus = it.hasFocus }
+            .onFocusChanged { hasFocus = it.hasFocus; if (it.hasFocus) s.navCompact = false }
     ) {
-        // Plegar o abrir.
-        Box(Modifier.fillMaxWidth().padding(top = 8.dp, start = 10.dp, end = 10.dp), contentAlignment = if (compact) Alignment.Center else Alignment.CenterStart) {
-            IconButton(onClick = { s.navCompact = !compact; Prefs.setNavCompact(a, !compact) }) {
-                Icon(if (compact) Icons.Filled.KeyboardDoubleArrowRight else Icons.Filled.KeyboardDoubleArrowLeft, tr("Plegar o abrir la barra", "Collapse or expand the bar"),
-                    Modifier.size(22.dp), tint = c.onSurfaceVariant)
-            }
-        }
         // LT/RT recorren la lista (LB/RB también); en Vibración y Sticks LT/RT prueban los gatillos, así que ahí LB/RB.
         val keys = if (s.page in TRIGGER_PAGES) "LB" to "RB" else "LT" to "RT"
         NavKey(keys.first, up = true)

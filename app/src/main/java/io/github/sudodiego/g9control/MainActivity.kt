@@ -68,7 +68,6 @@ class MainActivity : ComponentActivity() {
         Lang.load(this)
         state.showSetup = !Prefs.setupDone(this)
         state.anyShot = AutoRules.anyShot(this)
-        state.navCompact = Prefs.navCompact(this)
         setContent {
             G9Theme {
                 // Íconos de la barra de estado y de navegación acordes al tema elegido (no solo al del sistema).
