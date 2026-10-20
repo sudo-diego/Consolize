@@ -447,6 +447,11 @@ internal fun PanelLookPanel(a: MainActivity) {
         SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
             stats = it; Prefs.setPanelStats(a, it); ThemeState.panelStats = it
         }
+        // Congelar el juego al abrir: con cualquier fondo (el fondo "Juego en pausa" ya lo hace siempre).
+        if (ThemeState.panelBackground != PanelBackground.GAME) SwitchRow(tr("Congelar el juego al abrir", "Freeze the game when opening"), ThemeState.panelFreeze) {
+            ThemeState.panelFreeze = it; Prefs.setPanelFreeze(a, it)
+        }
+        if (ThemeState.freezesGame) SliderRow(tr("Oscurecer", "Dim"), ThemeState.panelPauseDim, 0..90) { ThemeState.panelPauseDim = it; Prefs.setPanelPauseDim(a, it) }
     }
     Panel(tr("Diseño", "Layout")) {
         Text(tr("Estilo", "Style"), fontSize = 14.sp)
@@ -475,8 +480,7 @@ internal fun PanelLookPanel(a: MainActivity) {
             PanelBackground.GRADIENT ->
                 SliderRow(tr("Transparencia", "Transparency"), ThemeState.panelSee, 0..100) { ThemeState.panelSee = it; Prefs.setPanelSee(a, it) }
             PanelBackground.GAME -> {
-                // El juego congelado a pantalla completa: cuánto se oscurece, y el desenfoque de lo que va detrás del panel.
-                SliderRow(tr("Oscurecer", "Dim"), ThemeState.panelPauseDim, 0..90) { ThemeState.panelPauseDim = it; Prefs.setPanelPauseDim(a, it) }
+                // El desenfoque de lo que va detrás del panel (el juego congelado; cuánto se oscurece, en General).
                 SliderRow(tr("Desenfoque", "Blur"), ThemeState.panelBlur, 0..100) { ThemeState.panelBlur = it; Prefs.setPanelBlur(a, it) }
             }
             PanelBackground.IMAGE -> {

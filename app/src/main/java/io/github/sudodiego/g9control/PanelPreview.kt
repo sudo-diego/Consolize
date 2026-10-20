@@ -102,7 +102,7 @@ private fun PanelPreviewCard(a: MainActivity) {
     }) {
         PanelPreview()
         // Aviso discreto: en ese modo el juego no se pausa, solo se congela la imagen.
-        if (ThemeState.panelBackground == PanelBackground.GAME) Text(
+        if (ThemeState.freezesGame) Text(
             tr("El juego no se pausa: se congela la imagen y sigue corriendo detrás.", "The game doesn't pause: the picture freezes and it keeps running behind."),
             fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -132,7 +132,7 @@ fun PanelPreview() {
         Box(Modifier.requiredWidth(w.dp).height(h).clip(RoundedCornerShape(14.dp))) {
             GameScene(Modifier.fillMaxSize())
             // Juego en pausa: el juego oscurecido como al abrir el panel.
-            if (ThemeState.panelBackground == PanelBackground.GAME)
+            if (ThemeState.freezesGame)
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = ThemeState.panelPauseDim / 100f)))
             val base = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(base.density * panelScale * f, base.fontScale), LocalPanelInert provides true,

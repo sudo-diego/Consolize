@@ -185,6 +185,9 @@ object ThemeState {
     var panelClassic by androidx.compose.runtime.mutableStateOf(false)
     /** Juego en pausa: cuánto se oscurece (0..90). */
     var panelPauseDim by androidx.compose.runtime.mutableIntStateOf(35)
+    /** Congelar el juego al abrir el panel, con cualquier fondo (con "Juego en pausa" siempre). */
+    var panelFreeze by androidx.compose.runtime.mutableStateOf(false)
+    val freezesGame get() = panelFreeze || panelBackground == PanelBackground.GAME
     /** Mosaicos del panel de vidrio líquido (sobre el fondo propio del panel). */
     var panelLiquid by androidx.compose.runtime.mutableStateOf(false)
     /** Mini monitor arriba del panel (estado, para que la vista previa lo muestre al cambiarlo). */
@@ -219,7 +222,7 @@ object ThemeState {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
         backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); liquidParams = Prefs.liquidParams(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
-        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
+        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.
         panelUri?.takeIf { panelBackground == PanelBackground.IMAGE }?.let { ImageCache.preload(ctx, "panel", it) }
     }

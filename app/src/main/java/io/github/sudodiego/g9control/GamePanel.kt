@@ -156,7 +156,7 @@ class GamePanel(private val svc: AutoModeService) {
      * misma, desenfocada. El juego sigue corriendo debajo (otra app no se puede pausar). Si no hay imagen, panel normal.
      */
     fun show() {
-        if (ThemeState.panelBackground != PanelBackground.GAME || isOpen) return showNow()
+        if (!ThemeState.freezesGame || isOpen) return showNow()
         if (freezing) return
         freezing = true
         // 1) Al instante, una ventana vacía (sin foco: con el foco, el juego no recibía el stick al soltarlo; ver

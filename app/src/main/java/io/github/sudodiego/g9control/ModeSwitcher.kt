@@ -23,6 +23,8 @@ object Prefs {
     /** Fondo "Juego en pausa": cuánto se oscurece el juego congelado (0..90). */
     fun panelPauseDim(ctx: Context) = sp(ctx).getInt("panel_pause_dim", 35)
     fun setPanelPauseDim(ctx: Context, v: Int) = sp(ctx).edit().putInt("panel_pause_dim", v).apply()
+    fun panelFreeze(ctx: Context) = sp(ctx).getBoolean("panel_freeze", false)
+    fun setPanelFreeze(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("panel_freeze", v).apply()
     fun panelLiquid(ctx: Context) = sp(ctx).getBoolean("panel_liquid", false)
     fun setPanelLiquid(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("panel_liquid", v).apply()
     fun liquidParams(ctx: Context) = sp(ctx).let { LiquidParams(it.getInt("lq_blur", 38), it.getInt("lq_refr", 40), it.getInt("lq_tint", 50), it.getInt("lq_high", 50), it.getInt("lq_rim", 55)) }
