@@ -139,6 +139,15 @@ enum class ImageFit { FILL, FIT, STRETCH, CENTER;
     }
 }
 
+/**
+ * Cómo se ven las superficies de la app (hojas, tarjetas, barra lateral) sobre el fondo. Vidrio: translúcidas. Vidrio
+ * líquido: además desenfocan lo que tienen detrás (por GPU, con RenderEffect; con el fondo de pantalla de Android no se
+ * puede y queda como vidrio). Sólidas: opacas.
+ */
+enum class Surfaces { GLASS, LIQUID, SOLID;
+    val label get() = when (this) { GLASS -> tr("Vidrio", "Glass"); LIQUID -> tr("Vidrio líquido", "Liquid glass"); SOLID -> tr("Sólidas", "Solid") }
+}
+
 /** Tema del panel de juego: oscuro (el de siempre), claro o el del sistema. Vale para todos sus fondos. */
 enum class PanelTone { DARK, LIGHT, SYSTEM;
     val label get() = when (this) { DARK -> tr("Oscuro", "Dark"); LIGHT -> tr("Claro", "Light"); SYSTEM -> tr("Sistema", "System") }
@@ -151,6 +160,7 @@ object ThemeState {
     var backgroundUri by androidx.compose.runtime.mutableStateOf<String?>(null)
     var backgroundBlur by androidx.compose.runtime.mutableIntStateOf(24)
     var backgroundLoop by androidx.compose.runtime.mutableStateOf(true)
+    var surfaces by androidx.compose.runtime.mutableStateOf(Surfaces.GLASS)
     /** Con el fondo de pantalla: cuánto se oscurece (0..100) para que el texto se lea. No se puede desenfocar: la
      *  tablet no tiene desenfoque entre ventanas (ro.surface_flinger.supports_background_blur = 0). */
     var backgroundDim by androidx.compose.runtime.mutableIntStateOf(45)
@@ -201,14 +211,17 @@ object ThemeState {
     /** Lo elegido, desde la app o desde el servicio (el panel se puede abrir sin haber abierto la app). */
     fun load(ctx: android.content.Context) {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
-        backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); backgroundDim = Prefs.backgroundDim(ctx)
+        backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
         panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.
         panelUri?.takeIf { panelBackground == PanelBackground.IMAGE }?.let { ImageCache.preload(ctx, "panel", it) }
     }
     /** Con fondo (degradado o imagen) las tarjetas son de vidrio: translúcidas con un borde claro. */
-    val glass get() = background != AppBackground.PLAIN
+    val glass get() = background != AppBackground.PLAIN && surfaces != Surfaces.SOLID
+    /** Vidrio líquido de verdad: con un fondo que dibuja la app (degradado o imagen) y Android 12+. */
+    val liquid get() = surfaces == Surfaces.LIQUID && android.os.Build.VERSION.SDK_INT >= 31 &&
+        (background == AppBackground.GRADIENT || background == AppBackground.IMAGE)
 }
 
 @Composable

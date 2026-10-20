@@ -77,11 +77,11 @@ fun PanelPage(s: AppState, a: MainActivity) {
                     PanelPreviewCard(a)
                 }
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) { Gate(s.autoServiceOn) { PanelLookPanel(a) } }
+            Column(Modifier.weight(1f)) { Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } } }
         }
     } else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PanelPreviewCard(a)
-        Gate(s.autoServiceOn) { PanelLookPanel(a) }
+        Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } }
     }
 }
 

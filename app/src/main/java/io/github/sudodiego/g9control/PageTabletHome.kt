@@ -43,7 +43,8 @@ fun TabletHomePage(s: AppState, a: MainActivity) {
         },
         second = {
             MemoryPanel(s, a)
-        }
+        },
+        sheets = false
     )
 }
 

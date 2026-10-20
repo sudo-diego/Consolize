@@ -109,11 +109,15 @@ private fun PowerByAppPanel(a: MainActivity) {
 /** Pantalla: 16:9, volumen invertido y el monitor externo. */
 @Composable
 fun ScreenPage(s: AppState, a: MainActivity) {
-    TwoPane(
-        // 16:9 a mano: permiso de pantalla o Shizuku. El monitor lo aplica el servicio de accesibilidad.
-        first = { Gate(Aspect.available(a)) { ScreenButtonsPanel(s, a) } },
-        second = { Gate(s.autoServiceOn) { MonitorPanel(s, a) }; ShizukuHint() }
-    )
+    // Una sola hoja centrada (dos columnas dejaban una con un solo interruptor). 16:9 a mano: permiso de pantalla o
+    // Shizuku; el monitor lo aplica el servicio de accesibilidad.
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Sheet(Modifier.widthIn(max = 900.dp)) {
+            Gate(Aspect.available(a)) { ScreenButtonsPanel(s, a) }
+            Gate(s.autoServiceOn) { MonitorPanel(s, a) }
+            ShizukuHint()
+        }
+    }
 }
 
 /** Sin Shizuku lo que lo necesita se ve atenuado; su estado y cómo iniciarlo están en Ajustes → Permisos. */

@@ -1,5 +1,14 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.dp
 import android.graphics.ImageDecoder
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -132,44 +141,9 @@ private fun ImageBackdrop(uri: String, blur: Int, loop: Boolean, dark: Boolean, 
     }
     Box(Modifier.fillMaxSize()) {
         val d = drawable
-        if (d == null) GradientBackdrop(dark)
-        else AndroidView(
-            factory = { ImageView(it).apply {
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                // Rellenar con encuadre: la matriz depende del tamaño, se recalcula al medir.
-                addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ -> (view.tag as? Runnable)?.run() }
-            } },
-            update = { v ->
-                v.scaleType = when (fit) {
-                    ImageFit.FILL -> ImageView.ScaleType.MATRIX
-                    ImageFit.FIT -> ImageView.ScaleType.FIT_CENTER
-                    ImageFit.STRETCH -> ImageView.ScaleType.FIT_XY
-                    ImageFit.CENTER -> ImageView.ScaleType.CENTER
-                }
-                val crop = Runnable {
-                    val w = v.width.toFloat(); val h = v.height.toFloat()
-                    val dw = d.intrinsicWidth.toFloat(); val dh = d.intrinsicHeight.toFloat()
-                    if (fit == ImageFit.FILL && w > 0 && h > 0 && dw > 0 && dh > 0) {
-                        val s = maxOf(w / dw, h / dh)
-                        v.imageMatrix = android.graphics.Matrix().apply {
-                            setScale(s, s)
-                            postTranslate((w - dw * s) / 2f, (h - dh * s) * focus.coerceIn(0f, 1f))
-                        }
-                    }
-                }
-                v.tag = crop
-                crop.run()
-                (d as? AnimatedImageDrawable)?.let { gif ->
-                    // Repetir o quedarse en el último cuadro.
-                    val want = if (loop) AnimatedImageDrawable.REPEAT_INFINITE else 0
-                    if (gif.repeatCount != want) { gif.repeatCount = want; gif.stop(); gif.start() }
-                }
-                if (v.drawable !== d) { v.setImageDrawable(d); (d as? AnimatedImageDrawable)?.start() }
-                if (Build.VERSION.SDK_INT >= 31)
-                    v.setRenderEffect(if (blur > 0) RenderEffect.createBlurEffect(blur.toFloat(), blur.toFloat(), Shader.TileMode.CLAMP) else null)
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        // Dibujada por Compose (antes un ImageView): así el vidrio líquido puede capturarla y desenfocarla detrás de las
+        // superficies.
+        if (d == null) GradientBackdrop(dark) else DrawableImage(d, blur, loop, fit, focus, Modifier.fillMaxSize())
         // Velo: el texto se lee aunque la imagen sea clara u oscura.
         Box(Modifier.fillMaxSize().background(if (dark) Color(0x8C0A0F1F) else Color(0x80EAF0FA)))
     }
@@ -187,29 +161,37 @@ fun PanelImage(modifier: Modifier = Modifier) {
     var drawable by remember(uri) { mutableStateOf(ImageCache.get("banner", uri)) }
     LaunchedEffect(uri) { if (drawable == null) drawable = withContext(Dispatchers.IO) { ImageCache.decode(ctx, "banner", uri) } }
     val d = drawable ?: return Box(modifier) { GradientBackdrop(true, ThemeState.panelAccent) }
+    DrawableImage(d, ThemeState.panelBlur, ThemeState.panelLoop, ThemeState.panelFit, ThemeState.panelFocus, modifier)
+}
+
+/**
+ * Una imagen o GIF dibujados con Compose: ajuste ([ImageFit]) y encuadre ([focus], al rellenar), desenfoque y, si es un
+ * GIF, se redibuja cada cuadro mientras se ve. Lo usan el fondo de la app, el del panel y la cabecera del lateral.
+ */
+@Composable
+fun DrawableImage(d: Drawable, blur: Int, loop: Boolean, fit: ImageFit, focus: Float, modifier: Modifier = Modifier) {
     var frame by remember { mutableIntStateOf(0) }
-    LaunchedEffect(d, ThemeState.panelLoop) {
+    LaunchedEffect(d, loop) {
         (d as? AnimatedImageDrawable)?.let { gif ->
-            gif.repeatCount = if (ThemeState.panelLoop) AnimatedImageDrawable.REPEAT_INFINITE else 0
+            gif.repeatCount = if (loop) AnimatedImageDrawable.REPEAT_INFINITE else 0
             gif.start()
             while (true) { withFrameNanos { }; frame++ }
         }
     }
-    val blur = ThemeState.panelBlur
     Canvas(modifier.then(if (Build.VERSION.SDK_INT >= 31 && blur > 0) Modifier.graphicsLayer {
         renderEffect = RenderEffect.createBlurEffect(blur.toFloat(), blur.toFloat(), Shader.TileMode.CLAMP).asComposeRenderEffect()
     } else Modifier)) {
         frame   // se lee para redibujar cada cuadro del GIF
         val w = size.width; val h = size.height
         val dw = d.intrinsicWidth.toFloat().coerceAtLeast(1f); val dh = d.intrinsicHeight.toFloat().coerceAtLeast(1f)
-        val (sx, sy) = when (ThemeState.panelFit) {
+        val (sx, sy) = when (fit) {
             ImageFit.FILL -> maxOf(w / dw, h / dh).let { it to it }
             ImageFit.FIT -> minOf(w / dw, h / dh).let { it to it }
             ImageFit.STRETCH -> (w / dw) to (h / dh)
             ImageFit.CENTER -> 1f to 1f
         }
         val left = (w - dw * sx) / 2f
-        val top = if (ThemeState.panelFit == ImageFit.FILL) (h - dh * sy) * ThemeState.panelFocus.coerceIn(0f, 1f) else (h - dh * sy) / 2f
+        val top = if (fit == ImageFit.FILL) (h - dh * sy) * focus.coerceIn(0f, 1f) else (h - dh * sy) / 2f
         drawIntoCanvas { c ->
             val nc = c.nativeCanvas
             nc.save()
@@ -220,5 +202,54 @@ fun PanelImage(modifier: Modifier = Modifier) {
             d.draw(nc)
             nc.restore()
         }
+    }
+}
+
+/**
+ * El fondo de la app grabado en una capa de GPU (lo dibuja [CapturedBackdrop]): el vidrio líquido la vuelve a dibujar,
+ * desenfocada, detrás de cada superficie. Null fuera de la app (el panel de juego no la usa).
+ */
+val LocalBackdropLayer = compositionLocalOf<androidx.compose.ui.graphics.layer.GraphicsLayer?> { null }
+
+/** El fondo de la app, grabado en [layer] cada vez que se dibuja (también cada cuadro de un GIF). */
+@Composable
+fun CapturedBackdrop(layer: androidx.compose.ui.graphics.layer.GraphicsLayer) {
+    Box(Modifier.fillMaxSize().drawWithContent {
+        layer.record { this@drawWithContent.drawContent() }
+        drawLayer(layer)
+    }) { Backdrop() }
+}
+
+/**
+ * Superficie de la app (hoja, tarjeta, barra) según la apariencia elegida. Vidrio: translúcida con un borde que brilla
+ * arriba. Vidrio líquido: además, detrás, el fondo desenfocado por GPU (la capa de [LocalBackdropLayer] desplazada a donde
+ * está la superficie) y un brillo suave arriba, como un cristal grueso. Sólida: opaca.
+ */
+@Composable
+fun GlassSurface(shape: androidx.compose.ui.graphics.Shape, modifier: Modifier = Modifier, tint: Color? = null, content: @Composable () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val dark = isDarkTheme()
+    val layer = LocalBackdropLayer.current
+    val liquid = ThemeState.liquid && layer != null
+    val glass = ThemeState.glass
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    val base = tint ?: c.surfaceContainer
+    val fill = when {
+        liquid -> base.copy(alpha = if (dark) 0.42f else 0.5f)
+        glass -> base.copy(alpha = if (dark) 0.58f else 0.66f)
+        else -> base
+    }
+    Box(modifier.onGloballyPositioned { origin = it.positionInRoot() }.clip(shape)) {
+        if (liquid) Box(Modifier.matchParentSize().graphicsLayer {
+            renderEffect = RenderEffect.createBlurEffect(38f, 38f, Shader.TileMode.CLAMP).asComposeRenderEffect()
+        }.drawBehind { translate(-origin.x, -origin.y) { drawLayer(layer!!) } })
+        Box(Modifier.matchParentSize().background(fill))
+        // Brillo arriba (luz sobre el cristal) solo en el líquido; borde claro arriba que se apaga abajo en los dos vidrios.
+        if (liquid) Box(Modifier.matchParentSize().background(Brush.verticalGradient(
+            0f to Color.White.copy(alpha = if (dark) 0.10f else 0.22f), 0.35f to Color.Transparent)))
+        if (glass) Box(Modifier.matchParentSize().border(1.dp, Brush.verticalGradient(listOf(
+            Color.White.copy(alpha = if (dark) (if (liquid) 0.26f else 0.16f) else 0.7f),
+            Color.White.copy(alpha = if (dark) 0.04f else 0.2f))), shape))
+        Box { content() }
     }
 }

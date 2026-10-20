@@ -43,6 +43,8 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                 }
                 Text(tr("Color", "Color"), fontSize = 14.sp)
                 AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
+                Text(tr("Superficies", "Surfaces"), fontSize = 14.sp)
+                ChoiceChips(Surfaces.entries.map { it to it.label }, ThemeState.surfaces) { ThemeState.surfaces = it; Prefs.setSurfaces(a, it) }
                 Text(tr("Fondo", "Background"), fontSize = 14.sp)
                 ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
                     if (it == AppBackground.IMAGE && ThemeState.backgroundUri == null) a.pickBackground()

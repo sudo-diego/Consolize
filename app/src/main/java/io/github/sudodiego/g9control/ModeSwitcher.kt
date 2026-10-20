@@ -18,6 +18,9 @@ object Prefs {
     fun setupDone(ctx: Context) = sp(ctx).getBoolean("setup_done", false)
     fun setSetupDone(ctx: Context) = sp(ctx).edit().putBoolean("setup_done", true).apply()
 
+    fun surfaces(ctx: Context) = runCatching { Surfaces.valueOf(sp(ctx).getString("surfaces", null)!!) }.getOrDefault(Surfaces.GLASS)
+    fun setSurfaces(ctx: Context, v: Surfaces) = sp(ctx).edit().putString("surfaces", v.name).apply()
+
     /** Barra lateral compacta (solo íconos). */
     fun navCompact(ctx: Context) = sp(ctx).getBoolean("nav_compact", false)
     fun setNavCompact(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("nav_compact", v).apply()

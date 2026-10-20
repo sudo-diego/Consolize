@@ -97,7 +97,7 @@ val LocalGateOk = compositionLocalOf { true }
 @Composable
 fun Gate(ok: Boolean, content: @Composable ColumnScope.() -> Unit) {
     val open = ok && LocalGateOk.current
-    Column(Modifier.alpha(if (open) 1f else 0.4f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.alpha(if (open) 1f else 0.4f), verticalArrangement = Arrangement.spacedBy(if (LocalInSheet.current) 30.dp else 16.dp)) {
         CompositionLocalProvider(LocalEditable provides (open && LocalEditable.current), LocalGateOk provides open) { content() }
     }
 }
@@ -146,7 +146,9 @@ private val NAV = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun App(s: AppState, a: MainActivity) {
-    Box(Modifier.fillMaxSize()) { Backdrop() }
+    val backdropLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    CapturedBackdrop(backdropLayer)
+    CompositionLocalProvider(LocalBackdropLayer provides backdropLayer) {
     BoxWithConstraints(
         Modifier.fillMaxSize().safeDrawingPadding()
     ) {
@@ -184,6 +186,7 @@ fun App(s: AppState, a: MainActivity) {
             if (s.showSetup) SetupDialog(s, a) { s.showSetup = false; Prefs.setSetupDone(a) }
         }
     }
+    }
 }
 
 /**
@@ -203,9 +206,8 @@ private fun SideBar(s: AppState, a: MainActivity) {
     val width by androidx.compose.animation.core.animateDpAsState(if (compact) 88.dp else 220.dp, tween(220), label = "nav")
     Column(
         Modifier.width(width).fillMaxHeight().padding(start = 16.dp, top = 12.dp, bottom = 12.dp)
-            .clip(RoundedCornerShape(24.dp)).background(c.surfaceContainerHigh.copy(alpha = 0.6f))
             .onFocusChanged { hasFocus = it.hasFocus; if (it.hasFocus) s.navCompact = false }
-    ) {
+    ) { GlassSurface(RoundedCornerShape(24.dp), Modifier.fillMaxSize(), tint = c.surfaceContainerHigh) { Column(Modifier.fillMaxSize()) {
         // LT/RT recorren la lista (LB/RB también); en Vibración y Sticks LT/RT prueban los gatillos, así que ahí LB/RB.
         val keys = if (s.page in TRIGGER_PAGES) "LB" to "RB" else "LT" to "RT"
         NavKey(keys.first, up = true)
@@ -243,7 +245,7 @@ private fun SideBar(s: AppState, a: MainActivity) {
         // Conexión del G9: en sus páginas (tocarla vuelve a leer el control).
         if (s.page in G9_PAGES && !compact) Box(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp)) { ConnectionPill(s) { if (!s.busy) a.readAll() } }
         NavKey(keys.second, up = false)
-    }
+    } } }
 }
 
 /** Arriba y abajo de la barra lateral: con qué botón se sube o se baja por la lista. */
@@ -637,7 +639,26 @@ fun ConnectionPill(s: AppState, onConnect: () -> Unit) {
 // Componentes compartidos
 // ---------------------------------------------------------------------------------------------
 
-/** Tarjeta base de todas las páginas. */
+/** Dentro de una hoja ([Sheet]): las secciones no llevan tarjeta propia. */
+val LocalInSheet = compositionLocalOf { false }
+
+/**
+ * Hoja: una superficie por columna de la página, con sus secciones adentro separadas por espacio y un título chico
+ * (antes, cada grupo de dos o tres opciones era una tarjeta de vidrio y la pantalla se llenaba de rectángulos).
+ */
+@Composable
+fun Sheet(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    GlassSurface(RoundedCornerShape(28.dp), modifier.fillMaxWidth()) {
+        CompositionLocalProvider(LocalInSheet provides true) {
+            Column(Modifier.padding(horizontal = 24.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(30.dp), content = content)
+        }
+    }
+}
+
+/**
+ * Un grupo de opciones. En una hoja, una sección: título chico en mayúsculas espaciadas y sus filas. Suelta (Inicio,
+ * Biblioteca, la vista previa), una tarjeta: muestra una cosa.
+ */
 @Composable
 fun Panel(
     title: String? = null,
@@ -646,24 +667,27 @@ fun Panel(
     trailing: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // Vidrio sobre el fondo: translúcida con un borde que brilla arriba y se apaga abajo.
-    val glass = ThemeState.glass
-    val dark = isDarkTheme()
-    Surface(
-        modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = if (glass) MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (dark) 0.58f else 0.66f) else MaterialTheme.colorScheme.surfaceContainer,
-        border = if (glass) BorderStroke(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.16f else 0.7f), Color.White.copy(alpha = if (dark) 0.03f else 0.2f)))) else null,
-        tonalElevation = 0.dp
-    ) {
+    val c = MaterialTheme.colorScheme
+    if (LocalInSheet.current) {
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (title != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(title.uppercase(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.4.sp, color = c.primary)
+                    if (subtitle != null) Text(subtitle, fontSize = 13.sp, color = c.onSurfaceVariant)
+                }
+                trailing?.invoke()
+            }
+            content()
+        }
+        return
+    }
+    GlassSurface(MaterialTheme.shapes.large, modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (title != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                        if (subtitle != null) Text(
-                            subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (subtitle != null) Text(subtitle, fontSize = 13.sp, color = c.onSurfaceVariant)
                     }
                     trailing?.invoke()
                 }
@@ -672,7 +696,6 @@ fun Panel(
         }
     }
 }
-
 /** Diseño elegido en Ajustes: dibujo del control al centro o en columna. */
 val LocalCentered = androidx.compose.runtime.compositionLocalOf { false }
 
@@ -690,7 +713,7 @@ fun DrawingPane(
     if (wide && !LocalCentered.current) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Column(Modifier.weight(drawingWeight), verticalArrangement = Arrangement.spacedBy(16.dp), content = drawing)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), content = side)
+            Column(Modifier.weight(1f)) { Sheet(content = side) }
         }
     } else {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -702,15 +725,17 @@ fun DrawingPane(
 
 /** Dos columnas en pantallas anchas; una debajo de la otra en angostas. */
 @Composable
-fun TwoPane(first: @Composable ColumnScope.() -> Unit, second: @Composable ColumnScope.() -> Unit) {
+fun TwoPane(first: @Composable ColumnScope.() -> Unit, second: @Composable ColumnScope.() -> Unit, sheets: Boolean = true) {
+    // Con [sheets] cada columna es una hoja (Inicio no: sus tarjetas muestran cosas).
+    @Composable fun Col(m: Modifier, body: @Composable ColumnScope.() -> Unit) =
+        if (sheets) Column(m) { Sheet(content = body) } else Column(m, verticalArrangement = Arrangement.spacedBy(16.dp), content = body)
     if (LocalWide.current) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), content = first)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp), content = second)
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
+            Col(Modifier.weight(1f), first)
+            Col(Modifier.weight(1f), second)
         }
-    } else {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { first(); second() }
-    }
+    } else if (sheets) Sheet { first(); second() }
+    else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { first(); second() }
 }
 
 /**
