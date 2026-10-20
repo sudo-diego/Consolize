@@ -39,7 +39,6 @@ fun TabletHomePage(s: AppState, a: MainActivity) {
             ShizukuWarning(a)
             TabletNowTiles(a)
             QuickTiles(s, a)
-            ControllersPanel(s)
             ShortcutsHelp(s, a)
         },
         second = {
@@ -137,14 +136,34 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     val scope = rememberCoroutineScope()
     val ready = Shell.state == Shell.State.READY
     var bypass by remember { mutableStateOf(ZuiBattery.bypassNow == true) }
+    var tick by remember { mutableIntStateOf(0) }
     var hud by remember { mutableStateOf(AutoRules.perfHud(a)) }
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
     // Cada pocos segundos, como en Batería: el bypass automático lo cambia solo (al salir de un juego quedaba "Encendido").
-    LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; kotlinx.coroutines.delay(3000) } }
+    LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; tick++; kotlinx.coroutines.delay(3000) } }
     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Sin Shizuku el bypass no se puede cambiar: no sale (el aviso de arriba lo dice).
-        if (ready) QuickTile(Icons.Outlined.Power, "Bypass", if (bypass) tr("Encendido", "On") else tr("Apagado", "Off"), bypass,
-            Modifier.weight(1f).fillMaxHeight()) { scope.launch { if (ZuiBattery.setBypass(!bypass)) bypass = !bypass } }
+        // Sin Shizuku el bypass no se puede cambiar: no sale (el aviso de arriba lo dice). Igual que en el panel: con algo
+        // automático (bypass automático o límite propio) son tres estados, Automático → Encendido → Apagado → Automático.
+        if (ready) {
+            val hasAuto = AutoRules.smartBypass(a) || ZuiBattery.ownLimit(a) != null
+            val isAuto = remember(tick, bypass) { hasAuto && !ZuiBattery.manualOverride }
+            val state = when {
+                isAuto -> if (bypass) ZuiBattery.autoWhy?.let { tr("Auto: ", "Auto: ") + it.first } ?: tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
+                bypass -> tr("Encendido", "On")
+                else -> tr("Apagado", "Off")
+            }
+            QuickTile(Icons.Outlined.Power, "Bypass", state, bypass, Modifier.weight(1f).fillMaxHeight()) {
+                if (!isAuto && !bypass && hasAuto) {
+                    AutoModeService.active?.bypassToAuto() ?: ZuiBattery.returnToAuto()
+                    tick++
+                } else scope.launch {
+                    // Desde el automático, el primer toque siempre lo enciende (pasa a ser manual).
+                    val want = if (isAuto) true else !bypass
+                    if (ZuiBattery.setBypass(want)) bypass = want
+                    tick++
+                }
+            }
+        }
         // El monitor lo dibuja el servicio de accesibilidad: sin él no se puede encender.
         QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else if (hud) tr("Encendido", "On") else tr("Apagado", "Off"),
             hud && service, Modifier.weight(1f).fillMaxHeight(), enabled = service) { hud = !hud; AutoRules.setPerfHud(a, hud) }
@@ -159,35 +178,38 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     }
 }
 
-/** Mosaico que se enciende y apaga, como los del panel de juego: encendido en celeste. */
+/**
+ * Mosaico que se enciende y apaga, como los del panel de juego: el ícono en una insignia que toma el color de acento al
+ * encenderse y el mosaico neutro (antes se llenaba entero de color). La insignia arriba: en tres por fila, al lado no cabía.
+ */
 @Composable
 private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, state: String, on: Boolean, modifier: Modifier,
     enabled: Boolean = true, onClick: () -> Unit) {
     val c = MaterialTheme.colorScheme
     Surface(
         onClick = onClick, enabled = enabled, modifier = modifier.alpha(if (enabled) 1f else 0.5f), shape = MaterialTheme.shapes.large,
-        // Encendido con el color de acento (como lo elegido en toda la app); sin interruptor adentro: el mosaico entero se
-        // toca y su color dice cómo está.
-        color = androidx.compose.animation.animateColorAsState(if (on) c.primary else c.surfaceContainer.copy(alpha = if (ThemeState.glass) 0.58f else 1f), label = "tile").value,
-        border = if (ThemeState.glass && !on) androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f)) else null
+        color = c.surfaceContainer.copy(alpha = if (ThemeState.glass) 0.58f else 1f),
+        border = if (ThemeState.glass) androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f)) else null
     ) {
-        // Ícono arriba y el texto debajo: al lado, en tres mosaicos por fila, "Encendido" se cortaba.
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(icon, null, Modifier.size(24.dp), tint = if (on) c.onPrimary else c.onSurface)
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(40.dp).background(androidx.compose.animation.animateColorAsState(if (on) c.primary else c.onSurface.copy(alpha = 0.08f), label = "badge").value,
+                RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, Modifier.size(22.dp), tint = if (on) c.onPrimary else c.onSurface)
+            }
             Column {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.onPrimary else c.onSurface, maxLines = 1)
-                Text(state, fontSize = 13.sp, color = if (on) c.onPrimary.copy(alpha = 0.85f) else c.onSurfaceVariant, maxLines = 1)
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(state, fontSize = 13.sp, color = if (on) c.primary else c.onSurfaceVariant, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
         }
     }
 }
-
 /**
  * Controles conectados ahora, de cualquier marca. El G9 con su modo (y el acceso a su sección); los demás solo el
  * nombre: el panel de juego, las capturas con L3 + R3 y el monitor sirven con cualquiera.
  */
 @Composable
-private fun ControllersPanel(s: AppState) {
+private fun ConnectedPads(s: AppState) {
     var tick by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { while (true) { delay(2000); tick++ } }
     val pads = remember(tick) {
@@ -195,7 +217,7 @@ private fun ControllersPanel(s: AppState) {
             .filter { it.isExternal && (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD }
             .map { it.name }.distinct()
     }
-    Panel(tr("Controles", "Controllers")) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (pads.isEmpty()) Text(tr("No hay controles conectados.", "No controllers connected."), fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         pads.forEach { name ->
@@ -218,37 +240,34 @@ private fun ShortcutsHelp(s: AppState, a: MainActivity) {
     val guide = AutoRules.legionKeys(a)
     fun on(g: AutoRules.Guide) = guide && AutoRules.guide(a, g)
     val chord = AutoRules.gamePanel(a)
-    val panel = listOfNotNull(if (on(AutoRules.Guide.HOLD_PANEL)) tr("Mantener guía", "Hold guide") else null, if (chord) (if (AutoRules.chordOnlyStreaming(a)) tr("L3 + R3 transmitiendo", "L3 + R3 while streaming") else "L3 + R3") else null)
-    val shot = listOfNotNull(if (on(AutoRules.Guide.RB_SHOT)) tr("Guía + RB", "Guide + RB") else null, if (chord) tr("mantener L3 + R3", "hold L3 + R3") else null,
-        if (AutoRules.touchpadShot(a)) tr("M dos veces (DS5)", "M twice (DS5)") else null)
-    val back = listOfNotNull(if (on(AutoRules.Guide.TAP_BACK)) tr("Tocar guía", "Tap guide") else null,
-        if (on(AutoRules.Guide.LB_BACK)) tr("Guía + LB (mantenido)", "Guide + LB (held)") else null)
-    val lock = on(AutoRules.Guide.HOLD_LOCK)
-    val streamMenu = AutoRules.streamBack(a)
-    Panel(tr("Atajos", "Shortcuts"), trailing = { TextButton(onClick = { s.open(Page.CONTROLS) }) { Text(tr("Cambiar", "Change")) } }) {
+    // Solo los atajos principales que están encendidos, con los botones dibujados (como en Controles → Atajos) y lo que
+    // hacen al lado. Antes eran párrafos con todos juntos y no se entendía.
+    val g = tr("Guía", "Guide")
+    val rows = listOfNotNull(
+        if (on(AutoRules.Guide.HOLD_PANEL)) Triple(listOf(g), tr("Mantener", "Hold"), tr("Panel de juego", "Game panel")) else null,
+        if (on(AutoRules.Guide.RB_SHOT)) Triple(listOf(g, "RB"), null, tr("Captura", "Screenshot")) else null,
+        if (on(AutoRules.Guide.TAP_BACK)) Triple(listOf(g), tr("Tocar", "Tap"), tr("Atrás", "Back")) else null,
+        if (chord) Triple(listOf("L3", "R3"), if (AutoRules.chordOnlyStreaming(a)) tr("Transmitiendo", "While streaming") else null, tr("Panel de juego", "Game panel")) else null,
+    )
+    // Una tarjeta: qué control está conectado y, debajo, sus atajos (separadas, la de controles quedaba casi vacía).
+    Panel(tr("Controles", "Controllers"), trailing = { TextButton(onClick = { s.open(Page.CONTROLS) }) { Text(tr("Cambiar atajos", "Change shortcuts")) } }) {
+        ConnectedPads(s)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         if (!s.autoServiceOn) Text(tr("Apagados: falta el servicio de accesibilidad.", "Off: the accessibility service is missing."),
             fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        else if (panel.isEmpty() && shot.isEmpty() && back.isEmpty()) Text(tr("Ninguno activado.", "None turned on."),
-            fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        else {
-            if (panel.isNotEmpty()) HelpRow(tr("Panel de juego", "Game panel"), panel.joinToString(" · "))
-            if (shot.isNotEmpty()) HelpRow(tr("Captura", "Screenshot"), shot.joinToString(" · "))
-            if (back.isNotEmpty()) HelpRow(tr("Atrás", "Back"), back.joinToString(" · "))
-            HelpRow(tr("Grabar", "Record"), tr("Guía + LT: empezar o parar · Guía + RT: guardar los últimos segundos (Shadow Rec)", "Guide + LT: start or stop · Guide + RT: save the last seconds (Shadow Rec)"))
-            if (lock) HelpRow(tr("Bloquear la tablet", "Lock the tablet"), tr("Mantener guía 5 s (el control se apaga)", "Hold guide 5 s (the controller turns off)"))
-            if (streamMenu) HelpRow(tr("Menú al transmitir", "Menu while streaming"), "Start + Select")
+        else if (rows.isEmpty()) Text(tr("Ninguno activado.", "None turned on."), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else rows.forEach { (keys, how, action) ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                KeyCombo(keys, Modifier.widthIn(min = 120.dp))
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(action, fontSize = 15.sp)
+                    how?.let { Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+            }
         }
     }
 }
-
-@Composable
-private fun HelpRow(title: String, desc: String) {
-    Column {
-        Text(title, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        Text(desc, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
 /**
  * Apps abiertas, como en una consola: cuánta RAM está en uso, cerrar lo que quedó de fondo antes de jugar y, con
  * Shizuku, cada app con lo que gasta en palabras ("655 MB de RAM", "usando CPU") para cerrarla. Antes era una tabla

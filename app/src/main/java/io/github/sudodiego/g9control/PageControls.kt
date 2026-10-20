@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +43,7 @@ private fun GuidePanel(a: MainActivity) {
     var burst by remember { mutableStateOf(AutoRules.burstShots(a)) }
     var streamTip by remember { mutableStateOf(AutoRules.streamTip(a)) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Botón guía", "Guide button"), tr("Legion en el G9 · Xbox, PS u Home en otros", "Legion on the G9 · Xbox, PS or Home on others"),
+        Panel(tr("Botón guía", "Guide button"), tr("El botón del centro del control", "The button in the middle of the controller"),
             trailing = { Switch(on, { on = it; AutoRules.setLegionKeys(a, it) }, enabled = LocalGateOk.current) }) {
             CompositionLocalProvider(LocalEditable provides (on && LocalGateOk.current)) {
                 fun row(g: AutoRules.Guide) = states.getValue(g)
@@ -183,20 +184,13 @@ private fun ShortcutRow(keys: List<String>, how: String?, action: String, checke
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(Modifier.widthIn(min = 132.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (keys.isEmpty()) Text("↳", Modifier.padding(start = 14.dp), fontSize = 20.sp, color = c.onSurfaceVariant)
-            keys.forEachIndexed { i, k ->
-                if (i > 0) Text(" + ", fontSize = 13.sp, color = c.onSurfaceVariant)
-                Box(Modifier.clip(RoundedCornerShape(8.dp)).background(c.secondaryContainer).padding(horizontal = 9.dp, vertical = 4.dp)) {
-                    Text(k, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.onSecondaryContainer)
-                }
-            }
-        }
+        if (keys.isEmpty()) Text("↳", Modifier.widthIn(min = 132.dp).padding(start = 14.dp), fontSize = 20.sp, color = c.onSurfaceVariant)
+        else KeyCombo(keys, Modifier.widthIn(min = 132.dp))
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(action, fontSize = 15.sp, color = if (editable) c.onSurface else c.onSurface.copy(alpha = 0.5f))
             if (how != null) Text(how, fontSize = 12.sp, color = c.onSurfaceVariant)
         }
-        Switch(checked, onChange, enabled = editable)
+        Switch(checked, onChange, enabled = editable, modifier = Modifier.scale(0.85f))
     }
 }

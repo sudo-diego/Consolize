@@ -416,6 +416,20 @@ private fun SectionSwitch(s: AppState, compact: Boolean = false) {
     }
 }
 
+/** Los botones de un atajo como chips ("Guía" + "RB"): el mismo dibujo en Controles → Atajos y en Inicio. */
+@Composable
+fun KeyCombo(keys: List<String>, modifier: Modifier = Modifier) {
+    val c = MaterialTheme.colorScheme
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        keys.forEachIndexed { i, k ->
+            if (i > 0) Text(" + ", fontSize = 13.sp, color = c.onSurfaceVariant)
+            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(c.secondaryContainer).padding(horizontal = 9.dp, vertical = 4.dp)) {
+                Text(k, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.onSecondaryContainer, maxLines = 1)
+            }
+        }
+    }
+}
+
 /** Botón del control dibujado como etiqueta (LB, A, B…). */
 @Composable
 fun PadBadge(label: String, round: Boolean = false) {
