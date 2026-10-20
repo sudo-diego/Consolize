@@ -151,6 +151,7 @@ class GamePanel(private val svc: AutoModeService) {
         inPerfMenu = false
         ui.editing = false
         recentStart = 0
+        navX = null
         ui.page = { if (pageRecents(it)) poke() }
         ui.items = items()
         // Empieza en el primer mosaico (Captura), no en las barras.
@@ -680,7 +681,8 @@ class GamePanel(private val svc: AutoModeService) {
 
     /**
      * Mover en la grilla, sin dar la vuelta. Entre filas de distinto largo se mantiene el lado (cada fila llena el
-     * ancho): de la barra de brillo se baja a los mosaicos de la izquierda.
+     * ancho): de la barra de brillo se baja a los mosaicos de la izquierda. Una fila de un solo mosaico (Mouse, una
+     * barra) no tiene lado: se sigue por la columna de antes, o por la izquierda.
      */
     private fun moveGrid(dx: Int, dy: Int) {
         val before = ui.sel to recentStart
@@ -696,8 +698,10 @@ class GamePanel(private val svc: AutoModeService) {
         if (dy != 0) {
             val nr = (r + dy).coerceIn(0, rows.size - 1)
             if (nr == r) return
-            // Posición horizontal de 0 a 1 para pasar entre filas de distinto largo.
-            val x = (c + 0.5f) / rows[r].size
+            // Posición horizontal de 0 a 1 para pasar entre filas de distinto largo. Desde un mosaico solo en su fila,
+            // la columna en que se venía (antes, el centro caía en el de la derecha).
+            val x = if (rows[r].size > 1) (c + 0.5f) / rows[r].size else navX ?: 0f
+            if (rows[r].size > 1) navX = x
             ui.sel = rows[nr][(x * rows[nr].size).toInt().coerceIn(0, rows[nr].size - 1)]
         } else if (dx != 0) {
             // En el borde de los recientes, pasa a las siguientes (la selección queda en el mismo lugar).
@@ -706,8 +710,12 @@ class GamePanel(private val svc: AutoModeService) {
                 return
             }
             ui.sel = rows[r][(c + dx).coerceIn(0, rows[r].size - 1)]
+            navX = null
         }
     }
+
+    /** Columna (0 a 1) de la última fila de varios mosaicos por la que se pasó; null = ninguna aún. */
+    private var navX: Float? = null
 
     /** Primera reciente a la vista: se ven de a [COLUMNS] y se pasa de una en una. */
     private var recentStart = 0
@@ -1079,7 +1087,15 @@ class GamePanel(private val svc: AutoModeService) {
      * La captura la sacó Android (el botón de captura de algunos controles manda encendido + bajar volumen): el mismo
      * aviso y sonido que las de TBF, con una miniatura sacada aquí, sin guardar otra imagen.
      */
-    fun systemShotNotice() = screenshot(save = false)
+    fun systemShotNotice() {
+        systemShotAt = android.os.SystemClock.uptimeMillis()
+        screenshot(save = false)
+    }
+    /**
+     * Cuándo se apretó el botón de captura del control. El aviso sale 1 s después: Android saca su captura (dos, con el
+     * G8+) un rato después de la tecla y, si el aviso ya estaba, salía en la imagen.
+     */
+    private var systemShotAt = 0L
 
     /** Aviso corto desde el servicio (el mismo de las acciones del panel). */
     internal fun message(title: String, line: String? = null, kind: NoteKind = NoteKind.INFO) = toast(title, line, kind)
@@ -1122,7 +1138,14 @@ class GamePanel(private val svc: AutoModeService) {
                         }
                         // El aviso (con su miniatura) apenas hay imagen; guardar el PNG sigue en segundo plano.
                         val thumb = flash.thumbnail(bmp)
-                        main.post { flash.show(thumb); sounds.play(AutoRules.shotSound(svc)) }
+                        val wait = if (save) 0L else (systemShotAt + 1000 - android.os.SystemClock.uptimeMillis()).coerceAtLeast(0)
+                        main.postDelayed({
+                            // La sacó Android: si se pidió, encima de su toast ("Captura guardada"), que no se puede quitar.
+                            if (!save && AutoRules.shotOverToast(svc)) flash.show(thumb, tr("Captura guardada", "Screenshot saved"), null, 3500,
+                                NoticePos.entries.first { it.h == 0 && it.v == 1 })
+                            else flash.show(thumb)
+                            sounds.play(AutoRules.shotSound(svc))
+                        }, wait)
                         try { if (save) saveScreenshot(bmp) } finally { bmp.recycle() }
                     }
                     saved.onFailure {

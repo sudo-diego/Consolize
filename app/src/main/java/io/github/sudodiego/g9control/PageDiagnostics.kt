@@ -294,6 +294,11 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
                 Text(tr("Sonido", "Sound"), fontSize = 14.sp)
                 ChoiceChips(ShotSound.entries.map { it to it.label }, shotSound) { shotSound = it; AutoRules.setShotSound(a, it) }
             }
+            var overToast by remember { mutableStateOf(AutoRules.shotOverToast(a)) }
+            SwitchRow(tr("Tapar el aviso del sistema", "Cover the system notice"), overToast,
+                tr("Con el botón de captura del control: abajo al centro, encima del de Android", "With the controller's capture button: bottom center, over Android's")) {
+                overToast = it; AutoRules.setShotOverToast(a, it)
+            }
             // Grabación: dos, que no van juntas (las maneja el panel; ver la grabación en GamePanel).
             InfoRow(tr("Grabar", "Record"), tr("Guía + LT · Pictures/screenrecorder", "Guide + LT · Pictures/screenrecorder"))
             InfoRow("Shadow Rec", tr("Guía + RT guarda los últimos segundos · Movies/Highlight", "Guide + RT saves the last seconds · Movies/Highlight"))

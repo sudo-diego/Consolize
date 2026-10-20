@@ -264,6 +264,9 @@ object AutoRules {
     fun shotSound(ctx: Context) = runCatching { ShotSound.valueOf(sp(ctx).getString("shot_sound", null)!!) }
         .getOrDefault(ShotSound.JINGLE)
     fun setShotSound(ctx: Context, v: ShotSound) = sp(ctx).edit().putString("shot_sound", v.name).apply()
+    /** Captura que sacó Android (botón de captura del control): el aviso abajo al centro, encima del toast de Android. */
+    fun shotOverToast(ctx: Context) = sp(ctx).getBoolean("shot_over_toast", true)
+    fun setShotOverToast(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("shot_over_toast", v).apply()
     fun shotAnim(ctx: Context) = runCatching { NoticeAnim.valueOf(sp(ctx).getString("shot_anim", null)!!) }
         .getOrDefault(NoticeAnim.SLIDE)
     fun setShotAnim(ctx: Context, v: NoticeAnim) = sp(ctx).edit().putString("shot_anim", v.name).apply()
