@@ -31,16 +31,18 @@ import kotlinx.coroutines.launch
 @Composable
 fun TabletHomePage(s: AppState, a: MainActivity) {
     TwoPane(
+        // Izquierda: cómo está el equipo y lo que más se cambia; derecha: memoria, controles y atajos (antes la izquierda
+        // tenía cuatro mosaicos sueltos y mucho espacio vacío debajo).
         first = {
             ServiceWarning(s, a)
             ShizukuWarning(a)
             TabletNowTiles(a)
-        },
-        second = {
             QuickTiles(s, a)
-            MemoryPanel(s, a)
             ControllersPanel(s)
             ShortcutsHelp(s, a)
+        },
+        second = {
+            MemoryPanel(s, a)
         }
     )
 }
@@ -54,16 +56,14 @@ private fun TabletNowTiles(a: MainActivity) {
     val hz = remember(tick) { RefreshRate.current(a) }
     val monitor = remember(tick) { Monitor.current(a) }
     val left = remember(tick) { if (b?.charging == true) ZuiBattery.chargeTimeLeft(a) else null }
-    // Grilla de 2 × 2: batería y temperatura arriba, Hz y CPU abajo (en una fila no cabían).
+    // Una tarjeta: la batería grande arriba y temperatura, Hz y CPU en una fila debajo.
     val cpu = remember(tick) { cpuMhz() }
-    val tile = Modifier.fillMaxHeight()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Panel {
             b?.let {
                 val state = when {
-                    it.plugged && !it.charging -> if (ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY) "Bypass" else ZuiBattery.heldLabel(a, it.level)
-                    it.charging -> left?.let { ms -> "⚡ " + ZuiBattery.formatTime(ms) } ?: tr("Cargando", "Charging")
-                    else -> tr("Batería", "Battery")
+                    it.plugged && !it.charging -> if (ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY) tr("Enchufada · bypass", "Plugged in · bypass") else ZuiBattery.heldLabel(a, it.level)
+                    it.charging -> tr("Cargando", "Charging")
+                    else -> tr("Con batería", "On battery")
                 }
                 // Debajo: lo que consume y cuánto dura, o cargando cuánto falta (hasta el límite, si hay) y lo que entra.
                 val w = remember(tick) { ZuiBattery.watts(a) }
@@ -75,15 +75,30 @@ private fun TabletNowTiles(a: MainActivity) {
                     else -> listOfNotNull(w?.let { x -> "%.1f W".format(x) }, PowerLog.recentAvg?.let { x -> tr("prom. %.1f W", "avg %.1f W").format(x) },
                         remember(tick) { ZuiBattery.estimatedLeft(a) }?.let { ms -> ZuiBattery.formatTime(ms) }).joinToString(" · ")
                 }?.takeIf { s -> s.isNotEmpty() }
-                StatTile("${it.level} %", if (it.charging) tr("Cargando", "Charging") else state, tile.weight(1f), big = true, extra = extra)
-                StatTile("${"%.0f".format(it.tempC)} °C", tr("Temperatura", "Temperature"), tile.weight(1f), big = true)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("${it.level}", fontSize = 56.sp, fontWeight = FontWeight.SemiBold, lineHeight = 56.sp)
+                    Text(" %", fontSize = 24.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.padding(bottom = 8.dp)) {
+                        Text(state, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        extra?.let { x -> Text(x, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Metric("${"%.0f".format(it.tempC)} °C", tr("Temperatura", "Temperature"), Modifier.weight(1f))
+                    Metric(hz?.let { h -> "$h Hz" } ?: "—", monitor?.name ?: tr("Pantalla", "Screen"), Modifier.weight(1f))
+                    Metric(cpu?.let { c -> if (c >= 1000) "%.1f GHz".format(c / 1000f) else "$c MHz" } ?: "—", "CPU", Modifier.weight(1f))
+                }
             }
-        }
-        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatTile(hz?.let { "$it Hz" } ?: "—", monitor?.name ?: tr("Pantalla", "Screen"), tile.weight(1f))
-            StatTile(cpu?.let { if (it >= 1000) "%.1f GHz".format(it / 1000f) else "$it MHz" } ?: "—", "CPU", tile.weight(1f))
-        }
     }
+}
+
+/** Un dato chico de la tarjeta de Inicio: el valor y su etiqueta debajo. */
+@Composable
+private fun Metric(value: String, label: String, modifier: Modifier) = Column(modifier) {
+    Text(value, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+    Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
 }
 /** La frecuencia más alta de la CPU ahora (MHz), de los núcleos que se pueden leer; null si ninguno. */
 private fun cpuMhz(): Int? = Stats.cpuMhz()
@@ -135,20 +150,17 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
     val c = MaterialTheme.colorScheme
     Surface(
         onClick = onClick, enabled = enabled, modifier = modifier.alpha(if (enabled) 1f else 0.5f), shape = MaterialTheme.shapes.large,
-        color = if (on) c.secondary else c.surfaceContainer.copy(alpha = if (ThemeState.glass) 0.58f else 1f),
+        // Encendido con el color de acento (como lo elegido en toda la app); sin interruptor adentro: el mosaico entero se
+        // toca y su color dice cómo está.
+        color = androidx.compose.animation.animateColorAsState(if (on) c.primary else c.surfaceContainer.copy(alpha = if (ThemeState.glass) 0.58f else 1f), label = "tile").value,
         border = if (ThemeState.glass && !on) androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f)) else null
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Ícono y, a la derecha, un interruptor: se nota que se toca para encender o apagar.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, Modifier.size(28.dp), tint = if (on) c.onSecondary else c.onSurface)
-                Spacer(Modifier.weight(1f))
-                Switch(on, null, enabled = enabled, modifier = Modifier.scale(0.8f),
-                    colors = SwitchDefaults.colors(checkedTrackColor = c.onSecondary, checkedThumbColor = c.secondary))
-            }
+        // Ícono arriba y el texto debajo: al lado, en tres mosaicos por fila, "Encendido" se cortaba.
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, null, Modifier.size(24.dp), tint = if (on) c.onPrimary else c.onSurface)
             Column {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.onSecondary else c.onSurface)
-                Text(state, fontSize = 13.sp, color = if (on) c.onSecondary.copy(alpha = 0.8f) else c.onSurfaceVariant)
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.onPrimary else c.onSurface, maxLines = 1)
+                Text(state, fontSize = 13.sp, color = if (on) c.onPrimary.copy(alpha = 0.85f) else c.onSurfaceVariant, maxLines = 1)
             }
         }
     }
@@ -197,7 +209,7 @@ private fun ShortcutsHelp(s: AppState, a: MainActivity) {
         if (on(AutoRules.Guide.LB_BACK)) tr("Guía + LB (mantenido)", "Guide + LB (held)") else null)
     val lock = on(AutoRules.Guide.HOLD_LOCK)
     val streamMenu = AutoRules.streamBack(a)
-    Panel(tr("Atajos", "Shortcuts"), trailing = { TextButton(onClick = { s.page = Page.CONTROLS }) { Text(tr("Controles", "Controls")) } }) {
+    Panel(tr("Atajos", "Shortcuts"), trailing = { TextButton(onClick = { s.open(Page.CONTROLS) }) { Text(tr("Cambiar", "Change")) } }) {
         if (!s.autoServiceOn) Text(tr("Apagados: falta el servicio de accesibilidad.", "Off: the accessibility service is missing."),
             fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         else if (panel.isEmpty() && shot.isEmpty() && back.isEmpty()) Text(tr("Ninguno activado.", "None turned on."),
@@ -207,7 +219,7 @@ private fun ShortcutsHelp(s: AppState, a: MainActivity) {
             if (shot.isNotEmpty()) HelpRow(tr("Captura", "Screenshot"), shot.joinToString(" · "))
             if (back.isNotEmpty()) HelpRow(tr("Atrás", "Back"), back.joinToString(" · "))
             HelpRow(tr("Grabar", "Record"), tr("Guía + LT: empezar o parar · Guía + RT: guardar los últimos segundos (Shadow Rec)", "Guide + LT: start or stop · Guide + RT: save the last seconds (Shadow Rec)"))
-            if (lock) HelpRow(tr("Bloquear la tablet", "Lock the tablet"), tr("Mantener guía 5 s (el G9 se apaga)", "Hold guide 5 s (the G9 turns off)"))
+            if (lock) HelpRow(tr("Bloquear la tablet", "Lock the tablet"), tr("Mantener guía 5 s (el control se apaga)", "Hold guide 5 s (the controller turns off)"))
             if (streamMenu) HelpRow(tr("Menú al transmitir", "Menu while streaming"), "Start + Select")
         }
     }
@@ -273,7 +285,8 @@ private fun MemoryPanel(s: AppState, a: MainActivity) {
                     val ret = Memory.returnOf(a, task.app.pkg)
                     if (task.active || ret != null) Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (task.active) TaskTag(null, tr("Activa", "Active"))
-                        ret?.let { r -> TaskTag(Icons.Outlined.Autorenew, tr("Vuelve ", "Returns ") + returnDelay(r.lastDelayMs)) }
+                        // Solo el ícono de "vuelve" y el tiempo: con "Vuelve en…" no cabía en la columna del nombre.
+                        ret?.let { r -> TaskTag(Icons.Outlined.Autorenew, returnDelay(r.lastDelayMs)) }
                     }
                 }
                 Text("${task.ramMb} MB", Modifier.width(84.dp), fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End)

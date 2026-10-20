@@ -64,6 +64,8 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+// Con alias: este archivo tiene su propio Offset.scale (privado) que tapaba al de Compose.
+import androidx.compose.ui.draw.scale as drawScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -873,36 +875,44 @@ fun GradientTrack(value: Float, brush: Brush, thumb: Color, keyStep: Float = 0.0
     }
 }
 
+/**
+ * Una opción como pastilla: la elegida llena con el color de acento, las demás con un fondo neutro suave, sin ✓ ni
+ * borde (las de Material por defecto ponían morado y ✓ en todo). El foco del control, con contorno.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OptionPill(label: String, selected: Boolean, onClick: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val source = remember { MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
+    val editable = LocalEditable.current
+    Surface(
+        onClick = onClick, enabled = editable, shape = CircleShape,
+        color = androidx.compose.animation.animateColorAsState(if (selected) c.primary else c.onSurface.copy(alpha = 0.07f), tween(160), label = "pill").value,
+        border = if (focused) BorderStroke(2.dp, if (selected) c.onSurface else c.primary) else null,
+        interactionSource = source
+    ) {
+        Text(label, Modifier.padding(horizontal = 16.dp, vertical = 9.dp), fontSize = 14.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) c.onPrimary else c.onSurface, maxLines = 1)
+    }
+}
+
 /** Pastillas que se marcan y desmarcan cada una (varias a la vez). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun <T> MultiChips(options: List<Pair<T, String>>, selected: Set<T>, onToggle: (T, Boolean) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        options.forEach { (v, label) ->
-            val on = v in selected
-            FilterChip(
-                selected = on, onClick = { onToggle(v, !on) }, label = { Text(label) },
-                enabled = LocalEditable.current,
-                leadingIcon = if (on) { { Icon(Icons.Filled.Check, null, Modifier.size(16.dp)) } } else null
-            )
-        }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (v, label) -> val on = v in selected; OptionPill(label, on) { onToggle(v, !on) } }
     }
 }
 
-/** Fila de opciones tipo "pastilla". */
+/** Fila de opciones (una elegida). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun <T> ChoiceChips(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        options.forEach { (v, label) ->
-            FilterChip(
-                selected = selected == v, onClick = { onSelect(v) }, label = { Text(label) },
-                enabled = LocalEditable.current,
-                leadingIcon = if (selected == v) {
-                    { Icon(Icons.Filled.Check, null, Modifier.size(16.dp)) }
-                } else null
-            )
-        }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (v, label) -> OptionPill(label, selected == v) { onSelect(v) } }
     }
 }
 
@@ -910,14 +920,15 @@ fun <T> ChoiceChips(options: List<Pair<T, String>>, selected: T, onSelect: (T) -
 fun SwitchRow(label: String, checked: Boolean, sub: String? = null, onChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
-            .clickable(enabled = LocalEditable.current) { onChange(!checked) }.padding(vertical = 4.dp),
+            .clickable(enabled = LocalEditable.current) { onChange(!checked) }.padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(label, fontSize = 14.sp)
-            if (sub != null) Text(sub, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(label, fontSize = 15.sp)
+            if (sub != null) Text(sub, fontSize = 13.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChange, enabled = LocalEditable.current)
+        // Un poco más chico que el de Material (se veía tosco al lado del texto).
+        Switch(checked = checked, onCheckedChange = onChange, enabled = LocalEditable.current, modifier = Modifier.drawScale(0.85f))
     }
 }
 
@@ -1032,7 +1043,9 @@ fun AccentPicker(current: Accent, onPick: (Accent) -> Unit) {
     val dark = isDarkTheme()
     var custom by remember { mutableStateOf(false) }
     val isPreset = current in Accent.PRESETS
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    // FlowRow: en una fila, sin ancho para el código, el texto se partía letra por letra y dejaba un hueco alto.
+    @OptIn(ExperimentalLayoutApi::class)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         @Composable fun dot(sel: Boolean, fill: Modifier, desc: String, onClick: () -> Unit) = Box(
             Modifier.size(36.dp).clip(CircleShape)
                 .then(Modifier.border(if (sel) 3.dp else 1.dp, if (sel) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, CircleShape))
@@ -1044,8 +1057,8 @@ fun AccentPicker(current: Accent, onPick: (Accent) -> Unit) {
         dot(!isPreset, if (isPreset) Modifier.background(androidx.compose.ui.graphics.Brush.sweepGradient(
             listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red))) else Modifier.background(current.color(!dark)),
             tr("Personalizado", "Custom")) { custom = true }
-        Spacer(Modifier.width(6.dp))
-        Text(if (current.base == null) tr("Celeste", "Sky") else current.hex, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (current.base == null) tr("Celeste", "Sky") else current.hex, Modifier.height(36.dp).wrapContentHeight(),
+            fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
     }
     if (custom) CustomColorDialog(current, onDismiss = { custom = false }) { onPick(it); custom = false }
 }
