@@ -51,6 +51,17 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                     // Con el fondo de pantalla de Android no hay vidrio líquido (no se puede capturar lo de detrás de la ventana).
                     ChoiceChips(Surfaces.entries.filter { it != Surfaces.LIQUID || ThemeState.background != AppBackground.WALLPAPER }.map { it to it.label }, ThemeState.surfaces) { ThemeState.surfaces = it; Prefs.setSurfaces(a, it) }
                 }
+                // Cómo es el vidrio líquido: se ve al instante en las superficies de la app.
+                if (ThemeState.surfaces == Surfaces.LIQUID && ThemeState.background != AppBackground.WALLPAPER) Panel(tr("Vidrio líquido", "Liquid glass")) {
+                    val p = ThemeState.liquidParams
+                    fun set(n: LiquidParams) { ThemeState.liquidParams = n; Prefs.setLiquidParams(a, n) }
+                    SliderRow(tr("Desenfoque", "Blur"), p.blur, 0..80) { set(p.copy(blur = it)) }
+                    if (android.os.Build.VERSION.SDK_INT >= 33) SliderRow(tr("Refracción", "Refraction"), p.refraction, 0..100) { set(p.copy(refraction = it)) }
+                    SliderRow(tr("Tinte", "Tint"), p.tint, 0..100) { set(p.copy(tint = it)) }
+                    SliderRow(tr("Brillo arriba", "Top highlight"), p.highlight, 0..100) { set(p.copy(highlight = it)) }
+                    SliderRow(tr("Fuerza del borde", "Rim strength"), p.rim, 0..100) { set(p.copy(rim = it)) }
+                    TextButton(onClick = { set(LiquidParams()) }) { Text(tr("Valores de siempre", "Defaults")) }
+                }
                 Panel(tr("Fondo", "Background")) {
                     ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
                         if (it == AppBackground.IMAGE && ThemeState.backgroundUri == null) a.pickBackground()

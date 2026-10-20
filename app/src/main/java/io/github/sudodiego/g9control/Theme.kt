@@ -161,6 +161,7 @@ object ThemeState {
     var backgroundBlur by androidx.compose.runtime.mutableIntStateOf(24)
     var backgroundLoop by androidx.compose.runtime.mutableStateOf(true)
     var surfaces by androidx.compose.runtime.mutableStateOf(Surfaces.GLASS)
+    var liquidParams by androidx.compose.runtime.mutableStateOf(LiquidParams())
     /** Con el fondo de pantalla: cuánto se oscurece (0..100) para que el texto se lea. No se puede desenfocar: la
      *  tablet no tiene desenfoque entre ventanas (ro.surface_flinger.supports_background_blur = 0). */
     var backgroundDim by androidx.compose.runtime.mutableIntStateOf(45)
@@ -211,7 +212,7 @@ object ThemeState {
     /** Lo elegido, desde la app o desde el servicio (el panel se puede abrir sin haber abierto la app). */
     fun load(ctx: android.content.Context) {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
-        backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); backgroundDim = Prefs.backgroundDim(ctx)
+        backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); liquidParams = Prefs.liquidParams(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
         panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.

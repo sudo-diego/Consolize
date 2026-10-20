@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import android.graphics.ImageDecoder
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -233,23 +234,66 @@ fun GlassSurface(shape: androidx.compose.ui.graphics.Shape, modifier: Modifier =
     val liquid = ThemeState.liquid && layer != null
     val glass = ThemeState.glass
     var origin by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     val base = tint ?: c.surfaceContainer
+    // Vidrio líquido, con lo elegido en Ajustes: tinte (cuánto color tapa lo de atrás), desenfoque, refracción en el
+    // borde, brillo arriba y fuerza del borde.
+    val lq = ThemeState.liquidParams
     val fill = when {
-        liquid -> base.copy(alpha = if (dark) 0.42f else 0.5f)
+        liquid -> base.copy(alpha = lq.tint / 100f * (if (dark) 0.85f else 0.95f))
         glass -> base.copy(alpha = if (dark) 0.58f else 0.66f)
         else -> base
     }
-    Box(modifier.onGloballyPositioned { origin = it.positionInRoot() }.clip(shape)) {
+    val radiusPx = with(androidx.compose.ui.platform.LocalDensity.current) { 28.dp.toPx() }
+    Box(modifier.onGloballyPositioned { origin = it.positionInRoot(); size = it.size.toSize() }.clip(shape)) {
         if (liquid) Box(Modifier.matchParentSize().graphicsLayer {
-            renderEffect = RenderEffect.createBlurEffect(38f, 38f, Shader.TileMode.CLAMP).asComposeRenderEffect()
+            renderEffect = liquidEffect(lq, size, radiusPx)?.asComposeRenderEffect()
         }.drawBehind { translate(-origin.x, -origin.y) { drawLayer(layer!!) } })
         Box(Modifier.matchParentSize().background(fill))
-        // Brillo arriba (luz sobre el cristal) solo en el líquido; borde claro arriba que se apaga abajo en los dos vidrios.
-        if (liquid) Box(Modifier.matchParentSize().background(Brush.verticalGradient(
-            0f to Color.White.copy(alpha = if (dark) 0.10f else 0.22f), 0.35f to Color.Transparent)))
-        if (glass) Box(Modifier.matchParentSize().border(1.dp, Brush.verticalGradient(listOf(
-            Color.White.copy(alpha = if (dark) (if (liquid) 0.26f else 0.16f) else 0.7f),
-            Color.White.copy(alpha = if (dark) 0.04f else 0.2f))), shape))
+        if (liquid && lq.highlight > 0) Box(Modifier.matchParentSize().background(Brush.verticalGradient(
+            0f to Color.White.copy(alpha = lq.highlight / 100f * (if (dark) 0.22f else 0.4f)), 0.4f to Color.Transparent)))
+        if (glass) {
+            val rim = if (liquid) lq.rim / 100f else 0.5f
+            Box(Modifier.matchParentSize().border((1f + rim * 1.5f).dp, Brush.verticalGradient(listOf(
+                Color.White.copy(alpha = (if (dark) 0.36f else 0.9f) * rim + 0.04f),
+                Color.White.copy(alpha = (if (dark) 0.08f else 0.3f) * rim))), shape))
+        }
         Box { content() }
     }
 }
+
+/** Ajustes del vidrio líquido (0..100 cada uno; el desenfoque en px de radio). */
+data class LiquidParams(val blur: Int = 38, val refraction: Int = 40, val tint: Int = 50, val highlight: Int = 50, val rim: Int = 55)
+
+/**
+ * Desenfoque y, en Android 13+, refracción: cerca del borde lo de atrás se dobla hacia afuera, como el canto de un
+ * cristal grueso (un shader AGSL sobre la capa ya desenfocada).
+ */
+private fun liquidEffect(p: LiquidParams, size: androidx.compose.ui.geometry.Size, radius: Float): RenderEffect? {
+    if (Build.VERSION.SDK_INT < 31) return null
+    val blur = if (p.blur > 0) RenderEffect.createBlurEffect(p.blur.toFloat(), p.blur.toFloat(), Shader.TileMode.CLAMP) else null
+    if (Build.VERSION.SDK_INT < 33 || p.refraction <= 0 || size.width <= 0f) return blur
+    val sh = android.graphics.RuntimeShader(REFRACTION_AGSL)
+    sh.setFloatUniform("size", size.width, size.height)
+    sh.setFloatUniform("radius", radius)
+    sh.setFloatUniform("strength", p.refraction / 100f * 60f)
+    val refr = RenderEffect.createRuntimeShaderEffect(sh, "content")
+    return if (blur != null) RenderEffect.createChainEffect(refr, blur) else refr
+}
+
+private const val REFRACTION_AGSL = """
+uniform shader content;
+uniform float2 size;
+uniform float radius;
+uniform float strength;
+half4 main(float2 p) {
+    float2 c = size * 0.5;
+    float2 q = abs(p - c) - (c - radius);
+    float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+    float band = radius * 1.6 + 1.0;
+    float edge = clamp(1.0 + d / band, 0.0, 1.0);
+    float2 dir = normalize(p - c + float2(0.001, 0.001));
+    float2 off = -dir * edge * edge * edge * strength;
+    return content.eval(clamp(p + off, float2(0.0), size));
+}
+"""

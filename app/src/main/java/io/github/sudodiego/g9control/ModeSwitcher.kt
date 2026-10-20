@@ -20,6 +20,9 @@ object Prefs {
 
     fun surfaces(ctx: Context) = runCatching { Surfaces.valueOf(sp(ctx).getString("surfaces", null)!!) }.getOrDefault(Surfaces.GLASS)
     fun setSurfaces(ctx: Context, v: Surfaces) = sp(ctx).edit().putString("surfaces", v.name).apply()
+    fun liquidParams(ctx: Context) = sp(ctx).let { LiquidParams(it.getInt("lq_blur", 38), it.getInt("lq_refr", 40), it.getInt("lq_tint", 50), it.getInt("lq_high", 50), it.getInt("lq_rim", 55)) }
+    fun setLiquidParams(ctx: Context, p: LiquidParams) = sp(ctx).edit().putInt("lq_blur", p.blur).putInt("lq_refr", p.refraction)
+        .putInt("lq_tint", p.tint).putInt("lq_high", p.highlight).putInt("lq_rim", p.rim).apply()
 
     /** Barra lateral compacta (solo íconos). */
     fun navCompact(ctx: Context) = sp(ctx).getBoolean("nav_compact", false)
