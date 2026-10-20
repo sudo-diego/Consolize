@@ -67,7 +67,6 @@ class MainActivity : ComponentActivity() {
         window.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
         Lang.load(this)
         state.showSetup = !Prefs.setupDone(this)
-        state.status = tr("Conecta el G9 por USB en modo Android.", "Connect the G9 over USB in Android mode.")
         setContent {
             G9Theme {
                 // Íconos de la barra de estado y de navegación acordes al tema elegido (no solo al del sistema).
