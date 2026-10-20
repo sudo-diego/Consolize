@@ -412,7 +412,7 @@ class AutoModeService : AccessibilityService() {
 
     private val inputListener = object : InputManager.InputDeviceListener {
         override fun onInputDeviceAdded(id: Int) = changed()
-        override fun onInputDeviceRemoved(id: Int) { lockIfGuidePoweredOff(id); changed() }
+        override fun onInputDeviceRemoved(id: Int) { lockIfGuidePoweredOff(id); forgetPad(id); changed() }
         override fun onInputDeviceChanged(id: Int) = changed()
         private fun changed() {
             ModeTileService.refreshAll(this@AutoModeService)
@@ -801,6 +801,23 @@ class AutoModeService : AccessibilityService() {
             main.removeCallbacks(legionLock)
             legionLock.run()
         }
+    }
+
+    /**
+     * Se desconectó el control de la guía (los GameSir por Bluetooth se cortan solos unos segundos): el soltar de lo que
+     * estaba apretado ya no llega. Sin esto la guía quedaba "apretada" y, al volver, RB contaba como Guía + RB (captura)
+     * o el primer toque de la guía se perdía. Va después de [lockIfGuidePoweredOff], que necesita lo de la guía.
+     */
+    private fun forgetPad(id: Int) {
+        // L3 + R3 y Start + Select: con un stick o Start apretado al cortarse, al volver bastaba el otro para el atajo.
+        sticksDown.clear(); chordPending = false; chordKey = -1; main.removeCallbacks(chordHold)
+        menuDown.clear(); menuChordKey = -1
+        if (id != guideDevice) return
+        if (guideLive || legionOwned || legionChording) Log.i(TAG, "control de la guía desconectado con la guía apretada: se suelta")
+        guideLive = false; guideDownAt = 0
+        legionOwned = false; legionPending = false; legionChording = false
+        chordSwallow.clear(); held.clear(); delivered.clear()
+        main.removeCallbacks(legionHold); main.removeCallbacks(passHold); main.removeCallbacks(burst)
     }
 
     private val legionLock = Runnable {
