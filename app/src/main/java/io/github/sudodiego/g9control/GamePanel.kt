@@ -82,6 +82,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
@@ -1060,7 +1061,7 @@ class GamePanel(private val svc: AutoModeService) {
         // Un solo mosaico para el modo del G9: dice el actual y pasa al siguiente (Android → X-Input → DS5 → Android).
         if (mode != null) {
             val next = PadMode.entries[(PadMode.entries.indexOf(mode) + 1) % PadMode.entries.size]
-            add(PanelItem("G9 · ${mode.label}", Icons.Outlined.SportsEsports, PanelRow.SYSTEM, sub = "→ ${next.label}") { hide(); svc.manualSwitch(next) })
+            add(PanelItem("G9 · ${mode.label}", Icons.Outlined.VideogameAsset, PanelRow.SYSTEM, sub = "→ ${next.label}") { hide(); svc.manualSwitch(next) })
         }
         // Abrir TBF (no si ya está al frente: el panel se abrió dentro de la app).
         if (svc.foregroundApp != svc.packageName) add(PanelItem("TBF Companion", Icons.AutoMirrored.Outlined.OpenInNew, PanelRow.SYSTEM) {

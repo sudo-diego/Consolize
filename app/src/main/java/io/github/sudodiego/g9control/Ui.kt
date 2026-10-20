@@ -126,17 +126,17 @@ private val NAV = listOf(
     NavItem(Page.SCREEN, "Pantalla", "Screen", Icons.Outlined.Monitor, Icons.Filled.Monitor),
     NavItem(Page.GAMEPANEL, "General", "General", Icons.Outlined.SportsEsports, Icons.Filled.SportsEsports),
     NavItem(Page.PANEL, "Panel", "Panel", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
-    NavItem(Page.CONTROLS, "Atajos", "Shortcuts", Icons.Outlined.VideogameAsset, Icons.Filled.VideogameAsset),
+    NavItem(Page.CONTROLS, "Atajos", "Shortcuts", Icons.Outlined.Gesture, Icons.Filled.Gesture),
     // G9 (en Controles, bajo "Legion G9"; Por app en Juegos).
     NavItem(Page.HOME, "Control", "Controller", Icons.Outlined.Home, Icons.Filled.Home),
     NavItem(Page.AUTO, "Modo del G9", "G9 mode", Icons.Outlined.Apps, Icons.Filled.Apps),
     NavItem(Page.LIGHTS, "Luces", "Lights", Icons.Outlined.Lightbulb, Icons.Filled.Lightbulb),
     NavItem(Page.STICKS, "Sticks", "Sticks", Icons.Outlined.Gamepad, Icons.Filled.Gamepad),
     NavItem(Page.VIBRATION, "Vibración", "Vibration", Icons.Outlined.Vibration, Icons.Filled.Vibration),
-    NavItem(Page.TEST, "Probar control", "Test controller", Icons.Outlined.RadioButtonChecked, Icons.Filled.RadioButtonChecked),
+    NavItem(Page.TEST, "Probar control", "Test controller", Icons.Outlined.TouchApp, Icons.Filled.TouchApp),
     NavItem(Page.BACK, "Traseros", "Paddles", Icons.Outlined.FlipToBack, Icons.Filled.FlipToBack),
     NavItem(Page.PROFILES, "Perfiles", "Profiles", Icons.Outlined.BookmarkBorder, Icons.Filled.Bookmark),
-    NavItem(Page.G9_PREFS, "Preferencias", "Preferences", Icons.Outlined.Tune, Icons.Filled.Tune),
+    NavItem(Page.G9_PREFS, "Preferencias", "Preferences", Icons.Outlined.SettingsSuggest, Icons.Filled.SettingsSuggest),
     // Las dos.
     NavItem(Page.DIAGNOSTICS, "Ajustes", "Settings", Icons.Outlined.Settings, Icons.Filled.Settings),
 )

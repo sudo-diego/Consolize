@@ -68,6 +68,7 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.VideogameAsset
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
@@ -412,7 +413,7 @@ private fun PanelHeader(ui: PanelUi) {
                 ui.mode?.let { m ->
                     Row(Modifier.clip(RoundedCornerShape(8.dp)).background(tileColor).padding(horizontal = 7.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.SportsEsports, null, Modifier.size(13.dp), tint = PANEL_MUTED)
+                        Icon(Icons.Outlined.VideogameAsset, null, Modifier.size(13.dp), tint = PANEL_MUTED)
                         Spacer(Modifier.width(4.dp))
                         Text(m, color = PANEL_MUTED, fontSize = 12.sp, maxLines = 1)
                     }
