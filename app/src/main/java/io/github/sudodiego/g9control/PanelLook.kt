@@ -292,12 +292,9 @@ internal fun PanelCard(ui: PanelUi, modifier: Modifier = Modifier, onPick: (Int)
     Surface(color = if (ThemeState.panelSeeThrough) Color.Transparent else PANEL_BG, shape = shape,
         modifier = modifier.then(dims.height?.let { Modifier.height(it) } ?: Modifier.heightIn(max = maxH)),
         border = if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null) {
-      val gl = androidx.compose.ui.graphics.rememberGraphicsLayer()
-      val pg = remember(gl) { PanelGlass(gl) }.takeIf { ThemeState.panelLiquid && glassPanel && android.os.Build.VERSION.SDK_INT >= 31 }
-      androidx.compose.runtime.CompositionLocalProvider(LocalPanelGlass provides pg) {
       Box {
         // Fondo propio del panel (degradado, imagen o GIF) con un velo para que se lea sobre cualquier imagen.
-        if (glassPanel) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
+        if (glassPanel) Box(Modifier.matchParentSize().clip(shape)) {
             PanelBackdrop()
             if (!ThemeState.panelSeeThrough) Box(Modifier.matchParentSize().background(PANEL_VEIL))
             // En claro el fondo se aclara siempre (si no, las partes oscuras de la imagen o del juego dejaban el texto
@@ -315,7 +312,6 @@ internal fun PanelCard(ui: PanelUi, modifier: Modifier = Modifier, onPick: (Int)
             Spacer(Modifier.height(14.dp))
             PanelFooter(ui, Modifier.align(Alignment.CenterHorizontally))
         }
-      }
       }
     }
 }
@@ -341,11 +337,8 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
     val body = if (banner && ThemeState.panelSeeThrough) PANEL_BG.copy(alpha = 1f - ThemeState.panelSee / 100f * 0.85f) else PANEL_BG
     Surface(color = if (ThemeState.panelSeeThrough) Color.Transparent else PANEL_BG, shape = shape,
         modifier = modifier.width(dims.width).fillMaxHeight(), border = if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null) {
-      val gl = androidx.compose.ui.graphics.rememberGraphicsLayer()
-      val pg = remember(gl) { PanelGlass(gl) }.takeIf { ThemeState.panelLiquid && glassPanel && android.os.Build.VERSION.SDK_INT >= 31 }
-      androidx.compose.runtime.CompositionLocalProvider(LocalPanelGlass provides pg) {
       Box {
-        if (glassPanel) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
+        if (glassPanel) Box(Modifier.matchParentSize().clip(shape)) {
             PanelBackdrop()
             if (!ThemeState.panelSeeThrough) Box(Modifier.matchParentSize().background(PANEL_VEIL))
             else if (light && ThemeState.panelBackground != PanelBackground.CLEAR)
@@ -385,7 +378,6 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
                 onPick, onSet) { r, top, h -> rowTops[r] = top to h }
             PanelFooter(ui, Modifier.align(Alignment.CenterHorizontally).padding(vertical = 12.dp))
         }
-      }
       }
     }
 }
@@ -662,18 +654,14 @@ internal fun PanelTile(item: PanelItem, selected: Boolean, modifier: Modifier, o
 private fun BadgeTile(item: PanelItem, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val danger = item.danger
-    val liquid = LocalPanelGlass.current != null && !danger
     Surface(
-        color = if (danger) Color(0xFFE5484D).copy(alpha = 0.9f) else if (liquid) Color.Transparent else tileColor, shape = shape,
+        color = if (danger) Color(0xFFE5484D).copy(alpha = 0.9f) else tileColor, shape = shape,
         border = if (selected) BorderStroke(2.dp, SELECTED) else if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null,
         modifier = modifier.clip(shape)
             .combinedClickable(enabled = !LocalPanelInert.current, onClick = onClick, onLongClick = item.alt)
             .graphicsLayer { alpha = if (item.enabled) 1f else 0.45f }
     ) {
-      Box {
-        // Vidrio líquido: el fondo del panel desenfocado detrás, con el tinte del mosaico más suave encima.
-        if (liquid) { LiquidBehind(16.dp); Box(Modifier.matchParentSize().background(tileColor.copy(alpha = tileColor.alpha * ThemeState.liquidParams.tint / 100f))) }
-        Row(Modifier.fillMaxSize().padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (item.appIcon != null) androidx.compose.foundation.Image(item.appIcon, null, Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)))
             else Box(
                 Modifier.size(36.dp).clip(RoundedCornerShape(11.dp))
@@ -690,7 +678,6 @@ private fun BadgeTile(item: PanelItem, selected: Boolean, modifier: Modifier, on
                 }
             }
         }
-      }
     }
 }
 

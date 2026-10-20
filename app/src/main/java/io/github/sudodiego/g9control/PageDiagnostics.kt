@@ -460,9 +460,6 @@ internal fun PanelLookPanel(a: MainActivity) {
         ChoiceChips(listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
             ThemeState.panelClassic = it; Prefs.setPanelClassic(a, it)
         }
-        // Vidrio líquido en los mosaicos nuevos: sobre el fondo propio del panel (con fondo liso no hay qué desenfocar).
-        if (!ThemeState.panelClassic && ThemeState.panelBackground != PanelBackground.PLAIN && android.os.Build.VERSION.SDK_INT >= 31)
-            SwitchRow(tr("Mosaicos de vidrio líquido", "Liquid glass tiles"), ThemeState.panelLiquid) { ThemeState.panelLiquid = it; Prefs.setPanelLiquid(a, it) }
         // Las columnas son de la tarjeta al centro (la lateral tiene 2); el tamaño vale para las dos.
         if (!ThemeState.panelSide) {
             Text(tr("Columnas", "Columns"), fontSize = 14.sp)
