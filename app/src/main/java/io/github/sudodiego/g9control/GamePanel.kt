@@ -1075,6 +1075,12 @@ class GamePanel(private val svc: AutoModeService) {
     /** Captura limpia desde fuera del panel (M dos veces en DS5, Legion + RB). */
     fun capture() = screenshot()
 
+    /**
+     * La captura la sacó Android (el botón de captura de algunos controles manda encendido + bajar volumen): el mismo
+     * aviso y sonido que las de TBF, con una miniatura sacada aquí, sin guardar otra imagen.
+     */
+    fun systemShotNotice() = screenshot(save = false)
+
     /** Aviso corto desde el servicio (el mismo de las acciones del panel). */
     internal fun message(title: String, line: String? = null, kind: NoteKind = NoteKind.INFO) = toast(title, line, kind)
 
@@ -1087,12 +1093,12 @@ class GamePanel(private val svc: AutoModeService) {
      * Captura solo la ventana del juego (Android 14+): sin el puntero del mouse ni superposiciones (Game
      * Assistant, este panel). Si Android no la entrega, la captura normal de toda la pantalla.
      */
-    private fun screenshot() {
+    private fun screenshot(save: Boolean = true) {
         // Android da una captura por segundo a los servicios de accesibilidad: más seguido falla (y antes se caía a
         // la captura del sistema). Si es muy pronto, la siguiente espera su turno; como mucho una en espera.
         val now = android.os.SystemClock.uptimeMillis()
         if (now < nextShot) {
-            if (!shotQueued) { shotQueued = true; main.postDelayed({ shotQueued = false; screenshot() }, nextShot - now) }
+            if (!shotQueued) { shotQueued = true; main.postDelayed({ shotQueued = false; screenshot(save) }, nextShot - now) }
             return
         }
         nextShot = now + 1100
@@ -1117,7 +1123,7 @@ class GamePanel(private val svc: AutoModeService) {
                         // El aviso (con su miniatura) apenas hay imagen; guardar el PNG sigue en segundo plano.
                         val thumb = flash.thumbnail(bmp)
                         main.post { flash.show(thumb); sounds.play(AutoRules.shotSound(svc)) }
-                        try { saveScreenshot(bmp) } finally { bmp.recycle() }
+                        try { if (save) saveScreenshot(bmp) } finally { bmp.recycle() }
                     }
                     saved.onFailure {
                         Log.w(AutoModeService.TAG, "no se guardó la captura", it)
@@ -1127,7 +1133,9 @@ class GamePanel(private val svc: AutoModeService) {
                 override fun onFailure(code: Int) {
                     Log.w(AutoModeService.TAG, "captura de la ventana $id falló (código $code)")
                     // Muy seguido: se reintenta en su turno, no con la captura del sistema (que sale distinta).
-                    if (code == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) main.post {
+                    // Solo el aviso (la captura ya la sacó Android): sin miniatura, el sonido.
+                    if (!save) main.post { sounds.play(AutoRules.shotSound(svc)) }
+                    else if (code == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) main.post {
                         nextShot = android.os.SystemClock.uptimeMillis() + 1100
                         if (!shotQueued) { shotQueued = true; main.postDelayed({ shotQueued = false; screenshot() }, 1100) }
                     } else main.post { fullScreenshot() }
@@ -1138,7 +1146,7 @@ class GamePanel(private val svc: AutoModeService) {
             return
         }
         Log.w(AutoModeService.TAG, "sin ventana para capturar (id $id)")
-        fullScreenshot()
+        if (save) fullScreenshot() else sounds.play(AutoRules.shotSound(svc))
     }
 
     /** La app es un launcher (responde a Inicio): su fondo es el fondo de pantalla del sistema. */

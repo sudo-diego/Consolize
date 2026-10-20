@@ -616,6 +616,13 @@ class AutoModeService : AccessibilityService() {
         val k = event.keyCode
         // Soltar la guía cancela siempre el bloqueo de 5 s, antes que nada: con el panel abierto el soltar va al panel
         // y no llegaba a legionKey (la tablet se bloqueaba sola 5 s después de abrir el panel manteniendo la guía).
+        // Botón de captura de algunos controles (GameSir G8+): llega sin código de Android (scan 0x13f) junto con
+        // encendido + bajar volumen, que Android toma como su captura. Aquí solo el aviso de TBF; la tecla sigue.
+        if (k == KeyEvent.KEYCODE_UNKNOWN && event.scanCode == SHOT_SCAN && event.action == KeyEvent.ACTION_DOWN &&
+            event.repeatCount == 0 && event.device?.isExternal == true) {
+            Log.d(TAG, "botón de captura del control: aviso")
+            panel.systemShotNotice()
+        }
         if (k == KeyEvent.KEYCODE_BUTTON_MODE) trackGuide(event)
         // Otro botón del mismo control con la guía apretada (Vista + Menú, navegar el panel): no es "mantener para apagar".
         else if (event.action == KeyEvent.ACTION_DOWN && event.deviceId == guideDevice && guideDownAt > 0) guideDownAt = 0
@@ -1331,6 +1338,8 @@ class AutoModeService : AccessibilityService() {
 
     companion object {
         internal const val TAG = "G9Auto"
+        /** Código crudo del botón de captura de algunos controles (sin nombre en Linux ni en Android). */
+        private const val SHOT_SCAN = 0x13f
         /** El servicio corriendo (null si está apagado): la app lo usa para abrir el panel. */
         @Volatile var active: AutoModeService? = null
         const val ACTION_TEST_GUIDE_TAP = "io.github.sudodiego.g9control.TEST_GUIDE_TAP"

@@ -76,8 +76,11 @@ private fun GuidePanel(a: MainActivity) {
             SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip, tr("Panel, menú y capturas en Artemis o Moonlight", "Panel, menu and screenshots in Artemis or Moonlight")) {
                 streamTip = it; AutoRules.setStreamTip(a, it)
             }
-            Hint(tr("Transmitiendo (Artemis, Moonlight) la guía va al PC: el panel se abre con L3 + R3, el menú de la app con Start + Select y las capturas con M dos veces (DS5) o manteniendo L3 + R3.",
-                "While streaming (Artemis, Moonlight) the guide goes to the PC: open the panel with L3 + R3, the app menu with Start + Select, and take screenshots with M twice (DS5) or by holding L3 + R3."))
+            // M dos veces es del G9 en DS5: solo se nombra si la tablet ya vio un G9.
+            Hint(if (Prefs.g9Seen(a)) tr("Transmitiendo (Artemis, Moonlight) la guía va al PC: el panel se abre con L3 + R3, el menú de la app con Start + Select y las capturas con M dos veces (G9 en DS5) o manteniendo L3 + R3.",
+                "While streaming (Artemis, Moonlight) the guide goes to the PC: open the panel with L3 + R3, the app menu with Start + Select, and take screenshots with M twice (G9 in DS5) or by holding L3 + R3.")
+            else tr("Transmitiendo (Artemis, Moonlight) la guía va al PC: el panel se abre con L3 + R3, el menú de la app con Start + Select y las capturas manteniendo L3 + R3.",
+                "While streaming (Artemis, Moonlight) the guide goes to the PC: open the panel with L3 + R3, the app menu with Start + Select, and take screenshots by holding L3 + R3."))
         }
     }
 }

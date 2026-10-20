@@ -279,7 +279,8 @@ class MainActivity : ComponentActivity() {
             s.testMode -> s.testMode = false
             // Salir de la app: al SOLTAR B (ver ACTION_UP). Si se sale con B apretado, las repeticiones que Android genera
             // mientras se mantiene (después del filtro del servicio, no se pueden bloquear) le llegan al juego que queda al frente.
-            else -> { exitOnRelease = true; s.bReady = true }
+            // Suena al cumplirse los 2 s: ya se puede soltar.
+            else -> { exitOnRelease = true; s.bReady = true; UiSounds.play(this, UiSounds.Kind.SELECT) }
         }
     }
 
@@ -394,6 +395,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         state.padMode = mode
+        if (mode != null && !Prefs.g9Seen(this)) Prefs.setG9Seen(this)
         state.anyPad = InputDevice.getDeviceIds().any { id ->
             InputDevice.getDevice(id)?.let { it.isExternal && (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD } == true
         }
