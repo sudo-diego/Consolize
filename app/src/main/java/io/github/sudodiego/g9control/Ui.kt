@@ -357,7 +357,7 @@ private fun HintBar(s: AppState) {
             if (shown) s.status else "", Modifier.weight(1f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
             color = if (problem) c.error else c.onSurfaceVariant
         )
-        if (s.padMode != null || s.connected) {
+        if (s.anyPad || s.padMode != null || s.connected) {
             val hints = if (s.capturing) listOf("B" to tr("Mantén 1 s para salir", "Hold 1 s to exit"))
             else if (s.editingMacro != null) listOf("A" to tr("Elegir", "Select"), "B" to tr("Cerrar macro", "Close macro"), "LB RB" to tr("Pestañas", "Tabs"))
             // LB RB solo donde hay pestañas (Ajustes tiene una sola página).

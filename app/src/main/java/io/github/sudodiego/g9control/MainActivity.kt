@@ -395,6 +395,9 @@ class MainActivity : ComponentActivity() {
             }
         }
         state.padMode = mode
+        state.anyPad = InputDevice.getDeviceIds().any { id ->
+            InputDevice.getDevice(id)?.let { it.isExternal && (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD } == true
+        }
         state.autoServiceOn = AutoRules.serviceEnabled(this)
         val d = G9Usb.findDevice(this)
         state.deviceText = d?.let { G9Usb.describe(it) }
@@ -1044,6 +1047,8 @@ class AppState {
     var busy by mutableStateOf(false)
     var connected by mutableStateOf(false)
     var padMode by mutableStateOf<PadMode?>(null)
+    /** Hay algún control conectado (de cualquier marca): la barra de abajo muestra cómo navegar con él. */
+    var anyPad by mutableStateOf(false)
     var deviceText by mutableStateOf("")
     var allDevicesText by mutableStateOf("")
     var mode by mutableStateOf<ModeSwitcher.ModeInfo?>(null)
