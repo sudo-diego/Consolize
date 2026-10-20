@@ -21,6 +21,11 @@
     <!-- Saber si hay internet (aviso de RAOfflineProxy). No da acceso a internet: la app sigue sin ese permiso. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Opcional, solo para "Aviso con cualquier captura" (se pide al encenderla): saber que apareció una captura
+         nueva en Pictures/Screenshots (lee su carpeta, no la imagen). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
     <!-- Para listar las apps instaladas en la página de cambio automático. -->
     <queries>
         <intent>

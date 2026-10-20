@@ -294,9 +294,12 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
                 Text(tr("Sonido", "Sound"), fontSize = 14.sp)
                 ChoiceChips(ShotSound.entries.map { it to it.label }, shotSound) { shotSound = it; AutoRules.setShotSound(a, it) }
             }
+            SwitchRow(tr("Aviso con cualquier captura", "Notice for any screenshot"), s.anyShot,
+                tr("También con los botones de la tablet o los ajustes rápidos. Pide el permiso de fotos, solo para esto",
+                    "Also with the tablet buttons or quick settings. Asks for the photos permission, only for this")) { a.setAnyShot(it) }
             var overToast by remember { mutableStateOf(AutoRules.shotOverToast(a)) }
             SwitchRow(tr("Tapar el aviso del sistema", "Cover the system notice"), overToast,
-                tr("Con el botón de captura del control: abajo al centro, encima del de Android", "With the controller's capture button: bottom center, over Android's")) {
+                tr("Con las capturas de Android: abajo al centro, encima de su aviso", "With Android's screenshots: bottom center, over its notice")) {
                 overToast = it; AutoRules.setShotOverToast(a, it)
             }
             // Grabación: dos, que no van juntas (las maneja el panel; ver la grabación en GamePanel).

@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
         window.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
         Lang.load(this)
         state.showSetup = !Prefs.setupDone(this)
+        state.anyShot = AutoRules.anyShot(this)
         setContent {
             G9Theme {
                 // Íconos de la barra de estado y de navegación acordes al tema elegido (no solo al del sistema).
@@ -973,6 +974,20 @@ class MainActivity : ComponentActivity() {
         state.appsReload++
     }
 
+    /** Permiso de fotos, solo para "Aviso con cualquier captura": se enciende si se da. */
+    private val mediaPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        AutoRules.setAnyShot(this, ok)
+        state.anyShot = ok
+        if (!ok) state.status = tr("Sin el permiso de fotos, el aviso sale solo con las capturas de TBF y del control.",
+            "Without the photos permission, the notice only shows for TBF's and the controller's screenshots.")
+    }
+
+    fun setAnyShot(on: Boolean) {
+        if (on && !AutoRules.hasMediaPermission(this)) { mediaPermission.launch(AutoRules.MEDIA_PERMISSION); return }
+        AutoRules.setAnyShot(this, on)
+        state.anyShot = on
+    }
+
     fun requestAppListPermission() {
         if (checkSelfPermission(AutoRules.PERM_APP_LIST) == android.content.pm.PackageManager.PERMISSION_GRANTED) return
         appListPermission.launch(AutoRules.PERM_APP_LIST)
@@ -1048,6 +1063,8 @@ class AppState {
     var busy by mutableStateOf(false)
     var connected by mutableStateOf(false)
     var padMode by mutableStateOf<PadMode?>(null)
+    /** "Aviso con cualquier captura" encendido (y con el permiso de fotos). */
+    var anyShot by mutableStateOf(false)
     /** Hay algún control conectado (de cualquier marca): la barra de abajo muestra cómo navegar con él. */
     var anyPad by mutableStateOf(false)
     var deviceText by mutableStateOf("")

@@ -535,7 +535,11 @@ internal class ShotFlash(private val svc: AccessibilityService) {
     /** La misma tarjeta con otra imagen y texto (batería baja): [ms] lo que se queda antes de salir. */
     /** [overToast]: abajo al centro, a la altura del toast de Android, para taparlo (ver [toastOffset]). */
     fun show(thumb: Bitmap, title: String, line: String?, ms: Long, at: NoticePos? = null, overToast: Boolean = false) {
-        hide()
+        // Reemplaza a uno que ya tapaba el toast (dos capturas seguidas): aparece de una, sin dejar ver el toast al entrar.
+        // El de antes se quita recién cuando el nuevo ya se dibujó (quitarlo primero dejaba ver el toast un instante).
+        val instant = overToast && frame != null
+        val previous = if (instant) frame else null
+        if (instant) { main.removeCallbacks(slideOut); frame = null; shown = null } else hide()
         val px = { v: Int -> (v * dp).toInt() }
         val image = android.widget.ImageView(svc).apply {
             setImageBitmap(thumb)
@@ -589,15 +593,16 @@ internal class ShotFlash(private val svc: AccessibilityService) {
                 android.util.Log.d(AutoModeService.TAG, "aviso sobre el toast: barra escondida ${hiddenNavBar()}, toast ${toastOffset()}, y $y")
             }
         }
-        if (runCatching { wm.addView(f, lp) }.isFailure) return
+        if (runCatching { wm.addView(f, lp) }.isFailure) { previous?.let { runCatching { wm.removeView(it) } }; return }
         frame = f
         shown = Shown(pos, AutoRules.shotAnim(svc))
         // Al primer dibujo (ya medida) se pone en su estado oculto y entra.
         card.viewTreeObserver.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
                 card.viewTreeObserver.removeOnPreDrawListener(this)
-                val out = outState(card, f)
+                val out = if (instant) null else outState(card, f)
                 card.visibility = android.view.View.VISIBLE
+                previous?.let { p -> main.post { p.getChildAt(0).animate().cancel(); runCatching { wm.removeView(p) } } }
                 if (out != null) {
                     card.translationX = out.x; card.translationY = out.y
                     card.alpha = out.alpha; card.scaleX = out.scale; card.scaleY = out.scale

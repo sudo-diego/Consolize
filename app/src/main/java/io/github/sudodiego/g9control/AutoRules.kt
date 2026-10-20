@@ -271,6 +271,15 @@ object AutoRules {
     fun shotSound(ctx: Context) = runCatching { ShotSound.valueOf(sp(ctx).getString("shot_sound", null)!!) }
         .getOrDefault(ShotSound.JINGLE)
     fun setShotSound(ctx: Context, v: ShotSound) = sp(ctx).edit().putString("shot_sound", v.name).apply()
+    /**
+     * Aviso de TBF también con las capturas de Android (botones de la tablet, ajustes rápidos): se ve aparecer la imagen
+     * en Pictures/Screenshots. Necesita el permiso de fotos, que se pide solo para esto: sin él, como apagada.
+     */
+    fun anyShot(ctx: Context) = sp(ctx).getBoolean("any_shot", false) && hasMediaPermission(ctx)
+    fun setAnyShot(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("any_shot", v).apply()
+    val MEDIA_PERMISSION = if (android.os.Build.VERSION.SDK_INT >= 33) android.Manifest.permission.READ_MEDIA_IMAGES
+        else android.Manifest.permission.READ_EXTERNAL_STORAGE
+    fun hasMediaPermission(ctx: Context) = ctx.checkSelfPermission(MEDIA_PERMISSION) == android.content.pm.PackageManager.PERMISSION_GRANTED
     /** Captura que sacó Android (botón de captura del control): el aviso abajo al centro, encima del toast de Android. */
     fun shotOverToast(ctx: Context) = sp(ctx).getBoolean("shot_over_toast", true)
     fun setShotOverToast(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("shot_over_toast", v).apply()

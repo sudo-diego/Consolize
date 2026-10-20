@@ -1089,11 +1089,52 @@ class GamePanel(private val svc: AutoModeService) {
      * La captura la sacó Android (el botón de captura de algunos controles manda encendido + bajar volumen): el mismo
      * aviso y sonido que las de TBF, con una miniatura sacada aquí, sin guardar otra imagen.
      */
-    fun systemShotNotice() {
+    fun systemShotNotice(wait: Long = SYSTEM_SHOT_WAIT, fromKey: Boolean = true) {
+        if (fromKey) systemShotKeyAt = android.os.SystemClock.uptimeMillis()
         systemShot = SystemShot()
         main.removeCallbacks(systemShotLate)
-        main.postDelayed(systemShotLate, SYSTEM_SHOT_WAIT)
-        screenshot(save = false)
+        main.postDelayed(systemShotLate, wait)
+        // Android da una miniatura por segundo: con dos capturas seguidas, la última si es reciente (casi la misma
+        // imagen) en vez de esperar su turno con el toast a la vista.
+        val now = android.os.SystemClock.uptimeMillis()
+        val recent = lastThumb?.takeIf { now < nextShot && now - lastThumbAt < 2000 }
+        if (recent != null) systemShot?.let { it.thumb = recent; showSystemShot() } else screenshot(save = false)
+    }
+    /** Botón de captura del control: la imagen que Android guarda por él no se avisa otra vez (ver [mediaChanged]). */
+    private var systemShotKeyAt = 0L
+    /** La última miniatura y cuándo se sacó. */
+    private var lastThumb: Bitmap? = null
+    private var lastThumbAt = 0L
+    /** Última captura propia: la imagen que guarda TBF también aparece en la carpeta. */
+    private var ownShotAt = 0L
+    /** Capturas de Android ya avisadas (su número en MediaStore): Android avisa al crearla y al terminar de guardarla. */
+    private val seenShots = ArrayDeque<Long>()
+
+    /**
+     * Cambió algo en las imágenes ("Aviso con cualquier captura"): si es una captura nueva de Android (en una carpeta de
+     * capturas, no de TBF), el aviso como con el botón del control. Mientras Android la guarda no se ve (es suya):
+     * se avisa cuando termina.
+     */
+    fun mediaChanged(uri: android.net.Uri) {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - ownShotAt < 3000) return
+        val id = runCatching { android.content.ContentUris.parseId(uri) }.getOrDefault(-1L)
+        if (id < 0 || id in seenShots) return
+        // La del botón del control ya tuvo su aviso: solo esa (la primera que llega después), no las siguientes.
+        if (now - systemShotKeyAt < 3000) { systemShotKeyAt = 0; seenShots.addLast(id); return }
+        io.execute {
+            val path = runCatching {
+                svc.contentResolver.query(uri, arrayOf(MediaStore.Images.Media.RELATIVE_PATH), null, null, null)
+                    ?.use { if (it.moveToFirst()) it.getString(0) else null }
+            }.getOrNull()
+            Log.d(AutoModeService.TAG, "imagen nueva $id: ${path ?: "no se ve (guardándose)"}")
+            if (path?.contains("screenshot", ignoreCase = true) != true) return@execute
+            main.post {
+                if (id in seenShots) return@post
+                seenShots.addLast(id); while (seenShots.size > 20) seenShots.removeFirst()
+                systemShotNotice(wait = 0, fromKey = false)
+            }
+        }
     }
 
     /**
@@ -1117,7 +1158,9 @@ class GamePanel(private val svc: AutoModeService) {
         // Sin miniatura (no se pudo capturar la ventana): solo el sonido.
         if (thumb != null) {
             // Si se pidió, encima del toast de Android, que no se puede quitar.
-            if (AutoRules.shotOverToast(svc)) flash.show(thumb, tr("Captura guardada", "Screenshot saved"), null, 3500,
+            // Lo que dura el toast (~2,4 s). Con dos capturas seguidas, en la segunda sale lo que tapa la primera (el
+            // aviso, o sin él el toast de Android, que no se puede quitar): quitarlo antes no sirve.
+            if (AutoRules.shotOverToast(svc)) flash.show(thumb, tr("Captura guardada", "Screenshot saved"), null, 2400,
                 NoticePos.entries.first { it.h == 0 && it.v == 1 }, overToast = true)
             else flash.show(thumb)
         }
@@ -1137,6 +1180,7 @@ class GamePanel(private val svc: AutoModeService) {
      * Assistant, este panel). Si Android no la entrega, la captura normal de toda la pantalla.
      */
     private fun screenshot(save: Boolean = true) {
+        if (save) ownShotAt = android.os.SystemClock.uptimeMillis()
         // Android da una captura por segundo a los servicios de accesibilidad: más seguido falla (y antes se caía a
         // la captura del sistema). Si es muy pronto, la siguiente espera su turno; como mucho una en espera.
         val now = android.os.SystemClock.uptimeMillis()
@@ -1165,6 +1209,7 @@ class GamePanel(private val svc: AutoModeService) {
                         }
                         // El aviso (con su miniatura) apenas hay imagen; guardar el PNG sigue en segundo plano.
                         val thumb = flash.thumbnail(bmp)
+                        main.post { lastThumb = thumb; lastThumbAt = android.os.SystemClock.uptimeMillis() }
                         // La sacó Android: el aviso espera su toast (ver systemToastShown).
                         if (!save) main.post { systemShot?.let { it.thumb = thumb; showSystemShot() } }
                         else main.post { flash.show(thumb); sounds.play(AutoRules.shotSound(svc)) }

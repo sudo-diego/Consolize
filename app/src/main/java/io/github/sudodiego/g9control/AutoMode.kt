@@ -457,6 +457,7 @@ class AutoModeService : AccessibilityService() {
         PowerLog.start(this)
         ZuiGame.initPerf(this)
         updateTouchpad()
+        updateShotObserver()
         getSharedPreferences("g9", Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(prefsListener)
         getSystemService(InputManager::class.java).registerInputDeviceListener(inputListener, main)
         getSystemService(android.hardware.display.DisplayManager::class.java).registerDisplayListener(displayListener, main)
@@ -1026,9 +1027,23 @@ class AutoModeService : AccessibilityService() {
 
     private var lastTouchpad = 0L
     private var touchpadOn = false
+
+    /** "Aviso con cualquier captura": imágenes nuevas (el panel ve si son capturas). Solo con la opción y el permiso. */
+    private val shotObserver = object : android.database.ContentObserver(main) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) { uri?.let { panel.mediaChanged(it) } }
+    }
+    private var shotObserverOn = false
+    private fun updateShotObserver() {
+        val want = AutoRules.anyShot(this)
+        if (want == shotObserverOn) return
+        shotObserverOn = want
+        if (want) contentResolver.registerContentObserver(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, shotObserver)
+        else runCatching { contentResolver.unregisterContentObserver(shotObserver) }
+    }
     /** Al cambiar la opción en Ajustes se aplica enseguida (no recién al reconectar el control). */
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "touchpad_shot") updateTouchpad()
+        if (key == "any_shot") updateShotObserver()
         if (key?.startsWith("smart_bypass") == true) evaluateBypass()
         if (key == "charge_limit") evaluateBypass()
         if ((key == "perf_hud" || key == "perf_pos") && ::perfHud.isInitialized) perfHud.update()
@@ -1358,6 +1373,7 @@ class AutoModeService : AccessibilityService() {
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(inputListener)
         getSystemService(android.hardware.display.DisplayManager::class.java).unregisterDisplayListener(displayListener)
         runCatching { contentResolver.unregisterContentObserver(monitorModeObserver) }
+        runCatching { contentResolver.unregisterContentObserver(shotObserver) }
         getSharedPreferences("g9", Context.MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(prefsListener)
         runCatching { unregisterReceiver(screenReceiver) }
         main.removeCallbacksAndMessages(null)
