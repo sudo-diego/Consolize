@@ -977,7 +977,10 @@ fun SwitchRow(label: String, checked: Boolean, sub: String? = null, onChange: (B
             if (sub != null) Text(sub, fontSize = 13.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         // Un poco más chico que el de Material (se veía tosco al lado del texto).
-        Switch(checked = checked, onCheckedChange = onChange, enabled = LocalEditable.current, modifier = Modifier.drawScale(0.85f))
+        // Sin el alto mínimo de 48 dp de Material (la fila entera se toca): las filas quedaban muy separadas.
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Switch(checked = checked, onCheckedChange = onChange, enabled = LocalEditable.current, modifier = Modifier.drawScale(0.85f))
+        }
     }
 }
 

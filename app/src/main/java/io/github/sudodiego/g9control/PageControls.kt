@@ -146,6 +146,6 @@ private fun ShortcutRow(keys: List<String>, how: String?, action: String, checke
             Text(action, fontSize = 15.sp, color = if (editable) c.onSurface else c.onSurface.copy(alpha = 0.5f))
             if (how != null) Text(how, fontSize = 12.sp, color = c.onSurfaceVariant)
         }
-        Switch(checked, onChange, enabled = editable, modifier = Modifier.scale(0.85f))
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) { Switch(checked, onChange, enabled = editable, modifier = Modifier.scale(0.85f)) }
     }
 }

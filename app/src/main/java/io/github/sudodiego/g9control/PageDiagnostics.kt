@@ -35,20 +35,14 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
     var loop by remember { mutableStateOf(Prefs.backgroundLoop(a)) }
     TwoPane(
         first = {
-            Panel(tr("Aplicación", "App")) {
-                Text(tr("Idioma", "Language"), fontSize = 14.sp)
-                ChoiceChips(AppLang.entries.map { it to it.label }, Lang.choice) { Lang.set(a, it) }
+            // Dos tarjetas: cómo se ve y lo demás (antes, todo en una sola "Aplicación" muy larga).
+            Panel(tr("Apariencia", "Appearance")) {
                 Text(tr("Tema", "Theme"), fontSize = 14.sp)
                 ChoiceChips(AppTheme.entries.map { it to it.label }, ThemeState.theme) {
                     ThemeState.theme = it; Prefs.setTheme(a, it)
                 }
-                Text(tr("Color de la app", "App color"), fontSize = 14.sp)
+                Text(tr("Color", "Color"), fontSize = 14.sp)
                 AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
-                var full by remember { mutableStateOf(Prefs.fullscreen(a)) }
-                SwitchRow(tr("Pantalla completa", "Full screen"), full) {
-                    full = it; Prefs.setFullscreen(a, it); a.applyFullscreen()
-                }
-                SoundSettings(a)
                 Text(tr("Fondo", "Background"), fontSize = 14.sp)
                 ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
                     if (it == AppBackground.IMAGE && ThemeState.backgroundUri == null) a.pickBackground()
@@ -66,6 +60,18 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                         ThemeState.backgroundDim = it; Prefs.setBackgroundDim(a, it)
                     }
                 }
+                var full by remember { mutableStateOf(Prefs.fullscreen(a)) }
+                SwitchRow(tr("Pantalla completa", "Full screen"), full) {
+                    full = it; Prefs.setFullscreen(a, it); a.applyFullscreen()
+                }
+            }
+        },
+        second = {
+            PermissionsPanel(s, a)
+            Panel(tr("General", "General")) {
+                Text(tr("Idioma", "Language"), fontSize = 14.sp)
+                ChoiceChips(AppLang.entries.map { it to it.label }, Lang.choice) { Lang.set(a, it) }
+                SoundSettings(a)
                 Text(tr("Animación de los avisos", "Notice animation"), fontSize = 14.sp)
                 ChoiceChips(NoticeAnim.entries.map { it to it.label }, anim) { anim = it; AutoRules.setNoticeAnim(a, it); AutoRules.setShotAnim(a, it) }
                 OutlinedButton(onClick = { s.showSetup = true }) { Text(tr("Ver la configuración inicial", "Show quick setup")) }
@@ -80,9 +86,6 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                     Text(version, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-        },
-        second = {
-            PermissionsPanel(s, a)
             if (dev) {
                 Panel(tr("Registro", "Log"), trailing = {
                     Row {
@@ -405,6 +408,7 @@ private fun ExpandHeader(title: String, open: Boolean, onClick: () -> Unit) {
 internal fun PanelLookPanel(a: MainActivity) {
     var stats by remember { mutableStateOf(Prefs.panelStats(a)) }
     var loop by remember { mutableStateOf(ThemeState.panelLoop) }
+    // Cuatro tarjetas (antes una sola muy larga): el panel, cómo se ordena, su fondo y sus colores.
     Panel(tr("Panel de juego", "Game panel")) {
         // Ver cómo queda sin salir de la app (también se abre manteniendo la guía, aquí y en cualquier app).
         OutlinedButton(onClick = { AutoModeService.active?.openPanel() }, enabled = AutoModeService.active != null) {
@@ -420,9 +424,27 @@ internal fun PanelLookPanel(a: MainActivity) {
                 level = it; Prefs.setPanelDuckLevel(a, it)
             }
         }
+        SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
+            stats = it; Prefs.setPanelStats(a, it)
+        }
+    }
+    Panel(tr("Diseño", "Layout")) {
         Text(tr("Estilo", "Style"), fontSize = 14.sp)
         ChoiceChips(PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
-        Text(tr("Fondo", "Background"), fontSize = 14.sp)
+        Text(tr("Mosaicos", "Tiles"), fontSize = 14.sp)
+        ChoiceChips(listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
+            ThemeState.panelClassic = it; Prefs.setPanelClassic(a, it)
+        }
+        // Las columnas son de la tarjeta al centro (la lateral tiene 2); el tamaño vale para las dos.
+        if (!ThemeState.panelSide) {
+            Text(tr("Columnas", "Columns"), fontSize = 14.sp)
+            ChoiceChips(PanelShape.choices.map { it to it.label }, if (ThemeState.panelShape == PanelShape.R4_3) PanelShape.AUTO else ThemeState.panelShape) {
+                ThemeState.panelShape = it; Prefs.setPanelShape(a, it)
+            }
+        }
+        SliderRow(tr("Tamaño (%)", "Size (%)"), ThemeState.panelScale, 60..120) { ThemeState.panelScale = it; Prefs.setPanelScale(a, it) }
+    }
+    Panel(tr("Fondo", "Background")) {
         ChoiceChips(PanelBackground.entries.map { it to it.label }, ThemeState.panelBackground) {
             if (it == PanelBackground.IMAGE && ThemeState.panelUri == null) a.pickPanelBackground()
             else { ThemeState.panelBackground = it; Prefs.setPanelBackground(a, it) }
@@ -468,25 +490,13 @@ internal fun PanelLookPanel(a: MainActivity) {
             SliderRow(tr("Desenfoque", "Blur"), ThemeState.panelBlur, 0..100) { ThemeState.panelBlur = it; Prefs.setPanelBlur(a, it) }
             SwitchRow(tr("Repetir el GIF", "Loop the GIF"), loop) { loop = it; ThemeState.panelLoop = it; Prefs.setPanelLoop(a, it) }
         }
-        Text(tr("Tema (panel, avisos y guías)", "Theme (panel, notices and guides)"), fontSize = 14.sp)
+    }
+    // Tema y color valen también para los avisos y las guías (lo que se dibuja sobre el juego).
+    Panel(tr("Colores", "Colors"), tr("También en avisos y guías", "Also in notices and guides")) {
+        Text(tr("Tema", "Theme"), fontSize = 14.sp)
         ChoiceChips(PanelTone.entries.map { it to it.label }, ThemeState.panelTone) { ThemeState.panelTone = it; Prefs.setPanelTone(a, it) }
-        Text(tr("Mosaicos", "Tiles"), fontSize = 14.sp)
-        ChoiceChips(listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
-            ThemeState.panelClassic = it; Prefs.setPanelClassic(a, it)
-        }
-        Text(tr("Color (panel, avisos y guías)", "Color (panel, notices and guides)"), fontSize = 14.sp)
+        Text(tr("Color", "Color"), fontSize = 14.sp)
         AccentPicker(ThemeState.panelAccent) { ThemeState.panelAccent = it; Prefs.setAccent(a, "panel", it) }
-        // Las columnas son de la tarjeta al centro (la lateral tiene 2); el tamaño vale para las dos.
-        if (!ThemeState.panelSide) {
-            Text(tr("Columnas", "Columns"), fontSize = 14.sp)
-            ChoiceChips(PanelShape.choices.map { it to it.label }, if (ThemeState.panelShape == PanelShape.R4_3) PanelShape.AUTO else ThemeState.panelShape) {
-                ThemeState.panelShape = it; Prefs.setPanelShape(a, it)
-            }
-        }
-        SliderRow(tr("Tamaño (%)", "Size (%)"), ThemeState.panelScale, 60..120) { ThemeState.panelScale = it; Prefs.setPanelScale(a, it) }
-        SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
-            stats = it; Prefs.setPanelStats(a, it)
-        }
     }
 }
 
@@ -509,11 +519,7 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
                 "If “Restricted setting” appears: Settings → Apps → TBF Companion → ⋮ → Allow restricted settings."))
             Button(onClick = { AutoRules.openServiceSettings(a) }) { Text(tr("Abrir accesibilidad", "Open accessibility")) }
         }
-        CompositionLocalProvider(LocalEditable provides true) {
-            SwitchRow(tr("Avisar en Inicio si está apagado", "Warn on Home if it's off"), warnService) {
-                warnService = it; AutoRules.setWarnService(a, it)
-            }
-        }
+        // Sin interruptores para los avisos de Inicio y el mosaico de Shizuku: se avisa siempre que falta algo.
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         PermRow(tr("Shizuku (opcional)", "Shizuku (optional)"), shizuku == Shell.State.READY,
             tr("Bypass, rendimiento, FPS, apps abiertas y más", "Bypass, performance, FPS, open apps and more"),
@@ -524,14 +530,6 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
                 shizuku == Shell.State.NO_PERMISSION -> Button(onClick = { Shell.requestPermission() }) { Text(tr("Dar permiso", "Grant permission")) }
                 launch != null -> Button(onClick = { runCatching { a.startActivity(launch) } }) { Text(tr("Abrir Shizuku", "Open Shizuku")) }
                 else -> Hint(tr("No está instalado (shizuku.rikka.app).", "Not installed (shizuku.rikka.app)."))
-            }
-        }
-        CompositionLocalProvider(LocalEditable provides true) {
-            SwitchRow(tr("Avisar en Inicio si no está iniciado", "Warn on Home if it isn't started"), warnShizuku) {
-                warnShizuku = it; AutoRules.setWarnShizuku(a, it)
-            }
-            SwitchRow(tr("Mosaico «Activar Shizuku» en el panel de juego", "“Start Shizuku” tile in the game panel"), shizukuTile) {
-                shizukuTile = it; AutoRules.setShizukuTile(a, it)
             }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -638,7 +636,7 @@ private fun SoundSettings(a: MainActivity) {
     val music = AmbientMusic.on
     var musicVol by remember { mutableIntStateOf(Prefs.musicVolume(a)) }
     val hasMusic = AmbientMusic.hasFile
-    SwitchRow(tr("Sonidos al navegar", "Navigation sounds"), nav, tr("Al moverte, elegir, volver y cambiar de pestaña", "When moving, selecting, going back and switching tabs")) {
+    SwitchRow(tr("Sonidos al navegar", "Navigation sounds"), nav) {
         nav = it; Prefs.setNavSounds(a, it); if (it) { UiSounds.preload(a); UiSounds.play(a, UiSounds.Kind.SELECT) }
     }
     if (nav) {
@@ -648,7 +646,7 @@ private fun SoundSettings(a: MainActivity) {
         }
     }
     SwitchRow(tr("Música ambiental", "Background music"), music && hasMusic,
-        if (hasMusic) tr("Suena mientras la app está abierta", "Plays while the app is open") else tr("Elige un archivo de audio tuyo", "Pick an audio file of yours")) {
+        if (hasMusic) null else tr("Elige un archivo de audio", "Pick an audio file")) {
         if (!hasMusic) a.pickMusic() else { AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a) }
     }
     if (music && hasMusic) {
@@ -657,8 +655,6 @@ private fun SoundSettings(a: MainActivity) {
         }
         OutlinedButton(onClick = { a.pickMusic() }) { Text(tr("Cambiar música", "Change music")) }
     }
-    Hint(tr("Los sonidos no cortan la música de otras apps. La música ambiental sí la pausa mientras TBF está abierta y la devuelve al salir.",
-        "The sounds don't stop other apps' music. The background music does pause it while TBF is open, and gives it back when you leave."))
 }
 
 /**
@@ -671,6 +667,4 @@ private fun ImageButtons(a: MainActivity, pick: () -> Unit) {
         OutlinedButton(onClick = pick) { Text(tr("Cambiar imagen", "Change image")) }
         OutlinedButton(onClick = { a.searchGifs() }) { Text(tr("Buscar GIFs", "Find GIFs")) }
     }
-    Hint(tr("«Buscar GIFs» abre el navegador: mantén presionado el GIF y descárgalo; después elígelo con «Cambiar imagen».",
-        "“Find GIFs” opens the browser: long-press the GIF and download it; then pick it with “Change image”."))
 }
