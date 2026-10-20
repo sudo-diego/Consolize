@@ -241,7 +241,8 @@ class MainActivity : ComponentActivity() {
         markTested()
         // Mantener B: 1 s sale de la prueba (o de la grabación), sin soltarlo; 2 s sale de la app, al soltarlo. En el editor
         // de macros B cierra la macro (lo dice la barra de abajo): mantenerlo no sale de la app.
-        if (e.keyCode == KeyEvent.KEYCODE_BUTTON_B && !(s.editingMacro != null && !s.capturing)) when (e.action) {
+        // Mantener B para salir solo arriba del todo (en un menú o una página, B es volver y la cuenta no corre).
+        if (e.keyCode == KeyEvent.KEYCODE_BUTTON_B && !(s.editingMacro != null && !s.capturing) && (s.capturing || s.atTop)) when (e.action) {
             KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
                 bHoldFired = false
                 bHandler.removeCallbacks(bHold)
@@ -300,8 +301,8 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_BUTTON_B -> {
                 // B solo cierra lo que esté abierto (el editor de macro). Los diálogos lo manejan solos.
                 if (e.action == KeyEvent.ACTION_UP && s.editingMacro != null) { UiSounds.play(this, UiSounds.Kind.BACK); closeMacroEditor() }
-                // Y el menú abierto dentro de la página: vuelve a la lista (como en una consola).
-                else if (e.action == KeyEvent.ACTION_UP && s.sub != null && !bHoldFired) { UiSounds.play(this, UiSounds.Kind.BACK); s.closeSub() }
+                // Si no, un nivel atrás (menú → página → mosaicos), como en una consola.
+                else if (e.action == KeyEvent.ACTION_UP && s.back()) UiSounds.play(this, UiSounds.Kind.BACK)
                 return true
             }
             // Vista y Menú no hacen nada en la app: solo sirven para cambiar de modo (si no, Menú
@@ -309,16 +310,14 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT -> return true
             // L3/R3 no hacen nada en la app (Android por defecto los usa para ir a Inicio).
             KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR -> return true
-            // LT/RT y LB/RB: la pestaña de arriba o de abajo en la barra (pasando de una sección a otra), sin dar la
-            // vuelta. Antes LT/RT eran secciones y LB/RB pestañas: con pocas secciones, dos pares confundían. En Vibración
-            // y Sticks LT/RT no navegan (ahí prueban los gatillos): queda LB/RB.
+            // LB/RB y LT/RT: la sección anterior o siguiente (las barras de arriba), sin dar la vuelta. En Vibración y
+            // Sticks LT/RT prueban los gatillos: ahí solo LB/RB.
             KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
                 val trigger = e.keyCode == KeyEvent.KEYCODE_BUTTON_L2 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
-                if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0 && !(trigger && s.page in TRIGGER_PAGES)) {
-                    val all = s.allPages
-                    val down = e.keyCode == KeyEvent.KEYCODE_BUTTON_R1 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
-                    val i = all.indexOfFirst { it.second == s.page } + if (down) 1 else -1
-                    all.getOrNull(i)?.let { (sec, p) -> s.section = sec; s.page = p; UiSounds.play(this, UiSounds.Kind.TAB) }
+                if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0 && !(trigger && s.page in TRIGGER_PAGES && !s.inHub)) {
+                    val all = Section.entries
+                    val next = e.keyCode == KeyEvent.KEYCODE_BUTTON_R1 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
+                    all.getOrNull(all.indexOf(s.section) + if (next) 1 else -1)?.let { s.goTo(it); UiSounds.play(this, UiSounds.Kind.TAB) }
                 }
                 return true
             }
@@ -1079,13 +1078,14 @@ class AppState {
     val allPages get() = Section.entries.flatMap { sec -> pages(sec).map { sec to it } }
 
     /** Va a una pestaña, con su sección. */
-    fun open(p: Page) { Section.entries.firstOrNull { p in it.pages }?.let { section = it }; page = p }
+    fun open(p: Page) { Section.entries.firstOrNull { p in it.pages }?.let { section = it }; page = p; inHub = false; sub = null; entryLabel = null }
 
-    /** Cambia de sección, a su primera pestaña visible. */
+    /** Cambia de sección: a sus mosaicos o, si tiene una sola página, a ella. */
     fun goTo(sec: Section) {
-        if (sec == section) return
+        if (sec == section && inHub) return
         section = sec
         if (page !in pages(sec)) page = pages(sec).first()
+        inHub = true; sub = null; only = null; lastSub = null
     }
     /** Línea de estado de la barra inferior. Asignarla la marca como normal; [fail] la marca como problema. */
     var status: String
@@ -1108,6 +1108,20 @@ class AppState {
     /** El último menú que se cerró: su fila recupera el foco al volver a la lista. */
     var lastSub by mutableStateOf<String?>(null)
     fun closeSub() { lastSub = sub; sub = null }
+    /**
+     * En la tarjeta de la categoría (como los ajustes de la Wii U): su lista de cosas. Al elegir una se abre sola esa
+     * ([page] y, si es una parte de la página, [sub] con el título de esa parte). B vuelve a la tarjeta.
+     */
+    var inHub by mutableStateOf(true)
+    /** Abrir una línea de la tarjeta: la página y, si es una parte, el título de esa parte. */
+    fun enter(p: Page, parts: Set<String>?, label: String) { page = p; only = parts; sub = label; entryLabel = label; inHub = false }
+    /** Las partes de la página que se ven (títulos de sus secciones); null = toda. */
+    var only by mutableStateOf<Set<String>?>(null)
+    /** La línea que se abrió (para devolverle el foco al volver). */
+    var entryLabel: String? = null
+    /** B: de lo abierto a la tarjeta. False en la tarjeta: ahí mantener B sale de la app. */
+    fun back(): Boolean = if (!inHub) { lastSub = entryLabel; sub = null; only = null; inHub = true; true } else false
+    val atTop get() = inHub
     /** Hay algún control conectado (de cualquier marca): la barra de abajo muestra cómo navegar con él. */
     var anyPad by mutableStateOf(false)
     var deviceText by mutableStateOf("")

@@ -1,5 +1,6 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.border
 import androidx.compose.ui.semantics.semantics
@@ -165,22 +166,13 @@ fun App(s: AppState, a: MainActivity) {
             LocalWide provides wide, LocalSliderHeld provides { s.sliderHeld = it }, LocalCentered provides s.centered,
             LocalRippleConfiguration provides focusRipple
         ) {
-            // Ancha (horizontal): secciones y pestañas en una columna a la izquierda, como los ajustes de una consola.
-            // Angosta (vertical): la barra de arriba, que ocupa menos ancho.
-            if (wide) Row(Modifier.fillMaxSize()) {
-                SideBar(s, a)
-                // Con el foco dentro de la página (eligiendo una opción) la barra se pliega a íconos; al volver a ella o al
-                // cambiar de pestaña (el foco sale de la página) se abre. El título va siempre, para que no salte.
-                Column(Modifier.weight(1f).fillMaxHeight().onFocusChanged { s.navCompact = it.hasFocus }) {
-                    PageTitle(s)
-                    if (s.page == Page.HOME) ModeStrip(s)
-                    PageHost(s, a, Modifier.weight(1f))
-                    HintBar(s)
-                }
-            } else Column(Modifier.fillMaxSize()) {
-                TabBar(s, a)
+            // Como el inicio de una consola: arriba, dos barras de vidrio (secciones con LB/RB a la izquierda; batería y hora a
+            // la derecha); al medio, los mosaicos de la sección o la página; abajo, la ayuda. Igual en horizontal y vertical.
+            Column(Modifier.fillMaxSize()) {
+                TopStatus()
+                PageTitle(s)
                 // La franja de Vista + Menú, solo en el inicio del G9 (en las demás páginas basta el aviso de cada una).
-                if (s.page == Page.HOME) ModeStrip(s)
+                if (s.page == Page.HOME && !s.inHub) ModeStrip(s)
                 PageHost(s, a, Modifier.weight(1f))
                 HintBar(s)
             }
@@ -338,8 +330,9 @@ private fun SideItem(item: NavItem, sel: Boolean, compact: Boolean, focus: Focus
 @Composable
 private fun PageTitle(s: AppState) {
     val item = NAV.firstOrNull { it.page == s.page } ?: return
-    val base = if (s.pages(s.section).size > 1) "${sectionName(s.section)} · ${item.label}" else sectionName(s.section)
+    val base = sectionName(s.section)
     val title = s.sub?.let { "$base · $it" } ?: base
+    if (s.inHub) return
     Text(title, Modifier.padding(start = 20.dp, top = 18.dp, bottom = 2.dp), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
 }
 /** Pestañas horizontales, como en una consola: LB/RB a los lados para cambiar. */
@@ -539,16 +532,16 @@ private fun HintBar(s: AppState) {
         if (s.anyPad || s.padMode != null || s.connected) {
             val wide = LocalWide.current
             val hints = if (s.capturing) listOf("B" to tr("Mantén 1 s para salir", "Hold 1 s to exit"))
-            else if (s.editingMacro != null) listOf("A" to tr("Elegir", "Select"), "B" to tr("Cerrar macro", "Close macro"), "LB RB" to tr("Pestañas", "Tabs"))
-            // Con la barra lateral, cómo cambiar de pestaña ya está en ella.
+            else if (s.editingMacro != null) listOf("A" to tr("Elegir", "Select"), "B" to tr("Cerrar macro", "Close macro"))
             else listOfNotNull("A" to tr("Elegir", "Select"),
-                if (wide) null else (if (s.page in TRIGGER_PAGES) "LB RB" else "LT RT") to tr("Pestañas", "Tabs"),
-                "B" to if (s.bReady) tr("Suelta para salir", "Release to exit") else if (s.sub != null) tr("Volver", "Back") else tr("Mantén 2 s para salir", "Hold 2 s to exit"))
+                // Cambiar de categoría (LB/RB; LT/RT también, salvo donde prueban los gatillos).
+                (if (s.page in TRIGGER_PAGES && !s.inHub) "LB RB" else "LB RB · LT RT") to tr("Categoría", "Category"),
+                "B" to if (s.bReady) tr("Suelta para salir", "Release to exit") else if (!s.atTop) tr("Volver", "Back") else tr("Mantén 2 s para salir", "Hold 2 s to exit"))
             Row(glass.padding(start = 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 hints.forEachIndexed { i, (k, v) ->
                     if (i > 0) Spacer(Modifier.width(18.dp))
                     // El aro de B es la cuenta atrás de mantener (salir de la app, de la prueba); cerrar la macro es un toque.
-                    if (k == "B" && s.editingMacro == null) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
+                    if (k == "B" && s.editingMacro == null && s.atTop) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
                     Spacer(Modifier.width(6.dp))
                     Text(v, fontSize = 13.sp, color = c.onSurface)
                 }
@@ -557,27 +550,35 @@ private fun HintBar(s: AppState) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     // Al cambiar de pestaña se termina la prueba de botones.
-    LaunchedEffect(s.page) { if (s.page != Page.TEST) s.testMode = false; s.sub = null; s.lastSub = null }
+    LaunchedEffect(s.page) { if (s.page != Page.TEST) s.testMode = false }
     // Atrás de Android (gesto o botón) también cierra el menú abierto.
-    androidx.activity.compose.BackHandler(enabled = s.sub != null) { s.closeSub() }
+    androidx.activity.compose.BackHandler(enabled = !s.atTop) { s.back() }
     // Probando botones o grabando una macro, la guía es un botón más (no abre el panel).
     LaunchedEffect(s.capturing) { AppKeys.capturing = s.capturing }
     AnimatedContent(
         // La página y su menú abierto: abrir o cerrar un menú también cambia con fundido.
-        targetState = s.page to s.sub,
+        targetState = Triple(s.section, if (s.inHub) null else s.page, s.sub),
         modifier = modifier,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
         label = "page"
-    ) { (page, sub) ->
+    ) { (section, pageOrHub, sub) ->
+        val page = pageOrHub ?: s.page
         val scroll = rememberScrollState()
         // Al abrir un menú, el foco entra a su primera opción (si no, se perdía y saltaba a la barra lateral).
         val enter = remember { FocusRequester() }
-        LaunchedEffect(sub) { if (sub != null) { kotlinx.coroutines.delay(80); runCatching { enter.requestFocus() } } }
-        Column(
-            Modifier.fillMaxSize().focusRequester(enter).focusGroup().verticalScroll(scroll)
+        // Al entrar a cualquier pantalla (mosaicos, página, menú) el foco va a lo primero, salvo que una fila lo recupere.
+        LaunchedEffect(Unit) { val restoring = s.lastSub != null; kotlinx.coroutines.delay(80); if (!restoring) runCatching { enter.requestFocus() } }
+        // Al volver a la app (cerrar el panel de juego, por ejemplo) el foco vuelve a donde estaba (focusRestorer).
+        val winFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+        var hadWin by remember { mutableStateOf(winFocused) }
+        LaunchedEffect(winFocused) { if (winFocused && !hadWin) { kotlinx.coroutines.delay(60); runCatching { enter.requestFocus() } }; hadWin = winFocused }
+        if (pageOrHub == null) Box(Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup().padding(horizontal = 16.dp)) { CategoryScreen(s) }
+        else CompositionLocalProvider(LocalOnlyPanels provides s.only) { Column(
+            Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup().verticalScroll(scroll)
                 .padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -615,7 +616,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
                     }
                 }
             }
-        }
+        } }
     }
 }
 
@@ -647,6 +648,9 @@ fun ConnectionPill(s: AppState, onConnect: () -> Unit) {
 // Componentes compartidos
 // ---------------------------------------------------------------------------------------------
 
+/** Las partes de la página que se ven (abiertas desde la tarjeta de la categoría); null = todas. */
+val LocalOnlyPanels = compositionLocalOf<Set<String>?> { null }
+
 /** Dentro de una hoja ([Sheet]): las secciones no llevan tarjeta propia. */
 val LocalInSheet = compositionLocalOf { false }
 
@@ -676,6 +680,8 @@ fun Panel(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val c = MaterialTheme.colorScheme
+    // Abierta una sola parte de la página desde la tarjeta de su categoría: las demás no se dibujan.
+    LocalOnlyPanels.current?.let { only -> if (title == null || title !in only) return }
     if (LocalInSheet.current) {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (title != null) Row(verticalAlignment = Alignment.CenterVertically) {
