@@ -1190,7 +1190,7 @@ class AutoModeService : AccessibilityService() {
     override fun onMotionEvent(event: MotionEvent) {
         if (event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
             if (panel.isOpen && android.os.SystemClock.uptimeMillis() < settleUntil) {
-                if (deflected(event)) { stickLent = true; applyMotionSources(); main.removeCallbacks(recapture); main.postDelayed(recapture, 150); return }
+                if (deflected(event)) { stickLent = true; applyMotionSources(); main.removeCallbacks(recapture); main.postDelayed(recapture, 60); return }
                 settleUntil = 0   // al centro: desde ahora, para el panel
             }
             if (panel.isOpen) panel.onStick(event) else if (mouseOn) mouse.onMotion(event)

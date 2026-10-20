@@ -186,9 +186,10 @@ class GamePanel(private val svc: AutoModeService) {
     }
     private fun dropFreeze() {
         freezing = false
-        PanelFreeze.frame = null
         // Después de que se fue el panel (160 ms) y suave: al mismo tiempo, parpadeaba.
-        freezeView?.let { v -> v.animate().alpha(0f).setStartDelay(170).setDuration(220).withEndAction { runCatching { wm.removeView(v) } }.start() }
+        freezeView?.let { v -> v.animate().alpha(0f).setStartDelay(170).setDuration(220).withEndAction { runCatching { wm.removeView(v) }; if (!isOpen && !freezing) PanelFreeze.frame = null }.start() }
+        // La imagen de detrás del panel se borra recién al final: borrarla al cerrar dejaba un fondo oscuro mientras el panel
+        // se desvanecía (el parpadeo).
         freezeView = null
     }
 
