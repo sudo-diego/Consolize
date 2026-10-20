@@ -159,15 +159,15 @@ class GamePanel(private val svc: AutoModeService) {
         if (ThemeState.panelBackground != PanelBackground.GAME || isOpen) return showNow()
         if (freezing) return
         freezing = true
-        // 1) Al instante, una ventana vacía que toma el foco: el juego lo pierde, y la mayoría se pausa o suelta los
-        //    controles (si no, seguía con el último stick: con el panel abierto los sticks ya no le llegan).
+        // 1) Al instante, una ventana vacía (sin foco: con el foco, el juego no recibía el stick al soltarlo; ver
+        //    settle en AutoModeService).
         // 2) Recién ahí la imagen (así es de ahora y no de antes de pausar; la ventana vacía no sale en ella).
         // 3) La imagen en esa ventana, un poco oscura, y el panel encima.
-        val iv = android.widget.ImageView(svc).apply { scaleType = android.widget.ImageView.ScaleType.FIT_XY; isFocusable = true }
+        val iv = android.widget.ImageView(svc).apply { scaleType = android.widget.ImageView.ScaleType.FIT_XY }
         val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.START; windowAnimations = 0 }
         runCatching { wm.addView(iv, lp) }.onSuccess { freezeView = iv }
         scope.launch {
@@ -187,7 +187,8 @@ class GamePanel(private val svc: AutoModeService) {
     private fun dropFreeze() {
         freezing = false
         PanelFreeze.frame = null
-        freezeView?.let { v -> v.animate().alpha(0f).setDuration(160).withEndAction { runCatching { wm.removeView(v) } }.start() }
+        // Después de que se fue el panel (160 ms) y suave: al mismo tiempo, parpadeaba.
+        freezeView?.let { v -> v.animate().alpha(0f).setStartDelay(170).setDuration(220).withEndAction { runCatching { wm.removeView(v) } }.start() }
         freezeView = null
     }
 

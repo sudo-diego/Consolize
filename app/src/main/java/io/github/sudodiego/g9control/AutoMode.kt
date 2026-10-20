@@ -1158,12 +1158,26 @@ class AutoModeService : AccessibilityService() {
     fun setPanelSticks(on: Boolean) {
         if (android.os.Build.VERSION.SDK_INT < 34 || on == panelSticks) return
         panelSticks = on
+        // Recién abierto: hasta ver los sticks al centro (como mucho 2 s), ver [onMotionEvent].
+        settleUntil = if (on) android.os.SystemClock.uptimeMillis() + 2000 else 0
+        main.removeCallbacks(recapture)
         applyMotionSources()
     }
 
+    /**
+     * Al abrir el panel con un stick inclinado, el juego no se enteraba de que se soltó (los sticks pasan al panel) y
+     * el personaje seguía caminando. Mientras esté inclinado, los sticks vuelven al juego un momento (así recibe cuando
+     * se suelta) y se toman de nuevo para mirar; con todo al centro, quedan para el panel.
+     */
+    private var settleUntil = 0L
+    private var stickLent = false
+    private val recapture = Runnable { if (stickLent) { stickLent = false; applyMotionSources() } }
+    private fun deflected(e: MotionEvent) = listOf(MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ,
+        MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y).any { kotlin.math.abs(e.getAxisValue(it)) > 0.25f }
+
     private fun applyMotionSources() {
         if (android.os.Build.VERSION.SDK_INT < 34) return
-        val sources = (if (touchpadOn) InputDevice.SOURCE_MOUSE else 0) or (if (panelSticks || mouseOn) InputDevice.SOURCE_JOYSTICK else 0)
+        val sources = (if (touchpadOn) InputDevice.SOURCE_MOUSE else 0) or (if ((panelSticks && !stickLent) || mouseOn) InputDevice.SOURCE_JOYSTICK else 0)
         runCatching { serviceInfo = serviceInfo.apply { motionEventSources = sources } }
             .onFailure { Log.w(TAG, "no se pudieron pedir los eventos de movimiento", it) }
     }
@@ -1175,6 +1189,10 @@ class AutoModeService : AccessibilityService() {
      */
     override fun onMotionEvent(event: MotionEvent) {
         if (event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
+            if (panel.isOpen && android.os.SystemClock.uptimeMillis() < settleUntil) {
+                if (deflected(event)) { stickLent = true; applyMotionSources(); main.removeCallbacks(recapture); main.postDelayed(recapture, 150); return }
+                settleUntil = 0   // al centro: desde ahora, para el panel
+            }
             if (panel.isOpen) panel.onStick(event) else if (mouseOn) mouse.onMotion(event)
             return
         }
