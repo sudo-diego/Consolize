@@ -36,33 +36,40 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
     TwoPane(
         first = {
             // Dos tarjetas: cómo se ve y lo demás (antes, todo en una sola "Aplicación" muy larga).
+            // En acordeón: tema y color por un lado, el fondo (con todas sus opciones) por otro.
+            val acc = remember { mutableStateOf<String?>(tr("Tema y color", "Theme and color")) }
             Panel(tr("Apariencia", "Appearance")) {
-                Text(tr("Tema", "Theme"), fontSize = 14.sp)
-                ChoiceChips(AppTheme.entries.map { it to it.label }, ThemeState.theme) {
-                    ThemeState.theme = it; Prefs.setTheme(a, it)
-                }
-                Text(tr("Color", "Color"), fontSize = 14.sp)
-                AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
-                Text(tr("Superficies", "Surfaces"), fontSize = 14.sp)
-                // Con el fondo de pantalla de Android no hay vidrio líquido (no se puede capturar lo de detrás de la ventana).
-                ChoiceChips(Surfaces.entries.filter { it != Surfaces.LIQUID || ThemeState.background != AppBackground.WALLPAPER }.map { it to it.label }, ThemeState.surfaces) { ThemeState.surfaces = it; Prefs.setSurfaces(a, it) }
-                Text(tr("Fondo", "Background"), fontSize = 14.sp)
-                ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
-                    if (it == AppBackground.IMAGE && ThemeState.backgroundUri == null) a.pickBackground()
-                    else { ThemeState.background = it; Prefs.setBackground(a, it) }
-                }
-                if (ThemeState.background == AppBackground.IMAGE) {
-                    ImageButtons(a) { a.pickBackground() }
-                    SliderRow(tr("Desenfoque", "Blur"), ThemeState.backgroundBlur, 0..100) {
-                        ThemeState.backgroundBlur = it; Prefs.setBackgroundBlur(a, it)
+              CompositionLocalProvider(LocalOnlyPanels provides null, LocalAccordion provides acc) {
+                Panel(tr("Tema y color", "Theme and color")) {
+                    Text(tr("Tema", "Theme"), fontSize = 14.sp)
+                    ChoiceChips(AppTheme.entries.map { it to it.label }, ThemeState.theme) {
+                        ThemeState.theme = it; Prefs.setTheme(a, it)
                     }
-                    SwitchRow(tr("Repetir el GIF", "Loop the GIF"), loop) { loop = it; ThemeState.backgroundLoop = it; Prefs.setBackgroundLoop(a, it) }
+                    Text(tr("Color", "Color"), fontSize = 14.sp)
+                    AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
+                    Text(tr("Superficies", "Surfaces"), fontSize = 14.sp)
+                    // Con el fondo de pantalla de Android no hay vidrio líquido (no se puede capturar lo de detrás de la ventana).
+                    ChoiceChips(Surfaces.entries.filter { it != Surfaces.LIQUID || ThemeState.background != AppBackground.WALLPAPER }.map { it to it.label }, ThemeState.surfaces) { ThemeState.surfaces = it; Prefs.setSurfaces(a, it) }
                 }
-                if (ThemeState.background == AppBackground.WALLPAPER) {
-                    SliderRow(tr("Oscurecer", "Dim"), ThemeState.backgroundDim, 0..100) {
-                        ThemeState.backgroundDim = it; Prefs.setBackgroundDim(a, it)
+                Panel(tr("Fondo", "Background")) {
+                    ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
+                        if (it == AppBackground.IMAGE && ThemeState.backgroundUri == null) a.pickBackground()
+                        else { ThemeState.background = it; Prefs.setBackground(a, it) }
+                    }
+                    if (ThemeState.background == AppBackground.IMAGE) {
+                        ImageButtons(a) { a.pickBackground() }
+                        SliderRow(tr("Desenfoque", "Blur"), ThemeState.backgroundBlur, 0..100) {
+                            ThemeState.backgroundBlur = it; Prefs.setBackgroundBlur(a, it)
+                        }
+                        SwitchRow(tr("Repetir el GIF", "Loop the GIF"), loop) { loop = it; ThemeState.backgroundLoop = it; Prefs.setBackgroundLoop(a, it) }
+                    }
+                    if (ThemeState.background == AppBackground.WALLPAPER) {
+                        SliderRow(tr("Oscurecer", "Dim"), ThemeState.backgroundDim, 0..100) {
+                            ThemeState.backgroundDim = it; Prefs.setBackgroundDim(a, it)
+                        }
                     }
                 }
+              }
                 var full by remember { mutableStateOf(Prefs.fullscreen(a)) }
                 SwitchRow(tr("Pantalla completa", "Full screen"), full) {
                     full = it; Prefs.setFullscreen(a, it); a.applyFullscreen()
@@ -225,7 +232,11 @@ fun GamePanelPage(s: AppState, a: MainActivity) {
 
 /** Panel → Capturas y monitor: lo que se ve sobre el juego además del panel (antes estaba en "Juego"). */
 @Composable
-fun CapturesPage(s: AppState, a: MainActivity) = Gate(s.autoServiceOn) { GamePanelSettings(s, a) }
+fun CapturesPage(s: AppState, a: MainActivity) {
+    // En acordeón: capturas y grabación, o el monitor de rendimiento (dos grupos largos).
+    val acc = remember { mutableStateOf<String?>(tr("Capturas y grabación", "Screenshots and recording")) }
+    CompositionLocalProvider(LocalAccordion provides acc) { Gate(s.autoServiceOn) { GamePanelSettings(s, a) } }
+}
 
 /** Frecuencia para todos los juegos: sin esto el sistema la mueve entre 30 y 120 (en Ahorro, a 30). */
 @Composable

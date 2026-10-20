@@ -546,6 +546,9 @@ fun UsagePage(s: AppState, a: MainActivity) {
                 if (!ready) Hint(tr("Para ver y cerrar cada app abierta hace falta Shizuku.", "Seeing and closing each open app needs Shizuku."))
             }
 
+            // Tus apps y la comparación por modo, en acordeón (la RAM queda siempre a la vista).
+            val acc = remember { mutableStateOf<String?>(tr("Tus apps", "Your apps")) }
+            CompositionLocalProvider(LocalAccordion provides acc) {
             Panel(tr("Tus apps", "Your apps"), trailing = {
                 if (power.isNotEmpty() || sessions.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { PowerLog.reset(a); Sessions.reset(a); tick++ }
             }) {
@@ -590,6 +593,7 @@ fun UsagePage(s: AppState, a: MainActivity) {
                             fontSize = 14.sp, color = c.onSurfaceVariant)
                     }
                 }
+            }
             }
         }
     }
