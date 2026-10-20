@@ -56,16 +56,8 @@ private object AppCache { @Volatile var apps: List<AppEntry>? = null }
 @Composable
 fun AutoPage(s: AppState, a: MainActivity) {
     // El cambio por app y sus avisos los hace el servicio de accesibilidad.
-    Gate(s.autoServiceOn) {
-        if (LocalWide.current) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1.3f), verticalArrangement = Arrangement.spacedBy(12.dp)) { AppPicker(s, a) }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) { AutoOptions(s, a); NoticesPanel(s, a) }
-        } else {
-            AutoOptions(s, a)
-            NoticesPanel(s, a)
-            AppPicker(s, a)
-        }
-    }
+    // El modo de cada juego se elige en Juegos → Biblioteca (antes, una grilla de apps aquí); aquí solo el cambio y sus avisos.
+    Gate(s.autoServiceOn) { TwoPane(first = { AutoOptions(s, a) }, second = { NoticesPanel(s, a) }) }
 }
 
 @Composable

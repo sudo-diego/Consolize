@@ -28,7 +28,7 @@ fun ShortcutsPage(s: AppState, a: MainActivity) {
 @Composable
 private fun ShortcutsContent(s: AppState, a: MainActivity) {
     TwoPane(
-        first = { GuidePanel(a); GuideTapPanel(a) },
+        first = { GuidePanel(a) },
         second = {
             OtherShortcutsPanel(a)
             TabletButtonsPanel(a)
@@ -82,46 +82,6 @@ private fun GuidePanel(a: MainActivity) {
     }
 }
 
-/**
- * Tocar la guía en cada juego o emulador instalado: Atrás (lo normal), nada, o pasarla al juego (el emulador recibe la
- * guía real y la asigna como tecla de atajos; mantenerla sigue abriendo el panel y Guía + RB sigue siendo captura).
- */
-@Composable
-private fun GuideTapPanel(a: MainActivity) {
-    val pm = a.packageManager
-    val apps = remember {
-        GAME_APPS.mapNotNull { pkg ->
-            runCatching { pm.getApplicationInfo(pkg, 0) }.getOrNull()?.let { pkg to pm.getApplicationLabel(it).toString() }
-        }
-    }
-    if (apps.isEmpty()) return
-    CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Tocar la guía en…", "Tapping guide in…"), tr("Mantener sigue abriendo el panel", "Holding still opens the panel")) {
-            apps.forEach { (pkg, label) ->
-                var tap by remember(pkg) { mutableStateOf(AutoRules.guideTap(a, pkg)) }
-                Text(label, fontSize = 15.sp)
-                ChoiceChips(AutoRules.GuideTap.entries.map { it to it.label }, tap) { tap = it; AutoRules.setGuideTap(a, pkg, it) }
-                if (tap == AutoRules.GuideTap.PASS) {
-                    // Capturas nítidas con shaders como BFI o CRT beam simulator: que las saque el emulador.
-                    var byGame by remember(pkg) { mutableStateOf(AutoRules.shotByGame(a, pkg)) }
-                    SwitchRow(tr("Guía + RB: captura del emulador", "Guide + RB: emulator screenshot"), byGame) {
-                        byGame = it; AutoRules.setShotByGame(a, pkg, it)
-                    }
-                }
-            }
-            Hint(tr("«Pasar al juego»: el emulador recibe la guía (para sus teclas rápidas).",
-                "\u201cPass to the game\u201d: the emulator gets the guide (for its hotkeys)."))
-        }
-    }
-}
-
-/** Juegos y emuladores conocidos: los que estén instalados salen en "Tocar la guía en…". */
-private val GAME_APPS = listOf(
-    "com.retroarch", "com.retroarch.aarch64", "dev.eden.eden_emulator", "org.azahar_emu.azahar", "org.dolphinemu.dolphinemu",
-    "xyz.aethersx2.android", "info.cemu.cemu", "me.magnum.melondualds", "me.magnum.melonds", "org.vita3k.emulator",
-    "org.ppsspp.ppsspp", "org.ppsspp.ppssppgold", "com.github.stenzek.duckstation", "app.gamenative", "com.winlator",
-    "com.dishii.soh", "com.dishii.mm", "dev.twilitrealm.dusk", "org.citra.emu", "io.github.lime3ds.android",
-)
 
 @Composable
 private fun OtherShortcutsPanel(a: MainActivity) {

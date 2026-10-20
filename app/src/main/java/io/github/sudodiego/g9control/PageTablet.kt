@@ -112,7 +112,7 @@ fun ScreenPage(s: AppState, a: MainActivity) {
     TwoPane(
         // 16:9 a mano: permiso de pantalla o Shizuku. El monitor lo aplica el servicio de accesibilidad.
         first = { Gate(Aspect.available(a)) { ScreenButtonsPanel(s, a) } },
-        second = { Gate(s.autoServiceOn) { MonitorPanel(s, a) }; GameAspectPanel(a); ShizukuHint() }
+        second = { Gate(s.autoServiceOn) { MonitorPanel(s, a) }; ShizukuHint() }
     )
 }
 
@@ -484,22 +484,3 @@ private fun ScreenRow(a: MainActivity) {
     }
 }
 
-/**
- * Juegos con proporción propia (Gaming view de ZUI, ver [GameAspect]): se eligen desde el panel de juego (mosaico
- * Proporción) y aquí se ven y se quitan.
- */
-@Composable
-private fun GameAspectPanel(a: MainActivity) {
-    val scope = rememberCoroutineScope()
-    var apps by remember { mutableStateOf(GameAspect.apps(a)) }
-    Panel(tr("Proporción por juego", "Aspect ratio per game")) {
-        Hint(tr("Se elige en el panel (Proporción).", "Pick it in the panel (Aspect)."))
-        if (apps.isEmpty()) Text(tr("Ningún juego todavía.", "No games yet."), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        apps.forEach { pkg ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(RecentApps.label(a, pkg) + " · " + GameAspect.get(a, pkg).label, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { scope.launch { GameAspect.set(a, pkg, GameAspect.Ratio.FULL); apps = GameAspect.apps(a) } }) { Text(tr("Quitar", "Remove")) }
-            }
-        }
-    }
-}

@@ -124,13 +124,14 @@ private val NAV = listOf(
     NavItem(Page.TABLET_HOME, "Inicio", "Home", Icons.Outlined.Home, Icons.Filled.Home),
     NavItem(Page.BATTERY, "Batería", "Battery", Icons.Outlined.BatteryChargingFull, Icons.Filled.BatteryChargingFull),
     NavItem(Page.SCREEN, "Pantalla", "Screen", Icons.Outlined.Monitor, Icons.Filled.Monitor),
-    NavItem(Page.GAMEPANEL, "General", "General", Icons.Outlined.SportsEsports, Icons.Filled.SportsEsports),
+    NavItem(Page.GAMES, "Biblioteca", "Library", Icons.Outlined.GridView, Icons.Filled.GridView),
+    NavItem(Page.GAMEPANEL, "General", "General", Icons.Outlined.Tune, Icons.Filled.Tune),
     NavItem(Page.PANEL, "Aspecto", "Look", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
     NavItem(Page.CAPTURES, "Capturas", "Screenshots", Icons.Outlined.Screenshot, Icons.Filled.Screenshot),
     NavItem(Page.CONTROLS, "Atajos", "Shortcuts", Icons.Outlined.Gesture, Icons.Filled.Gesture),
     // G9 (en Controles, bajo "Legion G9"; Por app en Juegos).
     NavItem(Page.HOME, "Control", "Controller", Icons.Outlined.Home, Icons.Filled.Home),
-    NavItem(Page.AUTO, "Modo del G9", "G9 mode", Icons.Outlined.Apps, Icons.Filled.Apps),
+    NavItem(Page.AUTO, "Cambio de modo", "Mode switching", Icons.Outlined.SwapHoriz, Icons.Filled.SwapHoriz),
     NavItem(Page.LIGHTS, "Luces", "Lights", Icons.Outlined.Lightbulb, Icons.Filled.Lightbulb),
     NavItem(Page.STICKS, "Sticks", "Sticks", Icons.Outlined.Gamepad, Icons.Filled.Gamepad),
     NavItem(Page.VIBRATION, "Vibración", "Vibration", Icons.Outlined.Vibration, Icons.Filled.Vibration),
@@ -567,6 +568,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
                         Page.TABLET_HOME -> TabletHomePage(s, a)
                         Page.BATTERY -> BatteryPage(s, a)
                         Page.SCREEN -> ScreenPage(s, a)
+                        Page.GAMES -> CompositionLocalProvider(LocalPageScroll provides scroll) { GamesPage(s, a) }
                         Page.GAMEPANEL -> GamePanelPage(s, a)
                         Page.CAPTURES -> CapturesPage(s, a)
                         Page.PANEL -> CompositionLocalProvider(LocalPageScroll provides scroll) { PanelPage(s, a) }
