@@ -1003,8 +1003,11 @@ class MainActivity : ComponentActivity() {
         state.anyShot = on
     }
 
+    /** Una vez por vez que se abre la app: pedirlo saca la app del frente un instante (y en ZUI vuelve a pedirse cada vez). */
+    private var askedAppList = false
     fun requestAppListPermission() {
-        if (checkSelfPermission(AutoRules.PERM_APP_LIST) == android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        if (askedAppList || checkSelfPermission(AutoRules.PERM_APP_LIST) == android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        askedAppList = true
         appListPermission.launch(AutoRules.PERM_APP_LIST)
     }
 

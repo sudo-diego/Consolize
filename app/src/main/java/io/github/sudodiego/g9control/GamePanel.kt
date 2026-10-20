@@ -941,8 +941,8 @@ class GamePanel(private val svc: AutoModeService) {
         // Monitor de rendimiento sobre el juego (FPS con Shizuku; lo demás siempre).
         val hud = AutoRules.perfHud(svc)
         add(PanelItem(tr("Monitor", "Monitor"), Icons.Outlined.QueryStats, active = hud,
-            sub = if (hud) tr("Encendido", "On") else tr("Apagado", "Off")) {
-            AutoRules.setPerfHud(svc, !hud); refresh()
+            sub = AutoRules.hudLabel(svc)) {
+            AutoRules.cycleHud(svc); refresh()
         })
         // Frecuencia de la pantalla para esta app (se recuerda por juego).
         val hzNow = RefreshRate.current(svc)

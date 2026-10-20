@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
@@ -332,11 +334,11 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
     val known = remember(tick) { Monitor.known(a) }
     val ready = Shell.state == Shell.State.READY
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Monitor", "Monitor"), trailing = {
+        Panel(tr("Pantalla externa", "External display"), trailing = {
             val m = monitor
             Text(
                 when {
-                    m == null -> tr("Sin monitor", "No monitor")
+                    m == null -> tr("Sin conectar", "Not connected")
                     mirror -> "${m.name} · " + tr("espejo", "mirror")
                     else -> "${m.name} · " + tr("extendido", "extended")
                 }, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -359,7 +361,7 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
             if (screen >= Monitor.Screen.NO_LIGHT && !ready) Hint(tr("Sin Shizuku solo se oscurece.", "Without Shizuku it's only dimmed."))
             if (screen != Monitor.Screen.NORMAL) Hint(tr("Si algo falla: encendido dos veces la enciende.", "If anything fails: press power twice to turn it on."))
             if (known.isNotEmpty() && Aspect.available(a)) {
-                Text(tr("Monitores", "Monitors"), fontSize = 14.sp)
+                Text(tr("Conocidas", "Known"), fontSize = 14.sp)
                 known.forEach { k ->
                     var fit by remember(k.key, tick) { mutableStateOf(Monitor.fit(a, k.key)) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -490,15 +492,105 @@ private fun ScreenRow(a: MainActivity) {
 }
 
 /**
- * Uso: qué gasta la tableta, para decidir qué conviene. Lo que está abierto ahora (RAM), cuánto consume cada app y
- * cómo fueron las sesiones de juego (W, CPU, temperatura). Antes estaba repartido entre Inicio y Batería.
+ * Uso: una sola lista de tus apps con todo lo que se sabe de cada una, para decidir qué conviene. Lo que gasta a batería
+ * (W y cuánto duraría la batería llena), si está abierta (RAM, cerrarla) y cómo fue al jugarla (veces, temperatura).
+ * Arriba la RAM y cerrar lo de fondo; abajo, la comparación por modo de rendimiento. Antes eran tres listas sueltas.
  */
 @Composable
 fun UsagePage(s: AppState, a: MainActivity) {
+    val scope = rememberCoroutineScope()
+    val c = MaterialTheme.colorScheme
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { delay(5000); tick++ } }
+    val info = remember(tick) { Memory.info(a) }
+    val ready = Shell.state == Shell.State.READY
+    var tasks by remember { mutableStateOf(listOf<Memory.Task>()) }
+    LaunchedEffect(ready, tick) { if (ready) tasks = Memory.tasks(a) }
+    val power = remember(tick) { PowerLog.apps(a) }
+    val sessions = remember(tick) { Sessions.list(a) }
+    val modes = remember(tick) { Sessions.byMode(a) }
+    val full = remember { ZuiBattery.fullWh(a) }
+    var busy by remember { mutableStateOf(false) }
+
+    class Row(val pkg: String, val label: String, val task: Memory.Task?, val watts: Double?, val measured: Long?,
+              val plays: Int, val cpuMax: Int?, val lastHz: Int?)
+    val rows = remember(tasks, power, sessions) {
+        val pkgs = LinkedHashSet<String>().apply { tasks.forEach { add(it.app.pkg) }; power.forEach { add(it.pkg) }; sessions.forEach { add(it.pkg) } }
+        pkgs.mapNotNull { pkg ->
+            val label = appLabel(a, pkg) ?: return@mapNotNull null   // desinstaladas no salen
+            val p = power.firstOrNull { it.pkg == pkg }
+            val ss = sessions.filter { it.pkg == pkg }
+            Row(pkg, label, tasks.firstOrNull { it.app.pkg == pkg }, p?.avgWatts, p?.seconds,
+                ss.size, ss.mapNotNull { it.cpuMax }.maxOrNull(), ss.firstOrNull()?.hz)
+        }.sortedWith(compareByDescending<Row> { it.watts ?: -1.0 }.thenByDescending { it.task?.ramMb ?: 0 })
+    }
+
     Centered {
         Sheet {
-            MemoryPanel(s, a)
-            Gate(s.autoServiceOn) { PowerByAppPanel(a); SessionsPanel(a) }
+            Panel(tr("RAM", "RAM")) {
+                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr("${Memory.gb(info.totalBytes - info.freeBytes)} de ${Memory.gb(info.totalBytes)} en uso",
+                        "${Memory.gb(info.totalBytes - info.freeBytes)} of ${Memory.gb(info.totalBytes)} in use"),
+                        Modifier.weight(1f), fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                    Button(onClick = {
+                        busy = true
+                        scope.launch {
+                            val freed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Memory.freeAll(a) }
+                            busy = false; tick++
+                            s.status = tr("Se liberaron ${Memory.gb(freed)}.", "Freed ${Memory.gb(freed)}.")
+                        }
+                    }, enabled = !busy) { Text(if (busy) tr("Cerrando…", "Closing…") else tr("Cerrar las de fondo", "Close background apps")) }
+                }
+                LinearProgressIndicator({ 1f - info.freeBytes.toFloat() / info.totalBytes.coerceAtLeast(1) }, Modifier.fillMaxWidth().height(6.dp),
+                    color = c.primary, trackColor = c.onSurface.copy(alpha = 0.08f))
+                if (!ready) Hint(tr("Para ver y cerrar cada app abierta hace falta Shizuku.", "Seeing and closing each open app needs Shizuku."))
+            }
+
+            Panel(tr("Tus apps", "Your apps"), trailing = {
+                if (power.isNotEmpty() || sessions.isNotEmpty()) ConfirmButton(tr("Reiniciar", "Reset")) { PowerLog.reset(a); Sessions.reset(a); tick++ }
+            }) {
+                if (rows.isEmpty()) Hint(tr("El consumo se mide sin cargador; las partidas se anotan solas.", "Draw is measured unplugged; play sessions log themselves."))
+                rows.take(14).forEach { r ->
+                    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                        val icon = remember(r.pkg) { runCatching { a.packageManager.getApplicationIcon(r.pkg).toBitmap(96, 96).asImageBitmap() }.getOrNull() }
+                        icon?.let { androidx.compose.foundation.Image(it, null, Modifier.size(36.dp)); Spacer(Modifier.width(14.dp)) }
+                        Column(Modifier.weight(1f)) {
+                            Text(r.label, fontSize = 16.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            // En palabras: si está abierta y cuánto ocupa; cuántas veces se jugó, la temperatura máxima y los Hz.
+                            val detail = listOfNotNull(
+                                r.task?.let { t -> tr("abierta, ${t.ramMb} MB", "open, ${t.ramMb} MB") + (if (t.cpu >= 5) tr(", usando CPU", ", using CPU") else "") },
+                                r.plays.takeIf { it > 0 }?.let { tr(if (it == 1) "1 partida" else "$it partidas", if (it == 1) "1 session" else "$it sessions") },
+                                r.cpuMax?.let { tr("CPU hasta $it °C", "CPU up to $it °C") },
+                                r.lastHz?.let { "$it Hz" },
+                            ).joinToString(" · ")
+                            if (detail.isNotEmpty()) Text(detail, fontSize = 13.sp, color = c.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        }
+                        // Lo que gasta y cuánto duraría la batería llena solo con ella.
+                        r.watts?.let { w ->
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("%.1f W".format(w), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                                full?.takeIf { w > 0.3 }?.let { wh -> Text(ZuiBattery.formatTime((wh / w * 3_600_000).toLong()), fontSize = 13.sp, color = c.onSurfaceVariant) }
+                            }
+                        }
+                        if (r.task != null) {
+                            Spacer(Modifier.width(12.dp))
+                            OutlinedButton(onClick = { tasks = tasks - r.task; scope.launch { Memory.stop(a, r.pkg); tick++ } }) { Text(tr("Cerrar", "Close")) }
+                        }
+                    }
+                }
+            }
+
+            if (modes.isNotEmpty()) Panel(tr("Por modo de rendimiento", "By performance mode")) {
+                modes.forEach { m ->
+                    androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(m.mode?.let { runCatching { ZuiGame.PerfMode.valueOf(it).label }.getOrNull() } ?: tr("Modo desconocido", "Unknown mode"),
+                            Modifier.weight(1f), fontSize = 15.sp)
+                        Text(listOfNotNull(m.avgWatts?.let { "%.1f W".format(it) }, m.avgCpuMhz?.let { Stats.cpuText(it) },
+                            m.avgCpuMax?.let { "$it °C" }, ZuiBattery.formatTime(m.seconds * 1000L)).joinToString(" · "),
+                            fontSize = 14.sp, color = c.onSurfaceVariant)
+                    }
+                }
+            }
         }
     }
 }

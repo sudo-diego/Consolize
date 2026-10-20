@@ -75,7 +75,10 @@ object AmbientMusic {
 
     fun start(ctx: Context) {
         val uri = Prefs.musicUri(ctx)
-        if (!Prefs.music(ctx) || uri == null || player != null) return
+        if (!Prefs.music(ctx) || uri == null) return
+        // Ya estaba: sigue donde iba (antes se creaba de nuevo y la canción volvía al principio cada vez que la app
+        // perdía el frente un momento, como al pedir un permiso al entrar a Biblioteca).
+        player?.let { p -> focus?.let { f -> if (ctx.getSystemService(AudioManager::class.java).requestAudioFocus(f) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) p.start() }; return }
         val audio = ctx.getSystemService(AudioManager::class.java)
         val attrs = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
         runCatching {
@@ -99,7 +102,13 @@ object AmbientMusic {
         }.onFailure { android.util.Log.w("TBF", "música ambiental", it) }
     }
 
+    /** La app dejó el frente: en pausa, sin perder dónde iba; suelta el audio para que vuelva lo de detrás. */
     fun stop(ctx: Context) {
+        player?.runCatching { if (isPlaying) pause() }
+        focus?.let { ctx.getSystemService(AudioManager::class.java).abandonAudioFocusRequest(it) }
+    }
+
+    private fun release(ctx: Context) {
         player?.runCatching { stop(); release() }
         player = null
         focus?.let { ctx.getSystemService(AudioManager::class.java).abandonAudioFocusRequest(it) }
@@ -110,5 +119,5 @@ object AmbientMusic {
     fun setVolume(ctx: Context) { val v = Prefs.musicVolume(ctx) / 100f; player?.setVolume(v, v) }
 
     /** Encendida, apagada o con otro archivo: se reinicia. */
-    fun restart(ctx: Context) { stop(ctx); start(ctx) }
+    fun restart(ctx: Context) { release(ctx); start(ctx) }
 }

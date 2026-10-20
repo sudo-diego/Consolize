@@ -162,8 +162,8 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
             }
         }
         // El monitor lo dibuja el servicio de accesibilidad: sin él no se puede encender.
-        QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else if (hud) tr("Encendido", "On") else tr("Apagado", "Off"),
-            hud && service, Modifier.weight(1f).fillMaxHeight(), enabled = service) { hud = !hud; AutoRules.setPerfHud(a, hud) }
+        QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else { tick; AutoRules.hudLabel(a) },
+            hud && service, Modifier.weight(1f).fillMaxHeight(), enabled = service) { AutoRules.cycleHud(a); hud = AutoRules.perfHud(a); tick++ }
         if (Aspect.available(a)) QuickTile(Icons.Outlined.AspectRatio, "16:9", if (wide) tr("Encendido", "On") else tr("Apagado", "Off"), wide,
             Modifier.weight(1f).fillMaxHeight()) {
             scope.launch {

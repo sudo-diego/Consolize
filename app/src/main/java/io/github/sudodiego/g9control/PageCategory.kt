@@ -54,14 +54,13 @@ fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
         Entry({ "Game Assistant" }, Page.GAMEPANEL) { setOf("Game Assistant") },
         Entry({ tr("Logros sin internet", "Offline achievements") }, Page.GAMEPANEL) { setOf(tr("Logros sin internet", "Offline achievements")) },
     )
-    Section.PANEL -> {
-        val preview = { tr("Vista previa", "Preview") }
-        listOf(
-            Entry({ tr("Panel de juego", "Game panel") }, Page.PANEL) { setOf(preview(), tr("Panel de juego", "Game panel"), tr("Diseño", "Layout")) },
-            Entry({ tr("Apariencia", "Appearance") }, Page.PANEL) { setOf(preview(), tr("Fondo", "Background"), tr("Colores", "Colors")) },
-            Entry({ tr("Capturas y monitor", "Screenshots and monitor") }, Page.CAPTURES),
-        )
-    }    Section.CONTROLS -> listOf(
+    // El panel en una sola línea: la vista previa con todas sus opciones al lado (dos líneas llevaban a la misma vista
+    // previa). Capturas y el monitor de rendimiento, aparte.
+    Section.PANEL -> listOf(
+        Entry({ tr("Panel de juego", "Game panel") }, Page.PANEL),
+        Entry({ tr("Capturas y monitor", "Screenshots and monitor") }, Page.CAPTURES),
+    )
+    Section.CONTROLS -> listOf(
         Entry({ tr("Botón guía", "Guide button") }, Page.CONTROLS) { setOf(tr("Botón guía", "Guide button")) },
         Entry({ tr("Sin botón guía", "Without a guide button") }, Page.CONTROLS) { setOf(tr("Sin botón guía", "Without a guide button")) },
         Entry({ tr("Botones de volumen", "Volume buttons") }, Page.CONTROLS) { setOf(tr("Botones de volumen", "Volume buttons")) },
@@ -79,8 +78,8 @@ fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
         Entry({ tr("Batería", "Battery") }, Page.BATTERY) { setOf(tr("Batería", "Battery"), tr("Ahora", "Now")) },
         Entry({ tr("Avisos de batería", "Battery notices") }, Page.BATTERY) { setOf(tr("Avisos de batería", "Battery notices")) },
         Entry({ tr("Uso", "Usage") }, Page.USAGE),
-        Entry({ tr("Pantalla", "Screen") }, Page.SCREEN) { setOf(tr("Pantalla", "Screen")) },
-        Entry({ tr("Monitor", "Monitor") }, Page.SCREEN) { setOf(tr("Monitor", "Monitor")) },
+        // Una sola: 16:9 y la pantalla externa juntas (sola, 16:9 era una línea con un interruptor).
+        Entry({ tr("Pantalla", "Screen") }, Page.SCREEN),
     )
     Section.SETTINGS -> listOf(
         Entry({ tr("Apariencia", "Appearance") }, Page.DIAGNOSTICS) { setOf(tr("Apariencia", "Appearance")) },

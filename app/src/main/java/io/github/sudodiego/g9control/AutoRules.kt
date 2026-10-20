@@ -246,6 +246,17 @@ object AutoRules {
     /** Monitor de rendimiento sobre el juego (se enciende desde el panel) y su posición. */
     fun perfHud(ctx: Context) = sp(ctx).getBoolean("perf_hud", false)
     fun setPerfHud(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("perf_hud", v).apply()
+    /** El mosaico del monitor (Inicio y panel): Apagado → Barra → Columna → Apagado. */
+    fun cycleHud(ctx: Context) = when {
+        !perfHud(ctx) -> { setPerfList(ctx, false); setPerfHud(ctx, true) }
+        !perfList(ctx) -> setPerfList(ctx, true)
+        else -> setPerfHud(ctx, false)
+    }
+    fun hudLabel(ctx: Context) = when {
+        !perfHud(ctx) -> tr("Apagado", "Off")
+        perfList(ctx) -> tr("Columna", "Column")
+        else -> tr("Barra", "Bar")
+    }
     /** Barra completa (dos líneas: además watts, tiempo restante, Hz y calor de la tablet) o compacta. */
     fun perfFull(ctx: Context) = sp(ctx).getBoolean("perf_full", true)
     fun setPerfFull(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("perf_full", v).apply()
