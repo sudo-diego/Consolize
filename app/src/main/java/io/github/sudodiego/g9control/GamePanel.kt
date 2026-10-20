@@ -159,27 +159,31 @@ class GamePanel(private val svc: AutoModeService) {
         if (ThemeState.panelBackground != PanelBackground.GAME || isOpen) return showNow()
         if (freezing) return
         freezing = true
+        // 1) Al instante, una ventana vacía que toma el foco: el juego lo pierde, y la mayoría se pausa o suelta los
+        //    controles (si no, seguía con el último stick: con el panel abierto los sticks ya no le llegan).
+        // 2) Recién ahí la imagen (así es de ahora y no de antes de pausar; la ventana vacía no sale en ella).
+        // 3) La imagen en esa ventana, un poco oscura, y el panel encima.
+        val iv = android.widget.ImageView(svc).apply { scaleType = android.widget.ImageView.ScaleType.FIT_XY; isFocusable = true }
+        val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.START; windowAnimations = 0 }
+        runCatching { wm.addView(iv, lp) }.onSuccess { freezeView = iv }
         scope.launch {
+            delay(60)   // que el juego alcance a pausarse
+            val t0 = android.os.SystemClock.uptimeMillis()
             val shot = screenshotDisplay(whole = true)
+            android.util.Log.i("G9Auto", "juego en pausa: captura en ${android.os.SystemClock.uptimeMillis() - t0} ms")
             if (!freezing) return@launch   // se cerró mientras tanto
             freezing = false
             if (shot != null) {
                 PanelFreeze.frame = shot.asImageBitmap()
-                val iv = android.widget.ImageView(svc).apply {
-                    setImageBitmap(shot); scaleType = android.widget.ImageView.ScaleType.FIT_XY
-                    setColorFilter(android.graphics.Color.argb(90, 0, 0, 0))
-                }
-                val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                    PixelFormat.OPAQUE).apply { gravity = Gravity.TOP or Gravity.START; windowAnimations = android.R.style.Animation_Toast }
-                runCatching { wm.addView(iv, lp) }.onSuccess { freezeView = iv }
+                freezeView?.apply { setImageBitmap(shot); setColorFilter(android.graphics.Color.argb(Prefs.panelPauseDim(svc) * 255 / 100, 0, 0, 0)) }
             }
             showNow()
         }
     }
-
     private fun dropFreeze() {
         freezing = false
         PanelFreeze.frame = null

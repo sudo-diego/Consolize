@@ -53,14 +53,8 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                 }
                 // Cómo es el vidrio líquido: se ve al instante en las superficies de la app.
                 if (ThemeState.surfaces == Surfaces.LIQUID && ThemeState.background != AppBackground.WALLPAPER) Panel(tr("Vidrio líquido", "Liquid glass")) {
-                    val p = ThemeState.liquidParams
-                    fun set(n: LiquidParams) { ThemeState.liquidParams = n; Prefs.setLiquidParams(a, n) }
-                    SliderRow(tr("Desenfoque", "Blur"), p.blur, 0..80) { set(p.copy(blur = it)) }
-                    if (android.os.Build.VERSION.SDK_INT >= 33) SliderRow(tr("Refracción", "Refraction"), p.refraction, 0..100) { set(p.copy(refraction = it)) }
-                    SliderRow(tr("Tinte", "Tint"), p.tint, 0..100) { set(p.copy(tint = it)) }
-                    SliderRow(tr("Brillo arriba", "Top highlight"), p.highlight, 0..100) { set(p.copy(highlight = it)) }
-                    SliderRow(tr("Fuerza del borde", "Rim strength"), p.rim, 0..100) { set(p.copy(rim = it)) }
-                    TextButton(onClick = { set(LiquidParams()) }) { Text(tr("Valores de siempre", "Defaults")) }
+                    LiquidSliders(a)
+
                 }
                 Panel(tr("Fondo", "Background")) {
                     ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
@@ -433,8 +427,9 @@ private fun ExpandHeader(title: String, open: Boolean, onClick: () -> Unit) {
 internal fun PanelLookPanel(a: MainActivity) {
     var stats by remember { mutableStateOf(Prefs.panelStats(a)) }
     var loop by remember { mutableStateOf(ThemeState.panelLoop) }
-    // Cuatro tarjetas (antes una sola muy larga): el panel, cómo se ordena, su fondo y sus colores.
-    Panel(tr("Panel de juego", "Game panel")) {
+    // En acordeón, cada fila con lo suyo: lo general, cómo se ordena, el fondo (solo las opciones del que está
+    // elegido), el vidrio líquido (interruptor y ajustes juntos) y los colores.
+    Panel(tr("General", "General")) {
         // Ver cómo queda sin salir de la app (también se abre manteniendo la guía, aquí y en cualquier app).
         OutlinedButton(onClick = { AutoModeService.active?.openPanel() }, enabled = AutoModeService.active != null) {
             Text(tr("Abrir el panel", "Open the panel"))
@@ -456,13 +451,6 @@ internal fun PanelLookPanel(a: MainActivity) {
     Panel(tr("Diseño", "Layout")) {
         Text(tr("Estilo", "Style"), fontSize = 14.sp)
         ChoiceChips(PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
-        Text(tr("Mosaicos", "Tiles"), fontSize = 14.sp)
-        ChoiceChips(listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
-            ThemeState.panelClassic = it; Prefs.setPanelClassic(a, it)
-        }
-        // Vidrio líquido en los mosaicos nuevos: sobre el fondo propio del panel (con fondo liso no hay qué desenfocar).
-        if (!ThemeState.panelClassic && ThemeState.panelBackground != PanelBackground.PLAIN && android.os.Build.VERSION.SDK_INT >= 31)
-            SwitchRow(tr("Mosaicos de vidrio líquido", "Liquid glass tiles"), ThemeState.panelLiquid) { ThemeState.panelLiquid = it; Prefs.setPanelLiquid(a, it) }
         // Las columnas son de la tarjeta al centro (la lateral tiene 2); el tamaño vale para las dos.
         if (!ThemeState.panelSide) {
             Text(tr("Columnas", "Columns"), fontSize = 14.sp)
@@ -471,55 +459,72 @@ internal fun PanelLookPanel(a: MainActivity) {
             }
         }
         SliderRow(tr("Tamaño (%)", "Size (%)"), ThemeState.panelScale, 60..120) { ThemeState.panelScale = it; Prefs.setPanelScale(a, it) }
+        Text(tr("Mosaicos", "Tiles"), fontSize = 14.sp)
+        ChoiceChips(listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
+            ThemeState.panelClassic = it; Prefs.setPanelClassic(a, it)
+        }
     }
     Panel(tr("Fondo", "Background")) {
         ChoiceChips(PanelBackground.entries.map { it to it.label }, ThemeState.panelBackground) {
             if (it == PanelBackground.IMAGE && ThemeState.panelUri == null) a.pickPanelBackground()
             else { ThemeState.panelBackground = it; Prefs.setPanelBackground(a, it) }
         }
-        if (ThemeState.panelBackground == PanelBackground.CLEAR) {
-            SliderRow(tr("Relleno", "Fill"), ThemeState.panelFill, 0..100) { ThemeState.panelFill = it; Prefs.setPanelFill(a, it) }
-        }
-        // Lateral: la imagen de cabecera o de fondo (el degradado, siempre de fondo).
-        if (ThemeState.panelSide && ThemeState.panelBackground == PanelBackground.IMAGE) {
-            Text(tr("Imagen en", "Image as"), fontSize = 14.sp)
-            ChoiceChips(listOf(true to tr("Cabecera", "Header"), false to tr("Fondo", "Background")), ThemeState.panelHeader) {
-                ThemeState.panelHeader = it; Prefs.setPanelHeader(a, it)
+        when (ThemeState.panelBackground) {
+            PanelBackground.CLEAR ->
+                SliderRow(tr("Relleno", "Fill"), ThemeState.panelFill, 0..100) { ThemeState.panelFill = it; Prefs.setPanelFill(a, it) }
+            PanelBackground.GRADIENT ->
+                SliderRow(tr("Transparencia", "Transparency"), ThemeState.panelSee, 0..100) { ThemeState.panelSee = it; Prefs.setPanelSee(a, it) }
+            PanelBackground.GAME -> {
+                // El juego congelado a pantalla completa: cuánto se oscurece, y el desenfoque de lo que va detrás del panel.
+                var dim by remember { mutableIntStateOf(Prefs.panelPauseDim(a)) }
+                SliderRow(tr("Oscurecer", "Dim"), dim, 0..90) { dim = it; Prefs.setPanelPauseDim(a, it) }
+                SliderRow(tr("Desenfoque", "Blur"), ThemeState.panelBlur, 0..100) { ThemeState.panelBlur = it; Prefs.setPanelBlur(a, it) }
             }
-            if (ThemeState.panelHeader) {
-                SliderRow(tr("Alto de la cabecera", "Header height"), ThemeState.panelHeaderH, 80..300) {
-                    ThemeState.panelHeaderH = it; Prefs.setPanelHeaderH(a, it)
+            PanelBackground.IMAGE -> {
+                ImageButtons(a) { a.pickPanelBackground() }
+                // Lateral: la imagen de cabecera o de fondo.
+                if (ThemeState.panelSide) {
+                    Text(tr("Imagen en", "Image as"), fontSize = 14.sp)
+                    ChoiceChips(listOf(true to tr("Cabecera", "Header"), false to tr("Fondo", "Background")), ThemeState.panelHeader) {
+                        ThemeState.panelHeader = it; Prefs.setPanelHeader(a, it)
+                    }
+                    if (ThemeState.panelHeader) {
+                        SliderRow(tr("Alto de la cabecera", "Header height"), ThemeState.panelHeaderH, 80..300) {
+                            ThemeState.panelHeaderH = it; Prefs.setPanelHeaderH(a, it)
+                        }
+                        SliderRow(tr("Fundido de la cabecera", "Header fade"), ThemeState.panelFade, 0..200,
+                            if (ThemeState.panelFade == 0) tr("Apagado", "Off") else "${ThemeState.panelFade}") {
+                            ThemeState.panelFade = it; Prefs.setPanelFade(a, it)
+                        }
+                    }
                 }
-                SliderRow(tr("Fundido de la cabecera", "Header fade"), ThemeState.panelFade, 0..200,
-                    if (ThemeState.panelFade == 0) tr("Apagado", "Off") else "${ThemeState.panelFade}") {
-                    ThemeState.panelFade = it; Prefs.setPanelFade(a, it)
+                // Cómo se acomoda (como los fondos de Windows) y, al rellenar, qué parte queda a la vista.
+                Text(tr("Ajuste", "Fit"), fontSize = 14.sp)
+                ChoiceChips(ImageFit.entries.map { it to it.label }, ThemeState.panelFit) { ThemeState.panelFit = it; Prefs.setPanelFit(a, it) }
+                if (ThemeState.panelFit == ImageFit.FILL) {
+                    Text(tr("Encuadre", "Position"), fontSize = 14.sp)
+                    ChoiceChips(listOf(0f to tr("Arriba", "Top"), 0.5f to tr("Centro", "Center"), 1f to tr("Abajo", "Bottom")), ThemeState.panelFocus) {
+                        ThemeState.panelFocus = it; Prefs.setPanelFocus(a, it)
+                    }
                 }
-                SwitchRow(tr("Transparencia también en la imagen", "Transparency on the image too"), ThemeState.panelSeeImage) {
+                SliderRow(tr("Desenfoque", "Blur"), ThemeState.panelBlur, 0..100) { ThemeState.panelBlur = it; Prefs.setPanelBlur(a, it) }
+                SwitchRow(tr("Repetir el GIF", "Loop the GIF"), loop) { loop = it; ThemeState.panelLoop = it; Prefs.setPanelLoop(a, it) }
+                // Con cabecera, la transparencia es la de lo de abajo (la imagen queda opaca, salvo que se pida).
+                SliderRow(tr("Transparencia", "Transparency"), ThemeState.panelSee, 0..100) { ThemeState.panelSee = it; Prefs.setPanelSee(a, it) }
+                if (ThemeState.sideBanner) SwitchRow(tr("Transparencia también en la imagen", "Transparency on the image too"), ThemeState.panelSeeImage) {
                     ThemeState.panelSeeImage = it; Prefs.setPanelSeeImage(a, it)
                 }
             }
-        }
-        // Con cabecera, la transparencia es la de lo de abajo (la imagen queda opaca).
-        if (ThemeState.panelBackground == PanelBackground.GRADIENT || ThemeState.panelBackground == PanelBackground.IMAGE) {
-            // Liquid glass: el fondo elegido, pero dejando ver el juego detrás.
-            SliderRow(tr("Transparencia", "Transparency"), ThemeState.panelSee, 0..100) { ThemeState.panelSee = it; Prefs.setPanelSee(a, it) }
-        }
-        if (ThemeState.panelBackground == PanelBackground.IMAGE) {
-            ImageButtons(a) { a.pickPanelBackground() }
-            // Cómo se acomoda (como los fondos de Windows) y, al rellenar, qué parte queda a la vista.
-            Text(tr("Ajuste", "Fit"), fontSize = 14.sp)
-            ChoiceChips(ImageFit.entries.map { it to it.label }, ThemeState.panelFit) { ThemeState.panelFit = it; Prefs.setPanelFit(a, it) }
-            if (ThemeState.panelFit == ImageFit.FILL) {
-                Text(tr("Encuadre", "Position"), fontSize = 14.sp)
-                ChoiceChips(listOf(0f to tr("Arriba", "Top"), 0.5f to tr("Centro", "Center"), 1f to tr("Abajo", "Bottom")), ThemeState.panelFocus) {
-                    ThemeState.panelFocus = it; Prefs.setPanelFocus(a, it)
-                }
-            }
-            SliderRow(tr("Desenfoque", "Blur"), ThemeState.panelBlur, 0..100) { ThemeState.panelBlur = it; Prefs.setPanelBlur(a, it) }
-            SwitchRow(tr("Repetir el GIF", "Loop the GIF"), loop) { loop = it; ThemeState.panelLoop = it; Prefs.setPanelLoop(a, it) }
+            PanelBackground.PLAIN -> Unit
         }
     }
-    // Tema y color valen también para los avisos y las guías (lo que se dibuja sobre el juego).
+    // Vidrio líquido: el interruptor y cómo se ve, juntos (los ajustes son los mismos que los de la app). Solo con los
+    // mosaicos nuevos y un fondo que no sea liso (sobre un color liso no hay qué desenfocar).
+    if (!ThemeState.panelClassic && ThemeState.panelBackground != PanelBackground.PLAIN && android.os.Build.VERSION.SDK_INT >= 31)
+        Panel(tr("Vidrio líquido", "Liquid glass")) {
+            SwitchRow(tr("Mosaicos de vidrio líquido", "Liquid glass tiles"), ThemeState.panelLiquid) { ThemeState.panelLiquid = it; Prefs.setPanelLiquid(a, it) }
+            if (ThemeState.panelLiquid) LiquidSliders(a)
+        }    // Tema y color valen también para los avisos y las guías (lo que se dibuja sobre el juego).
     Panel(tr("Colores", "Colors"), tr("También en avisos y guías", "Also in notices and guides")) {
         Text(tr("Tema", "Theme"), fontSize = 14.sp)
         ChoiceChips(PanelTone.entries.map { it to it.label }, ThemeState.panelTone) { ThemeState.panelTone = it; Prefs.setPanelTone(a, it) }
@@ -695,4 +700,17 @@ private fun ImageButtons(a: MainActivity, pick: () -> Unit) {
         OutlinedButton(onClick = pick) { Text(tr("Cambiar imagen", "Change image")) }
         OutlinedButton(onClick = { a.searchGifs() }) { Text(tr("Buscar GIFs", "Find GIFs")) }
     }
+}
+
+/** Cómo es el vidrio líquido (en la app y en el panel: los mismos ajustes). Se ve al instante. */
+@Composable
+internal fun LiquidSliders(a: MainActivity) {
+    val p = ThemeState.liquidParams
+    fun set(n: LiquidParams) { ThemeState.liquidParams = n; Prefs.setLiquidParams(a, n) }
+    SliderRow(tr("Desenfoque", "Blur"), p.blur, 0..80) { set(p.copy(blur = it)) }
+    if (android.os.Build.VERSION.SDK_INT >= 33) SliderRow(tr("Refracción", "Refraction"), p.refraction, 0..100) { set(p.copy(refraction = it)) }
+    SliderRow(tr("Tinte", "Tint"), p.tint, 0..100) { set(p.copy(tint = it)) }
+    SliderRow(tr("Brillo arriba", "Top highlight"), p.highlight, 0..100) { set(p.copy(highlight = it)) }
+    SliderRow(tr("Fuerza del borde", "Rim strength"), p.rim, 0..100) { set(p.copy(rim = it)) }
+    TextButton(onClick = { set(LiquidParams()) }) { Text(tr("Valores de siempre", "Defaults")) }
 }
