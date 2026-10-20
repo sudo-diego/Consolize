@@ -87,13 +87,15 @@ private fun ModeTile(
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .background(if (active) c.primaryContainer else c.surfaceContainerHigh)
             .border(1.5.dp, if (active) c.primary else Color.Transparent, MaterialTheme.shapes.medium)
-            .padding(12.dp),
+            .padding(horizontal = 8.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(10.dp).clip(CircleShape).background(led).border(1.dp, c.outline, CircleShape))
             Spacer(Modifier.width(6.dp))
-            Text(name, fontWeight = FontWeight.SemiBold, color = if (active) c.onPrimaryContainer else c.onSurface)
+            // En una línea: con la barra lateral el recuadro es más angosto y "Android" se partía.
+            Text(name, fontWeight = FontWeight.SemiBold, color = if (active) c.onPrimaryContainer else c.onSurface,
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Visible)
         }
         if (desc.isNotBlank()) Text(
             desc, fontSize = 11.sp, lineHeight = 14.sp, textAlign = TextAlign.Center,

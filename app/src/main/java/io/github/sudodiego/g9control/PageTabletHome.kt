@@ -178,7 +178,7 @@ private fun ControllersPanel(s: AppState) {
                     if (g9) Text(s.padMode?.label?.let { tr("Modo $it", "$it mode") } ?: "", fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (g9) TextButton(onClick = { s.goTo(Section.G9) }) { Text(tr("Configurar", "Set up")) }
+                if (g9) TextButton(onClick = { s.g9Known = true; s.open(Page.HOME) }) { Text(tr("Configurar", "Set up")) }
             }
         }
     }

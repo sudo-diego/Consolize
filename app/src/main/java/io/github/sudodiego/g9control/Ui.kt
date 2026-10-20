@@ -119,16 +119,15 @@ private data class NavItem(val page: Page, val es: String, val en: String, val i
 }
 
 private val NAV = listOf(
-    // Tablet: sirve sin el G9 y con cualquier control.
     NavItem(Page.TABLET_HOME, "Inicio", "Home", Icons.Outlined.Home, Icons.Filled.Home),
     NavItem(Page.BATTERY, "Batería", "Battery", Icons.Outlined.BatteryChargingFull, Icons.Filled.BatteryChargingFull),
     NavItem(Page.SCREEN, "Pantalla", "Screen", Icons.Outlined.Monitor, Icons.Filled.Monitor),
-    NavItem(Page.GAMEPANEL, "Juego", "In game", Icons.Outlined.SportsEsports, Icons.Filled.SportsEsports),
+    NavItem(Page.GAMEPANEL, "General", "General", Icons.Outlined.SportsEsports, Icons.Filled.SportsEsports),
     NavItem(Page.PANEL, "Panel", "Panel", Icons.Outlined.Dashboard, Icons.Filled.Dashboard),
-    NavItem(Page.CONTROLS, "Controles", "Controls", Icons.Outlined.VideogameAsset, Icons.Filled.VideogameAsset),
-    // G9.
-    NavItem(Page.HOME, "Inicio", "Home", Icons.Outlined.Home, Icons.Filled.Home),
-    NavItem(Page.AUTO, "Por app", "Per app", Icons.Outlined.Apps, Icons.Filled.Apps),
+    NavItem(Page.CONTROLS, "Atajos", "Shortcuts", Icons.Outlined.VideogameAsset, Icons.Filled.VideogameAsset),
+    // G9 (en Controles, bajo "Legion G9"; Por app en Juegos).
+    NavItem(Page.HOME, "Control", "Controller", Icons.Outlined.Home, Icons.Filled.Home),
+    NavItem(Page.AUTO, "Modo del G9", "G9 mode", Icons.Outlined.Apps, Icons.Filled.Apps),
     NavItem(Page.LIGHTS, "Luces", "Lights", Icons.Outlined.Lightbulb, Icons.Filled.Lightbulb),
     NavItem(Page.STICKS, "Sticks", "Sticks", Icons.Outlined.Gamepad, Icons.Filled.Gamepad),
     NavItem(Page.VIBRATION, "Vibración", "Vibration", Icons.Outlined.Vibration, Icons.Filled.Vibration),
@@ -159,7 +158,16 @@ fun App(s: AppState, a: MainActivity) {
             LocalWide provides wide, LocalSliderHeld provides { s.sliderHeld = it }, LocalCentered provides s.centered,
             LocalRippleConfiguration provides focusRipple
         ) {
-            Column(Modifier.fillMaxSize()) {
+            // Ancha (horizontal): secciones y pestañas en una columna a la izquierda, como los ajustes de una consola.
+            // Angosta (vertical): la barra de arriba, que ocupa menos ancho.
+            if (wide) Row(Modifier.fillMaxSize()) {
+                SideBar(s, a)
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    if (s.page == Page.HOME) ModeStrip(s)
+                    PageHost(s, a, Modifier.weight(1f))
+                    HintBar(s)
+                }
+            } else Column(Modifier.fillMaxSize()) {
                 TabBar(s, a)
                 // La franja de Vista + Menú, solo en el inicio del G9 (en las demás páginas basta el aviso de cada una).
                 if (s.page == Page.HOME) ModeStrip(s)
@@ -167,6 +175,129 @@ fun App(s: AppState, a: MainActivity) {
                 HintBar(s)
             }
             if (s.showSetup) SetupDialog(s, a) { s.showSetup = false; Prefs.setSetupDone(a) }
+        }
+    }
+}
+
+/**
+ * Barra lateral (pantalla ancha): las secciones una debajo de otra; la actual con sus pestañas debajo, con sangría
+ * (las del G9 bajo "Legion G9"). Arriba LB y abajo RB: recorren la lista de arriba abajo; LT/RT saltan de sección
+ * (en la ayuda de abajo). Abajo, la conexión del G9 en sus páginas.
+ */
+@Composable
+private fun SideBar(s: AppState, a: MainActivity) {
+    val c = MaterialTheme.colorScheme
+    val focus = remember { Page.entries.associateWith { FocusRequester() } }
+    var hasFocus by remember { mutableStateOf(false) }
+    // Con el foco en la barra, LB/RB lo llevan a la pestaña nueva (si no, quedaba en la anterior).
+    LaunchedEffect(s.page) { if (hasFocus) runCatching { focus.getValue(s.page).requestFocus() } }
+    Column(
+        Modifier.width(220.dp).fillMaxHeight().padding(start = 16.dp, top = 12.dp, bottom = 12.dp)
+            .clip(RoundedCornerShape(24.dp)).background(c.surfaceContainerHigh.copy(alpha = 0.6f))
+            .onFocusChanged { hasFocus = it.hasFocus }
+    ) {
+        // LT/RT recorren la lista (LB/RB también); en Vibración y Sticks LT/RT prueban los gatillos, así que ahí LB/RB.
+        val keys = if (s.page in TRIGGER_PAGES) "LB" to "RB" else "LT" to "RT"
+        NavKey(keys.first, up = true)
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Section.entries.forEach { sec ->
+                val pages = NAV.filter { it.page in s.pages(sec) }
+                val current = s.section == sec
+                // Una sección de una sola pestaña se elige como pestaña; las demás llevan a su primera y se abren.
+                SectionRow(sec, selected = current && pages.size == 1, current = current,
+                    focus = if (pages.size == 1) focus.getValue(pages[0].page) else null) { s.goTo(sec) }
+                if (current && pages.size > 1) Column(Modifier.padding(start = 14.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    pages.forEach { item ->
+                        if (item.page == Page.HOME) Row(Modifier.padding(start = 12.dp, top = 8.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("LEGION G9", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp, color = c.onSurfaceVariant)
+                            if (s.padMode != null) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF34C759))) }
+                        }
+                        SideItem(item, s.page == item.page, focus.getValue(item.page)) { s.page = item.page }
+                    }
+                }
+            }
+        }
+        // Conexión del G9: en sus páginas (tocarla vuelve a leer el control).
+        if (s.page in G9_PAGES) Box(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp)) { ConnectionPill(s) { if (!s.busy) a.readAll() } }
+        NavKey(keys.second, up = false)
+    }
+}
+
+/** Arriba y abajo de la barra lateral: con qué botón se sube o se baja por la lista. */
+@Composable
+private fun NavKey(key: String, up: Boolean) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        PadBadge(key)
+        Spacer(Modifier.width(6.dp))
+        Icon(if (up) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+fun sectionName(sec: Section) = when (sec) {
+    Section.HOME -> tr("Inicio", "Home")
+    Section.GAMES -> tr("Juegos", "Games")
+    Section.PANEL -> tr("Panel", "Panel")
+    Section.CONTROLS -> tr("Controles", "Controllers")
+    Section.SYSTEM -> tr("Sistema", "System")
+    Section.SETTINGS -> tr("Ajustes", "Settings")
+}
+
+fun sectionIcon(sec: Section) = when (sec) {
+    Section.HOME -> Icons.Outlined.Home
+    Section.GAMES -> Icons.Outlined.SportsEsports
+    Section.PANEL -> Icons.Outlined.Dashboard
+    Section.CONTROLS -> Icons.Outlined.VideogameAsset
+    Section.SYSTEM -> Icons.Outlined.TabletAndroid
+    Section.SETTINGS -> Icons.Outlined.Settings
+}
+
+/** Fila de una sección: la actual con su nombre en el color de acento; [selected] (sin pestañas) con fondo. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SectionRow(sec: Section, selected: Boolean, current: Boolean, focus: FocusRequester?, onClick: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val source = remember { MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
+    CompositionLocalProvider(LocalRippleConfiguration provides null) {
+        Surface(
+            onClick = onClick, shape = RoundedCornerShape(14.dp),
+            color = if (selected) c.primaryContainer else Color.Transparent,
+            border = if (focused) BorderStroke(2.dp, c.primary) else null,
+            interactionSource = source, modifier = Modifier.fillMaxWidth().then(if (focus != null) Modifier.focusRequester(focus) else Modifier)
+        ) {
+            val tint = when { selected -> c.onPrimaryContainer; current -> c.primary; else -> c.onSurfaceVariant }
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(sectionIcon(sec), null, Modifier.size(22.dp), tint = tint)
+                Spacer(Modifier.width(12.dp))
+                Text(sectionName(sec), fontSize = 16.sp, fontWeight = if (current) FontWeight.SemiBold else FontWeight.Medium,
+                    color = when { selected -> c.onPrimaryContainer; current -> c.primary; else -> c.onSurface })
+            }
+        }
+    }
+}
+
+/** Pestaña de la barra lateral: ícono y nombre; la elegida con fondo, el foco del control con contorno. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SideItem(item: NavItem, sel: Boolean, focus: FocusRequester, onClick: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val source = remember { MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
+    CompositionLocalProvider(LocalRippleConfiguration provides null) {
+        Surface(
+            onClick = onClick, shape = RoundedCornerShape(14.dp),
+            color = if (sel) c.primaryContainer else Color.Transparent,
+            border = if (focused) BorderStroke(2.dp, c.primary) else null,
+            interactionSource = source, modifier = Modifier.fillMaxWidth().focusRequester(focus)
+        ) {
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (sel) item.selectedIcon else item.icon, null, Modifier.size(20.dp),
+                    tint = if (sel) c.onPrimaryContainer else c.onSurfaceVariant)
+                Spacer(Modifier.width(10.dp))
+                Text(item.label, fontSize = 14.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (sel) c.onPrimaryContainer else c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -191,7 +322,7 @@ private fun TabBar(s: AppState, a: MainActivity) {
             Spacer(Modifier.width(12.dp))
             // Con una sola página (Ajustes) no hay pestañas ni LB/RB. La píldora ocupa todo el ancho que queda y las
             // pestañas se reparten parejo (antes iba centrada y sobraba espacio a los lados).
-            if (s.section.pages.size > 1) Row(
+            if (s.pages(s.section).size > 1) Row(
                 Modifier.weight(1f).clip(CircleShape).background(c.surfaceContainerHigh.copy(alpha = 0.85f))
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -215,7 +346,7 @@ private fun TabBar(s: AppState, a: MainActivity) {
                     .onFocusChanged { tabFocused = it.hasFocus },
                 horizontalArrangement = if (compact) Arrangement.spacedBy(2.dp) else Arrangement.SpaceEvenly
             ) {
-                NAV.filter { it.page in s.section.pages }.forEach { item ->
+                NAV.filter { it.page in s.pages(s.section) }.forEach { item ->
                     val sel = s.page == item.page
                     // El foco del control se marca con un contorno, no con relleno: con relleno parecía otra pestaña
                     // elegida (se veían dos resaltadas a la vez).
@@ -249,39 +380,29 @@ private fun TabBar(s: AppState, a: MainActivity) {
             }
             PadBadge("RB")
             }
-            if (s.section.pages.size <= 1) Spacer(Modifier.weight(1f))
-            // Conexión del G9: solo en su sección (tocarla vuelve a leer el control).
-            if (s.section == Section.G9) { Spacer(Modifier.width(12.dp)); ConnectionPill(s) { if (!s.busy) a.readAll() } }
+            if (s.pages(s.section).size <= 1) Spacer(Modifier.weight(1f))
+            // Conexión del G9: en sus páginas (tocarla vuelve a leer el control).
+            if (s.page in G9_PAGES) { Spacer(Modifier.width(12.dp)); ConnectionPill(s) { if (!s.busy) a.readAll() } }
         }
     }
 }
 
-/**
- * Las dos partes de la app: Tablet (para cualquiera, con cualquier control) y G9. Con el control se pasa de una a
- * otra siguiendo con LB/RB más allá de la última pestaña.
- */
+/** Las secciones en una píldora (pantalla angosta): la elegida con su nombre, las demás solo con su ícono. */
 @Composable
 private fun SectionSwitch(s: AppState, compact: Boolean = false) {
     val c = MaterialTheme.colorScheme
     Row(Modifier.clip(CircleShape).background(c.surfaceContainerHighest).padding(3.dp)) {
-        listOf(Section.TABLET to Pair(tr("Tablet", "Tablet"), Icons.Outlined.TabletAndroid),
-            Section.G9 to Pair("G9", Icons.Outlined.SportsEsports),
-            Section.SETTINGS to Pair(tr("Ajustes", "Settings"), Icons.Outlined.Settings)).forEach { (sec, info) ->
+        Section.entries.forEach { sec ->
             val sel = s.section == sec
             Row(
                 Modifier.clip(CircleShape).background(if (sel) c.primary else Color.Transparent)
-                    .clickable { s.goTo(sec) }.padding(horizontal = 14.dp, vertical = 8.dp),
+                    .clickable { s.goTo(sec) }.padding(horizontal = if (sel) 14.dp else 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(info.second, info.first, Modifier.size(18.dp), tint = if (sel) c.onPrimary else c.onSurfaceVariant)
-                if (sel || !compact) {
+                Icon(sectionIcon(sec), sectionName(sec), Modifier.size(18.dp), tint = if (sel) c.onPrimary else c.onSurfaceVariant)
+                if (sel) {
                     Spacer(Modifier.width(6.dp))
-                    Text(info.first, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (sel) c.onPrimary else c.onSurfaceVariant)
-                }
-                // El G9 conectado: un punto verde (aunque se esté en la sección Tablet).
-                if (sec == Section.G9 && s.padMode != null) {
-                    Spacer(Modifier.width(6.dp))
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF34C759)))
+                    Text(sectionName(sec), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = c.onPrimary)
                 }
             }
         }
@@ -343,7 +464,9 @@ private fun HintBar(s: AppState) {
         shown = true
         if (!problem) { kotlinx.coroutines.delay(4000); shown = false }
     }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    // Vidrio como la barra lateral: sin fondo, sobre una imagen o el fondo de pantalla no se leía.
+    val glass = Modifier.clip(CircleShape).background(c.surfaceContainerHigh.copy(alpha = 0.75f))
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         // Estado de guardado de la página (siempre en el mismo lugar).
         val save: (@Composable () -> Unit)? = when (s.page) {
             Page.LIGHTS -> { { SaveStatus(s.lightsDirty, s.appliedLeft != null && s.connected, s.lightsChangedAt,
@@ -352,24 +475,29 @@ private fun HintBar(s: AppState) {
             Page.VIBRATION -> { { SaveStatus(s.vibrationDirty, s.appliedVibration != null && s.connected, modifier = Modifier) } }
             else -> null
         }
-        if (save != null) { save(); Spacer(Modifier.width(20.dp)) }
-        Text(
-            if (shown) s.status else "", Modifier.weight(1f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            color = if (problem) c.error else c.onSurfaceVariant
-        )
+        if (save != null) { Box(glass.padding(horizontal = 14.dp, vertical = 6.dp)) { save() }; Spacer(Modifier.width(12.dp)) }
+        Box(Modifier.weight(1f)) {
+            if (shown && s.status.isNotEmpty()) Text(
+                s.status, glass.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = if (problem) c.error else c.onSurface
+            )
+        }
         if (s.anyPad || s.padMode != null || s.connected) {
+            val wide = LocalWide.current
             val hints = if (s.capturing) listOf("B" to tr("Mantén 1 s para salir", "Hold 1 s to exit"))
             else if (s.editingMacro != null) listOf("A" to tr("Elegir", "Select"), "B" to tr("Cerrar macro", "Close macro"), "LB RB" to tr("Pestañas", "Tabs"))
-            // LB RB solo donde hay pestañas (Ajustes tiene una sola página).
-            else listOfNotNull("A" to tr("Elegir", "Select"), if (s.section.pages.size > 1) "LB RB" to tr("Pestañas", "Tabs") else null,
-                "LT RT" to tr("Secciones", "Sections"),
+            // Con la barra lateral, cómo cambiar de pestaña ya está en ella.
+            else listOfNotNull("A" to tr("Elegir", "Select"),
+                if (wide) null else (if (s.page in TRIGGER_PAGES) "LB RB" else "LT RT") to tr("Pestañas", "Tabs"),
                 "B" to if (s.bReady) tr("Suelta para salir", "Release to exit") else tr("Mantén 2 s para salir", "Hold 2 s to exit"))
-            hints.forEach { (k, v) ->
-                Spacer(Modifier.width(18.dp))
-                // El aro de B es la cuenta atrás de mantener (salir de la app, de la prueba); cerrar la macro es un toque.
-                if (k == "B" && s.editingMacro == null) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
-                Spacer(Modifier.width(6.dp))
-                Text(v, fontSize = 13.sp, color = c.onSurfaceVariant)
+            Row(glass.padding(start = 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                hints.forEachIndexed { i, (k, v) ->
+                    if (i > 0) Spacer(Modifier.width(18.dp))
+                    // El aro de B es la cuenta atrás de mantener (salir de la app, de la prueba); cerrar la macro es un toque.
+                    if (k == "B" && s.editingMacro == null) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
+                    Spacer(Modifier.width(6.dp))
+                    Text(v, fontSize = 13.sp, color = c.onSurface)
+                }
             }
         }
     }
@@ -390,7 +518,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
         val scroll = rememberScrollState()
         Column(
             Modifier.fillMaxSize().verticalScroll(scroll)
-                .padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 8.dp),
+                .padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Páginas que no hacen nada sin el servicio de accesibilidad (dibujar sobre los juegos, leer el control en

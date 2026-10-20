@@ -513,7 +513,7 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
             Button(onClick = { AutoRules.openServiceSettings(a) }) { Text(tr("Abrir accesibilidad", "Open accessibility")) }
         }
         CompositionLocalProvider(LocalEditable provides true) {
-            SwitchRow(tr("Avisar en el Inicio de Tablet si está apagado", "Warn on the Tablet home if it's off"), warnService) {
+            SwitchRow(tr("Avisar en Inicio si está apagado", "Warn on Home if it's off"), warnService) {
                 warnService = it; AutoRules.setWarnService(a, it)
             }
         }
@@ -531,7 +531,7 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
             }
         }
         CompositionLocalProvider(LocalEditable provides true) {
-            SwitchRow(tr("Avisar en el Inicio de Tablet si no está iniciado", "Warn on the Tablet home if it isn't started"), warnShizuku) {
+            SwitchRow(tr("Avisar en Inicio si no está iniciado", "Warn on Home if it isn't started"), warnShizuku) {
                 warnShizuku = it; AutoRules.setWarnShizuku(a, it)
             }
             SwitchRow(tr("Mosaico «Activar Shizuku» en el panel de juego", "“Start Shizuku” tile in the game panel"), shizukuTile) {

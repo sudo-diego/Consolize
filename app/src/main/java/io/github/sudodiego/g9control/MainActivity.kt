@@ -223,8 +223,7 @@ class MainActivity : ComponentActivity() {
         // La cruceta mantenida suena en cada paso que se mueve (las repeticiones), como en el panel.
         if (e.action == KeyEvent.ACTION_DOWN && !s.capturing) when (e.keyCode) {
             KeyEvent.KEYCODE_BUTTON_A -> if (e.repeatCount == 0) UiSounds.play(this, UiSounds.Kind.SELECT)
-            // LB/RB siempre cambian de pestaña (dan la vuelta); LT/RT suenan donde cambian de sección (en padNavigation).
-            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> if (e.repeatCount == 0) UiSounds.play(this, UiSounds.Kind.TAB)
+            // El cambio de pestaña suena en padNavigation, solo si se movió (en los extremos de la lista no).
         }
         when (e.action) {
             KeyEvent.ACTION_DOWN -> if (e.repeatCount == 0) {
@@ -307,22 +306,16 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT -> return true
             // L3/R3 no hacen nada en la app (Android por defecto los usa para ir a Inicio).
             KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR -> return true
-            // LT/RT: sección anterior o siguiente (Tablet, G9, Ajustes). En Vibración y Sticks no: ahí se usan para
-            // probar los gatillos.
-            KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2 -> {
-                if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0 && s.page != Page.VIBRATION && s.page != Page.STICKS) {
-                    val all = Section.entries
-                    val i = all.indexOf(s.section) + if (e.keyCode == KeyEvent.KEYCODE_BUTTON_L2) -1 else 1
-                    all.getOrNull(i)?.let { s.goTo(it); UiSounds.play(this, UiSounds.Kind.TAB) }
-                }
-                return true
-            }
-            // LB/RB: las pestañas de la sección, de punta a punta (sin pasar a la otra).
-            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
-                if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) {
-                    val step = if (e.keyCode == KeyEvent.KEYCODE_BUTTON_R1) 1 else -1
-                    val pages = s.section.pages
-                    s.page = pages[(pages.indexOf(s.page) + step + pages.size) % pages.size]
+            // LT/RT y LB/RB: la pestaña de arriba o de abajo en la barra (pasando de una sección a otra), sin dar la
+            // vuelta. Antes LT/RT eran secciones y LB/RB pestañas: con pocas secciones, dos pares confundían. En Vibración
+            // y Sticks LT/RT no navegan (ahí prueban los gatillos): queda LB/RB.
+            KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
+                val trigger = e.keyCode == KeyEvent.KEYCODE_BUTTON_L2 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
+                if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0 && !(trigger && s.page in TRIGGER_PAGES)) {
+                    val all = s.allPages
+                    val down = e.keyCode == KeyEvent.KEYCODE_BUTTON_R1 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
+                    val i = all.indexOfFirst { it.second == s.page } + if (down) 1 else -1
+                    all.getOrNull(i)?.let { (sec, p) -> s.section = sec; s.page = p; UiSounds.play(this, UiSounds.Kind.TAB) }
                 }
                 return true
             }
@@ -355,7 +348,7 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(i: Intent?) {
         if (i == null) return
         // Abierta al conectar el G9: directo a su sección.
-        if (i.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) state.goTo(Section.G9)
+        if (i.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) { state.g9Known = true; state.open(Page.HOME) }
         // Solo en compilaciones de depuración: enviar bytes al control desde el PC con
         // adb shell am start -n io.github.sudodiego.g9control/.MainActivity --es g9hex "08 02 05 00"
         val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
@@ -397,6 +390,7 @@ class MainActivity : ComponentActivity() {
         }
         state.padMode = mode
         if (mode != null && !Prefs.g9Seen(this)) Prefs.setG9Seen(this)
+        state.g9Known = mode != null || Prefs.g9Seen(this) || G9Usb.findDevice(this) != null
         state.anyPad = InputDevice.getDeviceIds().any { id ->
             InputDevice.getDevice(id)?.let { it.isExternal && (it.sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD } == true
         }
@@ -1028,28 +1022,48 @@ class MainActivity : ComponentActivity() {
 enum class Page { HOME, LIGHTS, STICKS, VIBRATION, TEST, BACK, PROFILES, AUTO, G9_PREFS, TABLET_HOME, BATTERY, SCREEN, GAMEPANEL, CONTROLS, DIAGNOSTICS, PANEL }
 
 /**
- * Las tres partes de la app: la tablet (para cualquiera con la Y700 y cualquier control), el G9 (con sus
- * preferencias) y los ajustes de la app. Cada una con sus pestañas, en el orden de LB/RB; LT/RT pasan de una a otra.
+ * Las partes de la app, por lo que se hace (no por aparato): Inicio, Juegos, Panel, Controles (con el G9 adentro, como
+ * un control con extras), Sistema y Ajustes. Antes eran "Tablet" y "G9": para otro Android u otro control no se
+ * entendía. LB/RB recorren todas las pestañas en este orden; LT/RT saltan de una sección a otra.
  */
 enum class Section(val pages: List<Page>) {
-    TABLET(listOf(Page.TABLET_HOME, Page.BATTERY, Page.SCREEN, Page.GAMEPANEL, Page.PANEL, Page.CONTROLS, Page.TEST)),
-    G9(listOf(Page.HOME, Page.AUTO, Page.LIGHTS, Page.STICKS, Page.VIBRATION, Page.BACK, Page.G9_PREFS)),
+    HOME(listOf(Page.TABLET_HOME)),
+    GAMES(listOf(Page.GAMEPANEL, Page.AUTO)),
+    PANEL(listOf(Page.PANEL)),
+    CONTROLS(listOf(Page.CONTROLS, Page.TEST, Page.HOME, Page.LIGHTS, Page.STICKS, Page.VIBRATION, Page.BACK, Page.G9_PREFS)),
+    SYSTEM(listOf(Page.BATTERY, Page.SCREEN)),
     SETTINGS(listOf(Page.DIAGNOSTICS)),
 }
+
+/** Páginas donde LT/RT prueban los gatillos (no navegan): ahí se navega con LB/RB. */
+val TRIGGER_PAGES = setOf(Page.VIBRATION, Page.STICKS)
+
+/** Páginas que solo tienen sentido con un G9: se ven si la tablet ya vio uno (o hay uno conectado). */
+val G9_PAGES = setOf(Page.HOME, Page.AUTO, Page.LIGHTS, Page.STICKS, Page.VIBRATION, Page.BACK, Page.G9_PREFS)
 
 enum class LightTarget { BOTH, LEFT, RIGHT, HOME }
 
 data class Drift(val left: Boolean, val measuring: Boolean, val progress: Float = 0f, val maxPct: Int = 0, val suggest: Int = 0)
 
 class AppState {
-    var section by mutableStateOf(Section.TABLET)
+    var section by mutableStateOf(Section.HOME)
     var page by mutableStateOf(Page.TABLET_HOME)
+    /** La tablet ya vio un G9 (o hay uno conectado): se ven sus páginas en Controles y Juegos. */
+    var g9Known by mutableStateOf(false)
 
-    /** Cambia de sección, a su primera pestaña (o a Ajustes, si se estaba ahí). */
+    /** Las pestañas que se ven de una sección (sin las del G9 si nunca hubo uno). */
+    fun pages(sec: Section) = if (g9Known) sec.pages else sec.pages.filter { it !in G9_PAGES }
+    /** Todas las pestañas visibles, en el orden de la barra (el de LB/RB). */
+    val allPages get() = Section.entries.flatMap { sec -> pages(sec).map { sec to it } }
+
+    /** Va a una pestaña, con su sección. */
+    fun open(p: Page) { Section.entries.firstOrNull { p in it.pages }?.let { section = it }; page = p }
+
+    /** Cambia de sección, a su primera pestaña visible. */
     fun goTo(sec: Section) {
         if (sec == section) return
         section = sec
-        if (page !in sec.pages) page = sec.pages.first()
+        if (page !in pages(sec)) page = pages(sec).first()
     }
     /** Línea de estado de la barra inferior. Asignarla la marca como normal; [fail] la marca como problema. */
     var status: String

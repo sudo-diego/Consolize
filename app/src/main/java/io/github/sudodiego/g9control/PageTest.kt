@@ -113,8 +113,9 @@ private fun SticksReadout(s: AppState) {
             listOf(tr("Izquierdo", "Left") to (v(s.lx) to v(s.ly)), tr("Derecho", "Right") to (v(s.rx) to v(s.ry))).forEach { (name, xy) ->
                 Column(Modifier.weight(1f)) {
                     Text(name, fontSize = 14.sp, color = c.onSurfaceVariant)
-                    Text("x %+.2f   y %+.2f".format(xy.first, xy.second), fontSize = 15.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                    // Una línea por eje: en una sola, con la columna angosta, se partía en cualquier parte.
+                    for ((axis, value) in listOf("x" to xy.first, "y" to xy.second)) Text("$axis %+.2f".format(value), fontSize = 15.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1)
                 }
             }
         }
