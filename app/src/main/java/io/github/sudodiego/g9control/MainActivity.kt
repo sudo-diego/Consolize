@@ -130,6 +130,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         resumed = true
+        applyFullscreen()
         getSystemService(InputManager::class.java).registerInputDeviceListener(inputListener, null)
         refreshDevice()
         autoConnect(ask = true)
@@ -966,6 +967,25 @@ class MainActivity : ComponentActivity() {
     /** Permiso de lista de apps de ZUI; al responder, se recarga la lista. */
     private val appListPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {
         state.appsReload++
+    }
+
+    /**
+     * Pantalla completa (Ajustes → Aplicación, encendida por defecto): sin las barras de estado y de navegación de Android,
+     * que con el control no se usan. Deslizando desde el borde vuelven un momento.
+     */
+    fun applyFullscreen() {
+        val c = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        val bars = androidx.core.view.WindowInsetsCompat.Type.systemBars()
+        if (Prefs.fullscreen(this)) {
+            c.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            c.hide(bars)
+        } else c.show(bars)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Al volver de un diálogo o de la barra de notificaciones, Android vuelve a mostrar las barras.
+        if (hasFocus) applyFullscreen()
     }
 
     /** Permiso de fotos, solo para "Aviso con cualquier captura": se enciende si se da. */

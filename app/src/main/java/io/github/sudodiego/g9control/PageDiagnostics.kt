@@ -44,6 +44,10 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                 }
                 Text(tr("Color de la app", "App color"), fontSize = 14.sp)
                 AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
+                var full by remember { mutableStateOf(Prefs.fullscreen(a)) }
+                SwitchRow(tr("Pantalla completa", "Full screen"), full, tr("Sin las barras de Android; deslizando desde el borde vuelven", "Without Android's bars; swipe from the edge to show them")) {
+                    full = it; Prefs.setFullscreen(a, it); a.applyFullscreen()
+                }
                 SoundSettings(a)
                 Text(tr("Fondo", "Background"), fontSize = 14.sp)
                 ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {

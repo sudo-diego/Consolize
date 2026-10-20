@@ -18,6 +18,10 @@ object Prefs {
     fun setupDone(ctx: Context) = sp(ctx).getBoolean("setup_done", false)
     fun setSetupDone(ctx: Context) = sp(ctx).edit().putBoolean("setup_done", true).apply()
 
+    /** La app en pantalla completa (sin las barras de Android). */
+    fun fullscreen(ctx: Context) = sp(ctx).getBoolean("fullscreen", true)
+    fun setFullscreen(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("fullscreen", v).apply()
+
     /** La tablet ya vio un G9 alguna vez (en cualquier modo): los textos pueden hablar de sus botones. */
     fun g9Seen(ctx: Context) = sp(ctx).getBoolean("g9_seen", false)
     fun setG9Seen(ctx: Context) = sp(ctx).edit().putBoolean("g9_seen", true).apply()
