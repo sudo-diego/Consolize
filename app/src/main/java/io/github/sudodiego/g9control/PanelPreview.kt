@@ -1,5 +1,9 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -52,6 +56,9 @@ import androidx.compose.material3.Text
 /** Desplazamiento de la página abierta: la vista previa del panel lo usa para quedarse a la vista. */
 val LocalPageScroll = compositionLocalOf<androidx.compose.foundation.ScrollState?> { null }
 
+/** El panel dibujado solo para ver (la vista previa): sus mosaicos no reciben el foco ni se tocan. */
+val LocalPanelInert = compositionLocalOf { false }
+
 /**
  * Pestaña Panel: a un lado la vista previa en vivo (el panel de verdad, a escala, sobre una pantalla de juego de
  * muestra) y al otro sus opciones. Lo que se cambia se ve al instante: el panel lee [ThemeState], igual que la
@@ -94,24 +101,33 @@ private fun PanelPreviewCard(a: MainActivity) {
  * El panel a escala dentro de una "pantalla" con la forma de la tablet: misma proporción, mismo tamaño relativo y
  * mismo estilo (al centro o lateral). Debajo, un juego de muestra (un degradado con formas) para ver la transparencia.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun PanelPreview() {
     val ctx = LocalContext.current
     val conf = ctx.resources.configuration
     val ui = remember { sampleUi() }
     ui.stats = Prefs.panelStats(ctx)
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val f = maxWidth.value / conf.screenWidthDp
-        val h = (conf.screenHeightDp * f).dp
-        Box(Modifier.fillMaxWidth().height(h).clip(RoundedCornerShape(14.dp))) {
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // Siempre una pantalla horizontal (los juegos se juegan así): en vertical, con la forma de la pantalla, quedaba
+        // angosta y altísima.
+        val long = maxOf(conf.screenWidthDp, conf.screenHeightDp)
+        val short = minOf(conf.screenWidthDp, conf.screenHeightDp)
+        val w = maxWidth.value
+        val f = w / long
+        val h = (short * f).dp
+        // Solo para ver: sus mosaicos no toman el foco (LocalPanelInert; el control se metía al mini panel) y los toques
+        // no llegan (la capa de encima se los queda).
+        Box(Modifier.requiredWidth(w.dp).height(h).clip(RoundedCornerShape(14.dp))) {
             GameScene(Modifier.fillMaxSize())
             val base = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(base.density * panelScale * f, base.fontScale)) {
+            CompositionLocalProvider(LocalDensity provides Density(base.density * panelScale * f, base.fontScale), LocalPanelInert provides true) {
                 val side = ThemeState.panelSide
                 Box(Modifier.fillMaxSize(), contentAlignment = if (side) Alignment.CenterEnd else Alignment.Center) {
                     PanelCard(ui, Modifier.wrapContentWidth(unbounded = true), onPick = { ui.sel = it }, onSet = { _, _ -> })
                 }
             }
+            Box(Modifier.matchParentSize().pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent().changes.forEach { it.consume() } } })
         }
     }
 }

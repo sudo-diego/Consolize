@@ -607,7 +607,7 @@ internal fun PanelToggle(item: PanelItem, selected: Boolean, onClick: () -> Unit
     val shape = RoundedCornerShape(26.dp)
     Box(
         Modifier.size(52.dp).clip(shape).background(if (item.active) TILE_ON else tileColor)
-            .then(if (selected) Modifier.border(2.5.dp, SELECTED, shape) else Modifier).clickable(onClick = onClick),
+            .then(if (selected) Modifier.border(2.5.dp, SELECTED, shape) else Modifier).clickable(enabled = !LocalPanelInert.current, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(item.icon, item.label, Modifier.size(22.dp), tint = if (item.active) ON_TILE_ON else PANEL_FG)
@@ -625,7 +625,7 @@ internal fun PanelTile(item: PanelItem, selected: Boolean, modifier: Modifier, o
         color = if (item.danger) Color(0xFFE5484D) else if (item.active) TILE_ON else tileColor, shape = RoundedCornerShape(22.dp),
         border = if (selected) BorderStroke(2.5.dp, SELECTED) else if (glassPanel && !item.active) BorderStroke(1.dp, GLASS_EDGE) else null,
         modifier = modifier.clip(RoundedCornerShape(22.dp))
-            .combinedClickable(onClick = onClick, onLongClick = item.alt)
+            .combinedClickable(enabled = !LocalPanelInert.current, onClick = onClick, onLongClick = item.alt)
             .graphicsLayer { alpha = if (item.enabled) 1f else 0.45f }
     ) {
         Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -658,7 +658,7 @@ private fun BadgeTile(item: PanelItem, selected: Boolean, modifier: Modifier, on
         color = if (danger) Color(0xFFE5484D).copy(alpha = 0.9f) else tileColor, shape = shape,
         border = if (selected) BorderStroke(2.dp, SELECTED) else if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null,
         modifier = modifier.clip(shape)
-            .combinedClickable(onClick = onClick, onLongClick = item.alt)
+            .combinedClickable(enabled = !LocalPanelInert.current, onClick = onClick, onLongClick = item.alt)
             .graphicsLayer { alpha = if (item.enabled) 1f else 0.45f }
     ) {
         Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
