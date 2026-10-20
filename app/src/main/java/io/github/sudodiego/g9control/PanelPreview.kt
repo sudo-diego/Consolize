@@ -1,5 +1,6 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.foundation.focusGroup
@@ -66,21 +67,10 @@ val LocalPanelInert = compositionLocalOf { false }
  */
 @Composable
 fun PanelPage(s: AppState, a: MainActivity) {
-    if (LocalWide.current) {
-        var rowH by remember { mutableIntStateOf(0) }
-        var previewH by remember { mutableIntStateOf(0) }
-        val scroll = LocalPageScroll.current
-        Row(Modifier.onGloballyPositioned { rowH = it.size.height }, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(1f)) {
-                Box(Modifier.onGloballyPositioned { previewH = it.size.height }
-                    .graphicsLayer { translationY = (scroll?.value ?: 0).coerceAtMost((rowH - previewH).coerceAtLeast(0)).toFloat() }) {
-                    PanelPreviewCard(a)
-                }
-            }
-            Column(Modifier.weight(1f)) { Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } } }
-        }
-    } else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        PanelPreviewCard(a)
+    // Una columna: la vista previa arriba y las opciones debajo.
+    Centered {
+        // Chica y al centro: que se vean las opciones debajo sin bajar.
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Box(Modifier.widthIn(max = 560.dp)) { PanelPreviewCard(a) } }
         Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } }
     }
 }

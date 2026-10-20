@@ -170,7 +170,6 @@ fun App(s: AppState, a: MainActivity) {
             // la derecha); al medio, los mosaicos de la sección o la página; abajo, la ayuda. Igual en horizontal y vertical.
             Column(Modifier.fillMaxSize()) {
                 TopStatus()
-                PageTitle(s)
                 // La franja de Vista + Menú, solo en el inicio del G9 (en las demás páginas basta el aviso de cada una).
                 if (s.page == Page.HOME && !s.inHub) ModeStrip(s)
                 PageHost(s, a, Modifier.weight(1f))
@@ -331,9 +330,9 @@ private fun SideItem(item: NavItem, sel: Boolean, compact: Boolean, focus: Focus
 private fun PageTitle(s: AppState) {
     val item = NAV.firstOrNull { it.page == s.page } ?: return
     val base = sectionName(s.section)
-    val title = s.sub?.let { "$base · $it" } ?: base
+    val title = listOfNotNull(base, s.sub, s.detail).joinToString(" · ")
     if (s.inHub) return
-    Text(title, Modifier.padding(start = 20.dp, top = 18.dp, bottom = 2.dp), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+    Text(title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
 }
 /** Pestañas horizontales, como en una consola: LB/RB a los lados para cambiar. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -559,11 +558,12 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     androidx.activity.compose.BackHandler(enabled = !s.atTop) { s.back() }
     // Probando botones o grabando una macro, la guía es un botón más (no abre el panel).
     LaunchedEffect(s.capturing) { AppKeys.capturing = s.capturing }
+    // El marco (tarjeta, flechas y categorías abajo) queda fijo; solo lo de adentro cambia con un fundido, sin cambiar de
+    // tamaño.
+    Box(modifier.padding(horizontal = 16.dp)) { CategoryFrame(s) {
     AnimatedContent(
-        // La página y su menú abierto: abrir o cerrar un menú también cambia con fundido.
         targetState = Triple(s.section, if (s.inHub) null else s.page, s.sub),
-        modifier = modifier,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        transitionSpec = { (fadeIn() togetherWith fadeOut()).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() }) },
         label = "page"
     ) { (section, pageOrHub, sub) ->
         val page = pageOrHub ?: s.page
@@ -576,12 +576,13 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
         val winFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
         var hadWin by remember { mutableStateOf(winFocused) }
         LaunchedEffect(winFocused) { if (winFocused && !hadWin) { kotlinx.coroutines.delay(60); runCatching { enter.requestFocus() } }; hadWin = winFocused }
-        if (pageOrHub == null) Box(Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup().padding(horizontal = 16.dp)) { CategoryScreen(s) }
+        if (pageOrHub == null) Box(Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup()) { CategoryHub(s) }
         else CompositionLocalProvider(LocalOnlyPanels provides s.only) { Column(
             Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup().verticalScroll(scroll)
-                .padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 36.dp).padding(top = 20.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            PageTitle(s)
             // Páginas que no hacen nada sin el servicio de accesibilidad (dibujar sobre los juegos, leer el control en
             // cualquier app, pedir la frecuencia): lo dicen arriba, con el botón para activarlo.
             if (page in SERVICE_PAGES && !s.autoServiceOn) NeedsBanner(
@@ -618,6 +619,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
             }
         } }
     }
+    } }
 }
 
 @Composable
@@ -660,6 +662,8 @@ val LocalInSheet = compositionLocalOf { false }
  */
 @Composable
 fun Sheet(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    // Ya dentro del marco de la categoría: sin otra superficie encima.
+    if (LocalInSheet.current) { Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(30.dp), content = content); return }
     GlassSurface(RoundedCornerShape(28.dp), modifier.fillMaxWidth()) {
         CompositionLocalProvider(LocalInSheet provides true) {
             Column(Modifier.padding(horizontal = 24.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(30.dp), content = content)
@@ -721,19 +725,10 @@ val LocalCentered = androidx.compose.runtime.compositionLocalOf { false }
 fun DrawingPane(
     drawing: @Composable ColumnScope.() -> Unit, side: @Composable ColumnScope.() -> Unit
 ) {
-    // Mismo peso en todas las páginas: el dibujo tiene el mismo tamaño y lugar en Inicio, Luces, Controles y Traseros.
-    val drawingWeight = 1.4f
-    val wide = LocalWide.current
-    if (wide && !LocalCentered.current) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(drawingWeight), verticalArrangement = Arrangement.spacedBy(16.dp), content = drawing)
-            Column(Modifier.weight(1f)) { Sheet(content = side) }
-        }
-    } else {
-        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.fillMaxWidth(if (wide) 0.72f else 1f), verticalArrangement = Arrangement.spacedBy(16.dp), content = drawing)
-            Column(Modifier.fillMaxWidth(if (wide) 0.72f else 1f), verticalArrangement = Arrangement.spacedBy(16.dp), content = side)
-        }
+    // Una sola columna (como el resto de la app): el dibujo arriba y lo demás debajo, en una hoja.
+    Centered {
+        drawing()
+        Sheet(content = side)
     }
 }
 

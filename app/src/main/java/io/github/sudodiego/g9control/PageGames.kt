@@ -32,10 +32,10 @@ val GAME_APPS = listOf(
     "com.dishii.soh", "com.dishii.mm", "dev.twilitrealm.dusk", "org.citra.emu", "io.github.lime3ds.android",
 )
 
-private class GameEntry(val pkg: String, val label: String, val icon: ImageBitmap, val game: Boolean)
+internal class GameEntry(val pkg: String, val label: String, val icon: ImageBitmap, val game: Boolean)
 
 /** Lista de la última vez: se muestra al instante mientras se vuelve a leer. */
-private object GamesCache { @Volatile var apps: List<GameEntry>? = null }
+internal object GamesCache { @Volatile var apps: List<GameEntry>? = null }
 
 /**
  * Juegos: tu biblioteca y, al elegir uno, todo lo suyo junto (Hz, proporción, qué hace tocar la guía, modo del G9).
@@ -51,43 +51,29 @@ fun GamesPage(s: AppState, a: MainActivity) {
     LaunchedEffect(Unit) { a.requestAppListPermission() }
     LaunchedEffect(s.appsReload) { apps = withContext(Dispatchers.IO) { loadGames(a) }.also { GamesCache.apps = it } }
     val list = apps?.filter { all || it.game }.orEmpty()
-    if (selected == null || list.none { it.pkg == selected }) selected = list.firstOrNull()?.pkg
-    TwoPaneWeighted(1.25f, first = {
-        Panel {
+    val open = list.firstOrNull { it.pkg == selected }
+    // Elegir un juego abre su ficha (en vez de una columna al lado); B vuelve a la lista con el foco en ese juego.
+    LaunchedEffect(open?.pkg) {
+        s.detail = open?.label
+        s.closeDetail = { selected = null }
+    }
+    DisposableEffect(Unit) { onDispose { s.detail = null; s.closeDetail = null } }
+    var lastPkg by remember { mutableStateOf<String?>(null) }
+    Centered {
+        if (open != null) GameDetail(s, a, open)
+        else Panel {
             ChoiceChips(listOf(false to tr("Juegos", "Games"), true to tr("Todas las apps", "All apps")), all) { all = it }
             if (apps == null) Text(tr("Cargando…", "Loading…"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             else if (list.isEmpty()) Text(tr("No hay juegos instalados.", "No games installed."), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            list.chunked(4).forEach { row ->
+            list.chunked(5).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { g -> GameTile(a, s, g, g.pkg == selected, Modifier.weight(1f)) { selected = g.pkg } }
-                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    row.forEach { g -> GameTile(a, s, g, g.pkg == lastPkg, Modifier.weight(1f)) { lastPkg = g.pkg; selected = g.pkg } }
+                    repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
-    }, second = {
-        list.firstOrNull { it.pkg == selected }?.let { GameDetail(s, a, it) }
-    })
+    }
 }
-
-/**
- * Dos columnas con otro reparto que [TwoPane] (la biblioteca más ancha que el detalle). El detalle se queda a la vista
- * al bajar por la biblioteca (como la vista previa del panel, con [LocalPageScroll]).
- */
-@Composable
-private fun TwoPaneWeighted(firstWeight: Float, first: @Composable ColumnScope.() -> Unit, second: @Composable ColumnScope.() -> Unit) {
-    if (LocalWide.current) {
-        var rowH by remember { mutableIntStateOf(0) }
-        var sideH by remember { mutableIntStateOf(0) }
-        val scroll = LocalPageScroll.current
-        Row(Modifier.onGloballyPositioned { rowH = it.size.height }, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(Modifier.weight(firstWeight), verticalArrangement = Arrangement.spacedBy(16.dp), content = first)
-            Column(Modifier.weight(1f).onGloballyPositioned { sideH = it.size.height }
-                .graphicsLayer { translationY = (scroll?.value ?: 0).coerceAtMost((rowH - sideH).coerceAtLeast(0)).toFloat() },
-                verticalArrangement = Arrangement.spacedBy(16.dp), content = second)
-        }
-    } else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { second(); first() }
-}
-
 /** Las apps del cajón; las que cuentan como juego marcadas. */
 private fun loadGames(ctx: Context): List<GameEntry> {
     val pm = ctx.packageManager

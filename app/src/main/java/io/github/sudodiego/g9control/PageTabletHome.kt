@@ -31,21 +31,17 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun TabletHomePage(s: AppState, a: MainActivity) {
-    TwoPane(
-        // Izquierda: cómo está el equipo y lo que más se cambia; derecha: memoria, controles y atajos (antes la izquierda
-        // tenía cuatro mosaicos sueltos y mucho espacio vacío debajo).
-        first = {
+    // Dos líneas en la tarjeta de Inicio: Resumen (estado y accesos) y Apps abiertas. Los controles y sus atajos ya
+    // están en Controles.
+    Centered {
+        if (s.only?.contains(tr("Apps abiertas", "Open apps")) == true) MemoryPanel(s, a)
+        else {
             ServiceWarning(s, a)
             ShizukuWarning(a)
             TabletNowTiles(a)
             QuickTiles(s, a)
-            ShortcutsHelp(s, a)
-        },
-        second = {
-            MemoryPanel(s, a)
-        },
-        sheets = false
-    )
+        }
+    }
 }
 
 /** La tablet ahora, en mosaicos: batería (con el tiempo de carga), temperatura y Hz. Se actualiza cada pocos segundos. */

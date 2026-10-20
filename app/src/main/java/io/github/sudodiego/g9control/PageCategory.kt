@@ -58,15 +58,11 @@ fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
     Section.PANEL -> {
         val preview = { tr("Vista previa", "Preview") }
         listOf(
-            Entry({ tr("Panel de juego", "Game panel") }, Page.PANEL) { setOf(preview(), tr("Panel de juego", "Game panel")) },
-            Entry({ tr("Diseño", "Layout") }, Page.PANEL) { setOf(preview(), tr("Diseño", "Layout")) },
-            Entry({ tr("Fondo", "Background") }, Page.PANEL) { setOf(preview(), tr("Fondo", "Background")) },
-            Entry({ tr("Colores", "Colors") }, Page.PANEL) { setOf(preview(), tr("Colores", "Colors")) },
-            Entry({ tr("Capturas y grabación", "Screenshots and recording") }, Page.CAPTURES) { setOf(tr("Capturas y grabación", "Screenshots and recording")) },
-            Entry({ tr("Monitor de rendimiento", "Performance monitor") }, Page.CAPTURES) { setOf(tr("Monitor de rendimiento", "Performance monitor")) },
+            Entry({ tr("Panel de juego", "Game panel") }, Page.PANEL) { setOf(preview(), tr("Panel de juego", "Game panel"), tr("Diseño", "Layout")) },
+            Entry({ tr("Fondo y colores", "Background and colors") }, Page.PANEL) { setOf(preview(), tr("Fondo", "Background"), tr("Colores", "Colors")) },
+            Entry({ tr("Capturas y monitor", "Screenshots and monitor") }, Page.CAPTURES),
         )
-    }
-    Section.CONTROLS -> listOf(
+    }    Section.CONTROLS -> listOf(
         Entry({ tr("Botón guía", "Guide button") }, Page.CONTROLS) { setOf(tr("Botón guía", "Guide button")) },
         Entry({ tr("Sin botón guía", "Without a guide button") }, Page.CONTROLS) { setOf(tr("Sin botón guía", "Without a guide button")) },
         Entry({ tr("Botones de volumen", "Volume buttons") }, Page.CONTROLS) { setOf(tr("Botones de volumen", "Volume buttons")) },
@@ -112,45 +108,76 @@ fun sectionColor(sec: Section) = when (sec) {
  * vuelve aquí.
  */
 @Composable
-fun CategoryScreen(s: AppState) {
-    val sec = s.section
+fun CategoryFrame(s: AppState, content: @Composable () -> Unit) {
     val all = Section.entries
-    val idx = all.indexOf(sec)
+    val idx = all.indexOf(s.section)
     fun go(d: Int) { all.getOrNull(idx + d)?.let { s.goTo(it) } }
-    val wide = LocalWide.current
+    // El marco no cambia al entrar a una línea: lo de adentro se abre en el mismo espacio que la tarjeta (antes la
+    // tarjeta se achicaba durante la animación y la página usaba otro ancho).
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            SideArrow(left = true, enabled = idx > 0) { go(-1) }
+            SideArrow(left = true, enabled = s.inHub && idx > 0) { go(-1) }
             GlassSurface(RoundedCornerShape(40.dp), Modifier.weight(1f).fillMaxHeight()) {
-                val content: @Composable () -> Unit = { EntryList(s, sec) { d -> go(d) } }
-                if (wide) Row(Modifier.fillMaxSize().padding(36.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CategoryTile(sec, Modifier.fillMaxHeight(0.82f).aspectRatio(1f))
-                    Spacer(Modifier.width(40.dp))
-                    Box(Modifier.weight(1f)) { content() }
-                } else Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    CategoryTile(sec, Modifier.size(200.dp))
-                    Spacer(Modifier.height(24.dp))
-                    content()
-                }
+                CompositionLocalProvider(LocalInSheet provides true) { content() }
             }
-            SideArrow(left = false, enabled = idx < all.lastIndex) { go(1) }
+            SideArrow(left = false, enabled = s.inHub && idx < all.lastIndex) { go(1) }
         }
         Dock(s)
     }
 }
 
-/** El mosaico blanco de la categoría: su ícono grande, de color, y el nombre abajo. */
+/**
+ * Lo de adentro de la tarjeta de una categoría, inspirada en los ajustes de la Wii U: a la izquierda un mosaico blanco
+ * con su ícono de color y su nombre; a la derecha lo que tiene, una línea por cosa (▸). Izquierda/derecha cambian de
+ * categoría. A abre una línea; B (en lo abierto) vuelve aquí.
+ */
 @Composable
-private fun CategoryTile(sec: Section, modifier: Modifier) {
-    Surface(modifier, shape = RoundedCornerShape(36.dp), color = Color.White, shadowElevation = 6.dp) {
-        Column(Modifier.fillMaxSize().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(sectionIcon(sec), null, Modifier.fillMaxWidth(0.5f).aspectRatio(1f), tint = sectionColor(sec))
-            Spacer(Modifier.height(16.dp))
-            Text(sectionName(sec), fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Color(0xFF2A2F3A), maxLines = 1)
+fun CategoryHub(s: AppState) {
+    val sec = s.section
+    val all = Section.entries
+    val idx = all.indexOf(sec)
+    fun go(d: Int) { all.getOrNull(idx + d)?.let { s.goTo(it) } }
+    val content: @Composable () -> Unit = { EntryList(s, sec) { d -> go(d) } }
+    if (LocalWide.current) Row(Modifier.fillMaxSize().padding(36.dp), verticalAlignment = Alignment.CenterVertically) {
+        CategoryHeader(s, sec, Modifier.weight(0.8f).padding(start = 24.dp))
+        Spacer(Modifier.width(32.dp))
+        Box(Modifier.weight(1f)) { content() }
+    } else Column(Modifier.fillMaxSize().padding(28.dp)) {
+        CategoryHeader(s, sec, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(24.dp))
+        content()
+    }
+}
+/**
+ * A la izquierda de la tarjeta: el nombre de la categoría en grande con una raya de su color y, debajo, algo vivo de
+ * ella (batería, cuántos juegos, el control conectado). Sin ícono grande: se veía como clip-art.
+ */
+@Composable
+private fun CategoryHeader(s: AppState, sec: Section, modifier: Modifier) {
+    val c = MaterialTheme.colorScheme
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val live = when (sec) {
+        Section.HOME -> ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))?.let {
+            val l = it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 / it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
+            tr("Batería $l %", "Battery $l %")
+        }
+        Section.GAMES -> GamesCache.apps?.count { it.game }?.let { tr("$it juegos", "$it games") }
+        Section.CONTROLS -> android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
+            .firstOrNull { !it.isVirtual && (it.sources and android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD }?.name
+            ?: tr("Sin control", "No controller")
+        Section.SETTINGS -> runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull()?.let { tr("Versión $it", "Version $it") }
+        else -> null
+    }
+    Column(modifier, verticalArrangement = Arrangement.Center) {
+        Box(Modifier.width(56.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(sectionColor(sec)))
+        Spacer(Modifier.height(20.dp))
+        Text(sectionName(sec), fontSize = 52.sp, fontWeight = FontWeight.Bold, lineHeight = 56.sp, maxLines = 1)
+        if (live != null) {
+            Spacer(Modifier.height(10.dp))
+            Text(live, fontSize = 20.sp, color = c.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
-
 /** Las líneas de la tarjeta. Izquierda y derecha cambian de categoría (con el foco en una línea). */
 @Composable
 private fun EntryList(s: AppState, sec: Section, go: (Int) -> Unit) {
@@ -207,21 +234,22 @@ private fun SideArrow(left: Boolean, enabled: Boolean, onClick: () -> Unit) {
 /** Abajo: todas las categorías con su ícono de color; la actual, más grande y levantada. Se tocan para ir. */
 @Composable
 private fun Dock(s: AppState) {
-    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.Bottom) {
+    // Los nombres, no íconos (se veían como clip-art): la actual en negrita con una raya de su color debajo.
+    Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp), horizontalArrangement = Arrangement.Center) {
         Section.entries.forEach { sec ->
             val cur = sec == s.section
-            val lift by animateDpAsState(if (cur) (-10).dp else 0.dp, label = "lift")
-            val scale by animateFloatAsState(if (cur) 1.25f else 1f, label = "scale")
-            Box(Modifier.padding(horizontal = 14.dp).offset(y = lift).scale(scale).focusProperties { canFocus = false }
-                .clip(RoundedCornerShape(14.dp)).background(if (cur) Color.White else Color.Transparent)
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { s.goTo(sec) }
-                .padding(8.dp)) {
-                Icon(sectionIcon(sec), sectionName(sec), Modifier.size(36.dp), tint = sectionColor(sec))
+            val c = MaterialTheme.colorScheme
+            Column(Modifier.padding(horizontal = 18.dp).focusProperties { canFocus = false }
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { s.goTo(sec) },
+                horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(sectionName(sec), fontSize = 18.sp, fontWeight = if (cur) FontWeight.Bold else FontWeight.Normal,
+                    color = if (cur) c.onSurface else c.onSurface.copy(alpha = 0.55f))
+                Spacer(Modifier.height(6.dp))
+                Box(Modifier.width(28.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(if (cur) sectionColor(sec) else Color.Transparent))
             }
         }
     }
 }
-
 /** Arriba a la derecha, chico (como la versión en la Wii U): la batería y la hora. */
 @Composable
 fun TopStatus() {
@@ -233,7 +261,9 @@ fun TopStatus() {
             ?.let { it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 / it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1) }
     }
     val time = remember(tick) { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
-    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 28.dp, top = 14.dp), horizontalArrangement = Arrangement.End) {
+    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 28.dp, top = 14.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        // Con el mismo ícono de batería que el panel y el inicio.
+        if (level != null) { BatteryGlyph(level, charging = false, bypass = false); Spacer(Modifier.width(8.dp)) }
         Text(listOfNotNull(level?.let { "$it %" }, time).joinToString("   "), fontSize = 22.sp, fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
     }

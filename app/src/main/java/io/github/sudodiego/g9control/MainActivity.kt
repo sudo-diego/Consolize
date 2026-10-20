@@ -1085,7 +1085,7 @@ class AppState {
         if (sec == section && inHub) return
         section = sec
         if (page !in pages(sec)) page = pages(sec).first()
-        inHub = true; sub = null; only = null; lastSub = null
+        inHub = true; sub = null; only = null; lastSub = null; detail = null
     }
     /** Línea de estado de la barra inferior. Asignarla la marca como normal; [fail] la marca como problema. */
     var status: String
@@ -1120,7 +1120,14 @@ class AppState {
     /** La línea que se abrió (para devolverle el foco al volver). */
     var entryLabel: String? = null
     /** B: de lo abierto a la tarjeta. False en la tarjeta: ahí mantener B sale de la app. */
-    fun back(): Boolean = if (!inHub) { lastSub = entryLabel; sub = null; only = null; inHub = true; true } else false
+    /** Algo abierto dentro de la página (la ficha de un juego): su nombre va en el título y B lo cierra primero. */
+    var detail by mutableStateOf<String?>(null)
+    var closeDetail: (() -> Unit)? = null
+    fun back(): Boolean = when {
+        detail != null -> { closeDetail?.invoke(); detail = null; true }
+        !inHub -> { lastSub = entryLabel; sub = null; only = null; inHub = true; true }
+        else -> false
+    }
     val atTop get() = inHub
     /** Hay algún control conectado (de cualquier marca): la barra de abajo muestra cómo navegar con él. */
     var anyPad by mutableStateOf(false)
