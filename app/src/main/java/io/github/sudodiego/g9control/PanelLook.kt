@@ -370,7 +370,7 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
         if (banner && (ThemeState.panelSeeThrough || pg != null)) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
             Box(Modifier.matchParentSize().background(body))
             if (pg != null) {
-                PanelImage(Modifier.matchParentSize().graphicsLayer {
+                PanelImage(still = true, modifier = Modifier.matchParentSize().graphicsLayer {
                     alpha = 0.6f
                     renderEffect = android.graphics.RenderEffect.createBlurEffect(50f, 50f, android.graphics.Shader.TileMode.CLAMP).asComposeRenderEffect()
                 })

@@ -156,13 +156,14 @@ private fun ImageBackdrop(uri: String, blur: Int, loop: Boolean, dark: Boolean, 
  * que el fondo ([ImageFit], foco) y mismo desenfoque. El GIF se redibuja cada cuadro mientras se ve.
  */
 @Composable
-fun PanelImage(modifier: Modifier = Modifier) {
+/** [still]: un cuadro fijo aunque sea un GIF (el reflejo de la cabecera: dos GIF moviéndose mareaban). */
+fun PanelImage(modifier: Modifier = Modifier, still: Boolean = false) {
     val ctx = LocalContext.current
     val uri = ThemeState.panelUri ?: return Box(modifier) { GradientBackdrop(true, ThemeState.panelAccent) }
     var drawable by remember(uri) { mutableStateOf(ImageCache.get("banner", uri)) }
     LaunchedEffect(uri) { if (drawable == null) drawable = withContext(Dispatchers.IO) { ImageCache.decode(ctx, "banner", uri) } }
     val d = drawable ?: return Box(modifier) { GradientBackdrop(true, ThemeState.panelAccent) }
-    DrawableImage(d, ThemeState.panelBlur, ThemeState.panelLoop, ThemeState.panelFit, ThemeState.panelFocus, modifier)
+    DrawableImage(d, ThemeState.panelBlur, ThemeState.panelLoop, ThemeState.panelFit, ThemeState.panelFocus, modifier, still)
 }
 
 /**
@@ -170,10 +171,10 @@ fun PanelImage(modifier: Modifier = Modifier) {
  * GIF, se redibuja cada cuadro mientras se ve. Lo usan el fondo de la app, el del panel y la cabecera del lateral.
  */
 @Composable
-fun DrawableImage(d: Drawable, blur: Int, loop: Boolean, fit: ImageFit, focus: Float, modifier: Modifier = Modifier) {
+fun DrawableImage(d: Drawable, blur: Int, loop: Boolean, fit: ImageFit, focus: Float, modifier: Modifier = Modifier, still: Boolean = false) {
     var frame by remember { mutableIntStateOf(0) }
-    LaunchedEffect(d, loop) {
-        (d as? AnimatedImageDrawable)?.let { gif ->
+    LaunchedEffect(d, loop, still) {
+        if (!still) (d as? AnimatedImageDrawable)?.let { gif ->
             gif.repeatCount = if (loop) AnimatedImageDrawable.REPEAT_INFINITE else 0
             gif.start()
             while (true) { withFrameNanos { }; frame++ }
@@ -182,7 +183,7 @@ fun DrawableImage(d: Drawable, blur: Int, loop: Boolean, fit: ImageFit, focus: F
     Canvas(modifier.then(if (Build.VERSION.SDK_INT >= 31 && blur > 0) Modifier.graphicsLayer {
         renderEffect = RenderEffect.createBlurEffect(blur.toFloat(), blur.toFloat(), Shader.TileMode.CLAMP).asComposeRenderEffect()
     } else Modifier)) {
-        frame   // se lee para redibujar cada cuadro del GIF
+        if (!still) frame   // se lee para redibujar cada cuadro del GIF
         val w = size.width; val h = size.height
         val dw = d.intrinsicWidth.toFloat().coerceAtLeast(1f); val dh = d.intrinsicHeight.toFloat().coerceAtLeast(1f)
         val (sx, sy) = when (fit) {
