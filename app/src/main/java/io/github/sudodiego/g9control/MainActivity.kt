@@ -924,7 +924,7 @@ class MainActivity : ComponentActivity() {
     ) { uri ->
         if (uri == null) return@registerForActivityResult
         runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-        Prefs.setMusicUri(this, uri.toString()); Prefs.setMusic(this, true)
+        Prefs.setMusicUri(this, uri.toString()); Prefs.setMusic(this, true); Prefs.setMusicTrack(this, MusicTrack.OWN)
         AmbientMusic.load(this)
         AmbientMusic.restart(this)
     }

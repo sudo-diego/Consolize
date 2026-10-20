@@ -90,6 +90,10 @@ object Prefs {
     fun setMusic(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("music", v).apply()
     fun musicUri(ctx: Context) = sp(ctx).getString("music_uri", null)
     fun setMusicUri(ctx: Context, v: String?) = sp(ctx).edit().putString("music_uri", v).apply()
+    /** Qué suena: una de las pistas de la app ([MusicTrack]) o el archivo propio. */
+    fun musicTrack(ctx: Context) = runCatching { MusicTrack.valueOf(sp(ctx).getString("music_track", null)!!) }
+        .getOrDefault(if (musicUri(ctx) != null) MusicTrack.OWN else MusicTrack.SETTINGS)
+    fun setMusicTrack(ctx: Context, v: MusicTrack) = sp(ctx).edit().putString("music_track", v.name).apply()
     fun musicVolume(ctx: Context) = sp(ctx).getInt("music_volume", 40)
     fun setMusicVolume(ctx: Context, v: Int) = sp(ctx).edit().putInt("music_volume", v).apply()
     fun previewUri(ctx: Context) = sp(ctx).getString("preview_uri", null)
