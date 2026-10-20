@@ -5,6 +5,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.VideogameAsset
+import androidx.compose.material.icons.outlined.Gamepad
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,15 +29,28 @@ fun ShortcutsPage(s: AppState, a: MainActivity) {
     Gate(s.autoServiceOn) { ShortcutsContent(s, a) }
 }
 
+/**
+ * Una lista de tres filas; cada una abre su menú con sus interruptores (antes, unos quince a la vista a la vez). Los
+ * títulos de los menús son los de las filas: así vuelve el foco a la fila al cerrar con B.
+ */
 @Composable
 private fun ShortcutsContent(s: AppState, a: MainActivity) {
-    TwoPane(
-        first = { GuidePanel(a) },
-        second = {
-            OtherShortcutsPanel(a)
-            TabletButtonsPanel(a)
+    val guide = tr("Botón guía", "Guide button")
+    val noGuide = tr("Sin botón guía", "Without a guide button")
+    val volume = tr("Botones de volumen", "Volume buttons")
+    when (s.sub) {
+        guide -> Centered { Sheet { GuidePanel(a) } }
+        noGuide -> Centered { Sheet { OtherShortcutsPanel(a) } }
+        volume -> Centered { Sheet { TabletButtonsPanel(a) } }
+        else -> MenuList {
+            val on = AutoRules.legionKeys(a)
+            val active = AutoRules.Guide.entries.count { AutoRules.guide(a, it) }
+            MenuRow(Icons.Outlined.VideogameAsset, guide, if (on) tr("$active activos", "$active on") else tr("Apagado", "Off")) { s.sub = guide }
+            val chord = AutoRules.gamePanel(a)
+            MenuRow(Icons.Outlined.Gamepad, noGuide, if (!chord) tr("Apagado", "Off") else if (AutoRules.chordOnlyStreaming(a)) tr("Al transmitir", "While streaming") else tr("Siempre", "Always")) { s.sub = noGuide }
+            MenuRow(Icons.Outlined.VolumeUp, volume, if (AutoRules.swapVolume(a)) tr("Invertidos", "Swapped") else tr("Normales", "Normal")) { s.sub = volume }
         }
-    )
+    }
 }
 
 @Composable
@@ -43,7 +60,7 @@ private fun GuidePanel(a: MainActivity) {
     var burst by remember { mutableStateOf(AutoRules.burstShots(a)) }
     var streamTip by remember { mutableStateOf(AutoRules.streamTip(a)) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Botón guía", "Guide button"), null,
+        Panel(tr("Atajos", "Shortcuts"), null,
             trailing = { Switch(on, { on = it; AutoRules.setLegionKeys(a, it) }, enabled = LocalGateOk.current) }) {
             CompositionLocalProvider(LocalEditable provides (on && LocalGateOk.current)) {
                 fun row(g: AutoRules.Guide) = states.getValue(g)

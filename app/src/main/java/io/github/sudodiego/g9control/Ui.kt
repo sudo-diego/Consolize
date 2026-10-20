@@ -1,5 +1,6 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.border
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -148,7 +149,7 @@ private val NAV = listOf(
 fun App(s: AppState, a: MainActivity) {
     val backdropLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
     CapturedBackdrop(backdropLayer)
-    CompositionLocalProvider(LocalBackdropLayer provides backdropLayer) {
+    CompositionLocalProvider(LocalBackdropLayer provides backdropLayer, LocalAppState provides s) {
     BoxWithConstraints(
         Modifier.fillMaxSize().safeDrawingPadding()
     ) {
@@ -337,7 +338,8 @@ private fun SideItem(item: NavItem, sel: Boolean, compact: Boolean, focus: Focus
 @Composable
 private fun PageTitle(s: AppState) {
     val item = NAV.firstOrNull { it.page == s.page } ?: return
-    val title = if (s.pages(s.section).size > 1) "${sectionName(s.section)} · ${item.label}" else sectionName(s.section)
+    val base = if (s.pages(s.section).size > 1) "${sectionName(s.section)} · ${item.label}" else sectionName(s.section)
+    val title = s.sub?.let { "$base · $it" } ?: base
     Text(title, Modifier.padding(start = 20.dp, top = 18.dp, bottom = 2.dp), fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
 }
 /** Pestañas horizontales, como en una consola: LB/RB a los lados para cambiar. */
@@ -541,7 +543,7 @@ private fun HintBar(s: AppState) {
             // Con la barra lateral, cómo cambiar de pestaña ya está en ella.
             else listOfNotNull("A" to tr("Elegir", "Select"),
                 if (wide) null else (if (s.page in TRIGGER_PAGES) "LB RB" else "LT RT") to tr("Pestañas", "Tabs"),
-                "B" to if (s.bReady) tr("Suelta para salir", "Release to exit") else tr("Mantén 2 s para salir", "Hold 2 s to exit"))
+                "B" to if (s.bReady) tr("Suelta para salir", "Release to exit") else if (s.sub != null) tr("Volver", "Back") else tr("Mantén 2 s para salir", "Hold 2 s to exit"))
             Row(glass.padding(start = 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 hints.forEachIndexed { i, (k, v) ->
                     if (i > 0) Spacer(Modifier.width(18.dp))
@@ -558,18 +560,24 @@ private fun HintBar(s: AppState) {
 @Composable
 private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     // Al cambiar de pestaña se termina la prueba de botones.
-    LaunchedEffect(s.page) { if (s.page != Page.TEST) s.testMode = false }
+    LaunchedEffect(s.page) { if (s.page != Page.TEST) s.testMode = false; s.sub = null; s.lastSub = null }
+    // Atrás de Android (gesto o botón) también cierra el menú abierto.
+    androidx.activity.compose.BackHandler(enabled = s.sub != null) { s.closeSub() }
     // Probando botones o grabando una macro, la guía es un botón más (no abre el panel).
     LaunchedEffect(s.capturing) { AppKeys.capturing = s.capturing }
     AnimatedContent(
-        targetState = s.page,
+        // La página y su menú abierto: abrir o cerrar un menú también cambia con fundido.
+        targetState = s.page to s.sub,
         modifier = modifier,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
         label = "page"
-    ) { page ->
+    ) { (page, sub) ->
         val scroll = rememberScrollState()
+        // Al abrir un menú, el foco entra a su primera opción (si no, se perdía y saltaba a la barra lateral).
+        val enter = remember { FocusRequester() }
+        LaunchedEffect(sub) { if (sub != null) { kotlinx.coroutines.delay(80); runCatching { enter.requestFocus() } } }
         Column(
-            Modifier.fillMaxSize().verticalScroll(scroll)
+            Modifier.fillMaxSize().focusRequester(enter).focusGroup().verticalScroll(scroll)
                 .padding(horizontal = 16.dp).padding(top = 12.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -726,16 +734,68 @@ fun DrawingPane(
 /** Dos columnas en pantallas anchas; una debajo de la otra en angostas. */
 @Composable
 fun TwoPane(first: @Composable ColumnScope.() -> Unit, second: @Composable ColumnScope.() -> Unit, sheets: Boolean = true) {
-    // Con [sheets] cada columna es una hoja (Inicio no: sus tarjetas muestran cosas).
-    @Composable fun Col(m: Modifier, body: @Composable ColumnScope.() -> Unit) =
-        if (sheets) Column(m) { Sheet(content = body) } else Column(m, verticalArrangement = Arrangement.spacedBy(16.dp), content = body)
-    if (LocalWide.current) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
-            Col(Modifier.weight(1f), first)
-            Col(Modifier.weight(1f), second)
+    // Una sola columna centrada (antes dos, lado a lado: demasiado a la vista). Con [sheets], en una hoja; Inicio no.
+    Centered {
+        if (sheets) Sheet { first(); second() }
+        else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { first(); second() }
+    }
+}
+
+/** El contenido de la página al centro, con un ancho cómodo de leer (en pantalla ancha no se estira de lado a lado). */
+@Composable
+fun Centered(content: @Composable ColumnScope.() -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 880.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+    }
+}
+
+/** La app, para lo que la necesita sin recibirla (las filas de menú recuperan el foco al volver). */
+val LocalAppState = compositionLocalOf<AppState?> { null }
+
+/**
+ * Lista de una página, al estilo de los ajustes de una consola: filas grandes, cada una abre su menú ([MenuRow]).
+ * Lo que antes se veía todo junto (muchos interruptores) queda adentro de cada fila.
+ */
+@Composable
+fun MenuList(content: @Composable ColumnScope.() -> Unit) = Centered {
+    Sheet { CompositionLocalProvider(LocalInMenu provides true) { Column(verticalArrangement = Arrangement.spacedBy(4.dp), content = content) } }
+}
+
+private val LocalInMenu = compositionLocalOf { false }
+
+/**
+ * Una fila que abre un menú: ícono en una insignia, nombre, su estado a la derecha ("6 activos", "Apagado") y ›.
+ * [onClick] null: la fila no abre nada y lleva [trailing] (un interruptor, por ejemplo).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MenuRow(icon: ImageVector, title: String, value: String? = null, onClick: (() -> Unit)? = null, trailing: (@Composable () -> Unit)? = null) {
+    val c = MaterialTheme.colorScheme
+    val s = LocalAppState.current
+    val source = remember { MutableInteractionSource() }
+    val focused by source.collectIsFocusedAsState()
+    val focus = remember { FocusRequester() }
+    // Al volver de su menú, el foco vuelve a esta fila.
+    LaunchedEffect(Unit) { if (s != null && s.lastSub == title && s.sub == null) { runCatching { focus.requestFocus() }; s.lastSub = null } }
+    CompositionLocalProvider(LocalRippleConfiguration provides null) {
+        Surface(
+            onClick = { onClick?.invoke() }, enabled = LocalEditable.current, shape = RoundedCornerShape(18.dp),
+            color = if (focused) c.primary.copy(alpha = 0.12f) else Color.Transparent,
+            border = if (focused) BorderStroke(2.dp, c.primary) else null,
+            interactionSource = source, modifier = Modifier.fillMaxWidth().focusRequester(focus)
+        ) {
+            Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(c.primary.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(22.dp), tint = c.primary)
+                }
+                Spacer(Modifier.width(16.dp))
+                Text(title, Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (value != null) Text(value, fontSize = 15.sp, color = c.onSurfaceVariant, maxLines = 1)
+                if (trailing != null) { Spacer(Modifier.width(12.dp)); trailing() }
+                if (onClick != null) { Spacer(Modifier.width(8.dp)); Icon(Icons.Filled.ChevronRight, null, Modifier.size(24.dp), tint = c.onSurfaceVariant) }
+            }
         }
-    } else if (sheets) Sheet { first(); second() }
-    else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { first(); second() }
+    }
 }
 
 /**

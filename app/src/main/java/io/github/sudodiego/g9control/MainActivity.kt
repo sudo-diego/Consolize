@@ -300,6 +300,8 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_BUTTON_B -> {
                 // B solo cierra lo que esté abierto (el editor de macro). Los diálogos lo manejan solos.
                 if (e.action == KeyEvent.ACTION_UP && s.editingMacro != null) { UiSounds.play(this, UiSounds.Kind.BACK); closeMacroEditor() }
+                // Y el menú abierto dentro de la página: vuelve a la lista (como en una consola).
+                else if (e.action == KeyEvent.ACTION_UP && s.sub != null && !bHoldFired) { UiSounds.play(this, UiSounds.Kind.BACK); s.closeSub() }
                 return true
             }
             // Vista y Menú no hacen nada en la app: solo sirven para cambiar de modo (si no, Menú
@@ -1101,6 +1103,11 @@ class AppState {
     var anyShot by mutableStateOf(false)
     /** Barra lateral compacta (solo íconos). */
     var navCompact by mutableStateOf(false)
+    /** Menú abierto dentro de la página (su título, que también va arriba); null = la lista de la página. B lo cierra. */
+    var sub by mutableStateOf<String?>(null)
+    /** El último menú que se cerró: su fila recupera el foco al volver a la lista. */
+    var lastSub by mutableStateOf<String?>(null)
+    fun closeSub() { lastSub = sub; sub = null }
     /** Hay algún control conectado (de cualquier marca): la barra de abajo muestra cómo navegar con él. */
     var anyPad by mutableStateOf(false)
     var deviceText by mutableStateOf("")
