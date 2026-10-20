@@ -660,6 +660,9 @@ fun ConnectionPill(s: AppState, onConnect: () -> Unit) {
 // Componentes compartidos
 // ---------------------------------------------------------------------------------------------
 
+/** Secciones en acordeón: el título de la abierta (null = ninguna). Solo donde se pide (opciones del panel). */
+val LocalAccordion = compositionLocalOf<MutableState<String?>?> { null }
+
 /** Las partes de la página que se ven (abiertas desde la tarjeta de la categoría); null = todas. */
 val LocalOnlyPanels = compositionLocalOf<Set<String>?> { null }
 
@@ -696,6 +699,30 @@ fun Panel(
     val c = MaterialTheme.colorScheme
     // Abierta una sola parte de la página desde la tarjeta de su categoría: las demás no se dibujan.
     LocalOnlyPanels.current?.let { only -> if (title == null || title !in only) return }
+    // En acordeón (opciones del panel): una fila con su nombre que se abre con A; abierta, una sola a la vez.
+    val acc = LocalAccordion.current
+    if (acc != null && title != null) {
+        val open = acc.value == title
+        val src = remember { MutableInteractionSource() }
+        val focused by src.collectIsFocusedAsState()
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .background(if (focused) c.primary.copy(alpha = 0.14f) else if (open) c.onSurface.copy(alpha = 0.05f) else Color.Transparent)
+                .then(if (focused) Modifier.border(2.dp, c.primary, RoundedCornerShape(16.dp)) else Modifier)
+                .clickable(interactionSource = src, indication = null) { acc.value = if (open) null else title }
+                .padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), fontSize = 18.sp, fontWeight = if (open || focused) FontWeight.SemiBold else FontWeight.Medium)
+                Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, tint = c.onSurfaceVariant)
+            }
+            androidx.compose.animation.AnimatedVisibility(open) {
+                Column(Modifier.padding(start = 16.dp, end = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (trailing != null) Row(verticalAlignment = Alignment.CenterVertically) { Spacer(Modifier.weight(1f)); trailing() }
+                    content()
+                }
+            }
+        }
+        return
+    }
     if (LocalInSheet.current) {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (title != null) Row(verticalAlignment = Alignment.CenterVertically) {

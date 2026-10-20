@@ -69,12 +69,25 @@ val LocalPanelInert = compositionLocalOf { false }
 fun PanelPage(s: AppState, a: MainActivity) {
     // Aquí sí dos columnas en horizontal: la vista previa a la izquierda y las opciones a la derecha, así se ve el cambio
     // al hacerlo (en una columna las opciones quedaban debajo y no se notaba que estaban).
-    if (LocalWide.current) Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-        Column(Modifier.weight(1.1f)) { PanelPreviewCard(a) }
-        Column(Modifier.weight(1f)) { Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } } }
+    // Opciones en acordeón (se abre una a la vez; antes eran cuatro grupos largos a la vista).
+    val acc = remember { androidx.compose.runtime.mutableStateOf<String?>(tr("Panel de juego", "Game panel")) }
+    if (LocalWide.current) {
+        // La vista previa, grande, se queda a la vista al bajar por las opciones: se ve el cambio al hacerlo.
+        var rowH by remember { mutableIntStateOf(0) }
+        var previewH by remember { mutableIntStateOf(0) }
+        val scroll = LocalPageScroll.current
+        Row(Modifier.onGloballyPositioned { rowH = it.size.height }, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+            Column(Modifier.weight(1.45f).onGloballyPositioned { previewH = it.size.height }
+                .graphicsLayer { translationY = (scroll?.value ?: 0).coerceAtMost((rowH - previewH).coerceAtLeast(0)).toFloat() }) {
+                PanelPreviewCard(a)
+            }
+            Column(Modifier.weight(1f)) {
+                CompositionLocalProvider(LocalAccordion provides acc) { Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } } }
+            }
+        }
     } else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PanelPreviewCard(a)
-        Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } }
+        CompositionLocalProvider(LocalAccordion provides acc) { Sheet { Gate(s.autoServiceOn) { PanelLookPanel(a) } } }
     }
 }
 
