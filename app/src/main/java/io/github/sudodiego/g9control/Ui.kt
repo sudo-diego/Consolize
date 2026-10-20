@@ -705,7 +705,9 @@ fun Panel(
         val open = acc.value == title
         val src = remember { MutableInteractionSource() }
         val focused by src.collectIsFocusedAsState()
-        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Sin espacio fijo entre la fila y lo de adentro: va dentro de la animación (si no, al terminar de cerrarse el
+        // espacio desaparecía de golpe y lo de abajo saltaba).
+        Column(modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
                 .background(if (focused) c.primary.copy(alpha = 0.14f) else if (open) c.onSurface.copy(alpha = 0.05f) else Color.Transparent)
                 .then(if (focused) Modifier.border(2.dp, c.primary, RoundedCornerShape(16.dp)) else Modifier)
@@ -714,8 +716,10 @@ fun Panel(
                 Text(title, Modifier.weight(1f), fontSize = 18.sp, fontWeight = if (open || focused) FontWeight.SemiBold else FontWeight.Medium)
                 Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, tint = c.onSurfaceVariant)
             }
-            androidx.compose.animation.AnimatedVisibility(open) {
-                Column(Modifier.padding(start = 16.dp, end = 4.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            androidx.compose.animation.AnimatedVisibility(open,
+                enter = androidx.compose.animation.expandVertically(tween(240)) + fadeIn(tween(240)),
+                exit = androidx.compose.animation.shrinkVertically(tween(200)) + fadeOut(tween(140))) {
+                Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (trailing != null) Row(verticalAlignment = Alignment.CenterVertically) { Spacer(Modifier.weight(1f)); trailing() }
                     content()
                 }
