@@ -276,7 +276,8 @@ private fun liquidEffect(p: LiquidParams, size: androidx.compose.ui.geometry.Siz
     val sh = android.graphics.RuntimeShader(REFRACTION_AGSL)
     sh.setFloatUniform("size", size.width, size.height)
     sh.setFloatUniform("radius", radius)
-    sh.setFloatUniform("strength", p.refraction / 100f * 60f)
+    // Fuerte: sobre lo ya desenfocado un desplazamiento chico no se notaba.
+    sh.setFloatUniform("strength", p.refraction / 100f * 180f)
     val refr = RenderEffect.createRuntimeShaderEffect(sh, "content")
     return if (blur != null) RenderEffect.createChainEffect(refr, blur) else refr
 }
@@ -290,10 +291,10 @@ half4 main(float2 p) {
     float2 c = size * 0.5;
     float2 q = abs(p - c) - (c - radius);
     float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
-    float band = radius * 1.6 + 1.0;
+    float band = radius * 3.0 + 1.0;
     float edge = clamp(1.0 + d / band, 0.0, 1.0);
     float2 dir = normalize(p - c + float2(0.001, 0.001));
-    float2 off = -dir * edge * edge * edge * strength;
+    float2 off = -dir * edge * edge * strength;
     return content.eval(clamp(p + off, float2(0.0), size));
 }
 """

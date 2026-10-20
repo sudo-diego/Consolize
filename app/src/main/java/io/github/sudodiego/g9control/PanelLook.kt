@@ -336,7 +336,19 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
     // Con cabecera, lo de abajo es el color del tema con la transparencia elegida (se ve el juego).
     val body = if (banner && ThemeState.panelSeeThrough) PANEL_BG.copy(alpha = 1f - ThemeState.panelSee / 100f * 0.85f) else PANEL_BG
     Surface(color = if (ThemeState.panelSeeThrough) Color.Transparent else PANEL_BG, shape = shape,
-        modifier = modifier.width(dims.width).fillMaxHeight(), border = if (glassPanel) BorderStroke(1.dp, GLASS_EDGE) else null) {
+        // Borde solo del lado que mira al juego (las curvas y la línea izquierda): con un marco completo, arriba, abajo y
+        // a la derecha se veía el contorno contra el borde de la pantalla y parecía flotar en vez de salir del lado.
+        modifier = modifier.width(dims.width).fillMaxHeight().then(if (glassPanel) Modifier.drawWithContent {
+            drawContent()
+            val r = 28.dp.toPx(); val w = 1.dp.toPx()
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(r, w / 2)
+                arcTo(androidx.compose.ui.geometry.Rect(w / 2, w / 2, 2 * r, 2 * r), -90f, -90f, false)
+                lineTo(w / 2, size.height - r)
+                arcTo(androidx.compose.ui.geometry.Rect(w / 2, size.height - 2 * r, 2 * r, size.height - w / 2), 180f, -90f, false)
+            }
+            drawPath(path, GLASS_EDGE, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+        } else Modifier)) {
       Box {
         if (glassPanel) Box(Modifier.matchParentSize().clip(shape)) {
             PanelBackdrop()
