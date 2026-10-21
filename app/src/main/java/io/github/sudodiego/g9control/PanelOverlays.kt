@@ -268,7 +268,7 @@ internal class FreezeCover(private val svc: AccessibilityService) {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(px(18), px(14), px(22), px(14))
             // Con el tema del panel (claro u oscuro).
-            background = android.graphics.drawable.GradientDrawable().apply { setColor(if (light) 0xF2F3F6FB.toInt() else 0xEE0E1424.toInt()); cornerRadius = 16 * dp }
+            background = noticeBackground(light, opaque = false, dp)
             addView(icon, android.widget.LinearLayout.LayoutParams(px(40), px(40)))
             addView(texts)
             alpha = 0f
@@ -561,10 +561,7 @@ internal class ShotFlash(private val svc: AccessibilityService) {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(px(8), px(8), px(16), px(8))
             // Con el tema del panel (claro u oscuro), como todo lo que se dibuja sobre el juego.
-            background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(if (overToast) (if (light) 0xFFF3F6FB.toInt() else 0xFF0E1424.toInt())
-                    else if (light) 0xF2F3F6FB.toInt() else 0xEE0E1424.toInt()); cornerRadius = 16 * dp
-            }
+            background = noticeBackground(light, opaque = overToast, dp)
             addView(image, android.widget.LinearLayout.LayoutParams(thumb.width, thumb.height))
             addView(text)
             visibility = android.view.View.INVISIBLE
@@ -783,4 +780,28 @@ internal class ShotSounds(private val ctx: android.content.Context) {
         player?.release()
         player = null
     }
+}
+
+/**
+ * Fondo de los avisos que se dibujan sobre el juego. Con vidrio líquido (en la app o en el panel) aparentan vidrio:
+ * más translúcidos (según el tinte elegido), con brillo arriba y un borde claro. Lo de detrás no se puede desenfocar
+ * (sin desenfoque entre ventanas). [opaque]: el que tapa el aviso de Android, siempre opaco.
+ */
+internal fun noticeBackground(light: Boolean, opaque: Boolean, dp: Float): android.graphics.drawable.Drawable {
+    val r = 16 * dp
+    val liquid = ThemeState.panelLiquid || ThemeState.surfaces == Surfaces.LIQUID
+    val base = if (light) 0xF3F6FB else 0x0E1424
+    if (!liquid) return android.graphics.drawable.GradientDrawable().apply {
+        setColor((if (opaque) 0xFF000000.toInt() else if (light) 0xF2000000.toInt() else 0xEE000000.toInt()) or base); cornerRadius = r
+    }
+    val p = ThemeState.liquidParams
+    val alpha = if (opaque) 255 else (110 + p.tint * 1.3f).toInt().coerceIn(110, 240)
+    val fill = android.graphics.drawable.GradientDrawable().apply { setColor((alpha shl 24) or base); cornerRadius = r }
+    val shine = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(android.graphics.Color.argb((p.highlight * 0.6f).toInt(), 255, 255, 255), 0, 0)).apply { cornerRadius = r }
+    val rim = android.graphics.drawable.GradientDrawable().apply {
+        setColor(0); cornerRadius = r
+        setStroke((1 + p.rim / 40f * dp).toInt().coerceAtLeast(1), android.graphics.Color.argb((40 + p.rim * 1.2f).toInt().coerceAtMost(200), 255, 255, 255))
+    }
+    return android.graphics.drawable.LayerDrawable(arrayOf(fill, shine, rim))
 }
