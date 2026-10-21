@@ -876,7 +876,34 @@ class MainActivity : ComponentActivity() {
             .onFailure { state.fail(tr("Error: el archivo no es un respaldo de TBF Companion.", "Error: the file isn't a TBF Companion backup.")) }
     }
 
-    fun exportProfiles() = exportLauncher.launch(tr("G9Control-perfiles", "G9Control-profiles") + "-${java.time.LocalDate.now()}.json")
+    /** Respaldo completo de la app (todos los ajustes): guardar. */
+    private val backupOut = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        runCatching { contentResolver.openOutputStream(uri)!!.use { it.write(Backup.export(this).toByteArray()) } }
+            .onSuccess { state.status = tr("Respaldo guardado.", "Backup saved.") }
+            .onFailure { state.fail(tr("No se pudo guardar el respaldo: ${it.message}", "Couldn't save the backup: ${it.message}")) }
+    }
+
+    /** Respaldo completo: cargar (reemplaza los ajustes y vuelve a abrir la app con ellos). */
+    private val backupIn = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        runCatching { Backup.import(this, contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }) }
+            .onSuccess {
+                ThemeState.load(this); AmbientMusic.load(this)
+                state.status = tr("Respaldo cargado.", "Backup loaded.")
+                recreate()
+            }
+            .onFailure { state.fail(tr("Ese archivo no es un respaldo de la app.", "That file isn't a backup of the app.")) }
+    }
+
+    fun saveBackup() = backupOut.launch("TBF-respaldo-${java.time.LocalDate.now()}.json")
+    fun loadBackup() = backupIn.launch(arrayOf("application/json", "application/octet-stream", "text/plain"))
+
+    fun exportProfiles() = exportLauncher.launch( tr("G9Control-perfiles", "G9Control-profiles") + "-${java.time.LocalDate.now()}.json")
     fun importProfiles() = importLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/plain"))
 
     /** Fondo de la app: una imagen o GIF de la tablet (el permiso de leerlo queda guardado). */

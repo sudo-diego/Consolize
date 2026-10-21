@@ -89,6 +89,11 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                 SoundSettings(a)
                 Text(tr("Animación de los avisos", "Notice animation"), fontSize = 14.sp)
                 ChoiceChips(NoticeAnim.entries.map { it to it.label }, anim) { anim = it; AutoRules.setNoticeAnim(a, it); AutoRules.setShotAnim(a, it) }
+                // Respaldo de todo (perfiles del G9 incluidos): para reinstalar o cambiar de tablet sin perder nada.
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = { a.saveBackup() }) { Text(tr("Guardar respaldo", "Save backup")) }
+                    OutlinedButton(onClick = { a.loadBackup() }) { Text(tr("Cargar respaldo", "Load backup")) }
+                }
                 OutlinedButton(onClick = { s.showSetup = true }) { Text(tr("Ver la configuración inicial", "Show quick setup")) }
                 val version = runCatching { a.packageManager.getPackageInfo(a.packageName, 0).versionName }.getOrNull() ?: "?"
                 Row(
