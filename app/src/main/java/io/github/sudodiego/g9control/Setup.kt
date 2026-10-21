@@ -41,11 +41,11 @@ fun SetupDialog(s: AppState, a: MainActivity, onClose: () -> Unit) {
                 ) {
                     // Lo esencial: el panel, las capturas, los avisos y todo lo automático vienen del servicio.
                     Step(
-                        1, s.autoServiceOn, tr("Activa TBF Companion en Accesibilidad", "Turn on TBF Companion in Accessibility"),
+                        1, s.autoServiceOn, tr("Activa Consolize en Accesibilidad", "Turn on Consolize in Accessibility"),
                         tr("Con esto, mantener el botón guía (o L3 + R3) abre el panel de juego en cualquier app, y funcionan las capturas y los avisos. " +
-                            "Android avisará que puede leer la pantalla: TBF solo mira qué app está al frente y los botones del control; no lee textos ni se conecta a internet.",
+                            "Android avisará que puede leer la pantalla: Consolize solo mira qué app está al frente y los botones del control; no lee textos ni se conecta a internet.",
                             "With this, holding the guide button (or L3 + R3) opens the game panel in any app, and screenshots and notices work. " +
-                                "Android will warn that it can read the screen: TBF only looks at which app is in front and the controller's buttons; it doesn't read text or connect to the internet.")
+                                "Android will warn that it can read the screen: Consolize only looks at which app is in front and the controller's buttons; it doesn't read text or connect to the internet.")
                     ) {
                         if (!s.autoServiceOn) OutlinedButton(onClick = { AutoRules.openServiceSettings(a) }) {
                             Text(tr("Abrir accesibilidad", "Open accessibility"))
@@ -61,9 +61,9 @@ fun SetupDialog(s: AppState, a: MainActivity, onClose: () -> Unit) {
                     Step(
                         3, s.connected, tr("Si tienes el control G9", "If you have the G9 controller"),
                         tr("Coloca la tablet en el G9 en modo Android (luz azul oscuro; desde X-Input o DS5, mantén Vista + Menú unos 2 s). " +
-                            "Cuando Android pregunte si TBF Companion puede usar el control, marca «Usar siempre».",
+                            "Cuando Android pregunte si Consolize puede usar el control, marca «Usar siempre».",
                             "Dock the tablet in the G9 in Android mode (dark blue light; from X-Input or DS5, hold View + Menu about 2 s). " +
-                                "When Android asks whether TBF Companion can use the controller, check “Always”.")
+                                "When Android asks whether Consolize can use the controller, check “Always”.")
                     ) {
                         if (!s.connected && s.padMode == PadMode.ANDROID) Button(onClick = { a.readAll() }) { Text(tr("Conectar", "Connect")) }
                     }

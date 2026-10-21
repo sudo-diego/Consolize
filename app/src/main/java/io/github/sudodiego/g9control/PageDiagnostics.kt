@@ -570,8 +570,8 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
     Panel(tr("Permisos", "Permissions")) {
         PermRow(tr("Servicio de accesibilidad", "Accessibility service"), s.autoServiceOn,
             tr("Panel, atajos y capturas", "Panel, shortcuts and screenshots")) {
-            Hint(tr("Si sale «Ajuste restringido»: Ajustes → Apps → TBF Companion → ⋮ → Permitir ajustes restringidos.",
-                "If “Restricted setting” appears: Settings → Apps → TBF Companion → ⋮ → Allow restricted settings."))
+            Hint(tr("Si sale «Ajuste restringido»: Ajustes → Apps → Consolize → ⋮ → Permitir ajustes restringidos.",
+                "If “Restricted setting” appears: Settings → Apps → Consolize → ⋮ → Allow restricted settings."))
             Button(onClick = { AutoRules.openServiceSettings(a) }) { Text(tr("Abrir accesibilidad", "Open accessibility")) }
         }
         // Sin interruptores para los avisos de Inicio y el mosaico de Shizuku: se avisa siempre que falta algo.

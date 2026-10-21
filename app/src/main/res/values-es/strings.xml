@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TBF Companion</string>
-    <string name="auto_service_label">TBF Companion</string>
+    <string name="app_name">Consolize</string>
+    <string name="auto_service_label">Consolize</string>
     <string name="auto_service_description">Abre el panel de juego (botón guía o L3 + R3), saca capturas, aplica lo de cada juego (frecuencia, bypass) y cambia el G9 a X-Input o DS5 en las apps que elijas. Ve qué app está en pantalla y los botones del control, y saca capturas del juego cuando se lo pides. El permiso de ver las ventanas es solo para saber cuál es la del juego y capturarla sola: no lee sus textos ni lo que escribes, y la app no se conecta a internet.</string>
 </resources>

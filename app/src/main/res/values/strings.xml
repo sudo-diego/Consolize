@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TBF Companion</string>
-    <string name="auto_service_label">TBF Companion</string>
+    <string name="app_name">Consolize</string>
+    <string name="auto_service_label">Consolize</string>
     <string name="auto_service_description">Opens the game panel (guide button or L3 + R3), takes screenshots, applies each game\'s settings (refresh rate, bypass) and switches the G9 to X-Input or DS5 in the apps you choose. It sees which app is on screen and the controller\'s buttons, and takes game screenshots when you ask. The window permission is only to know which window is the game and capture just that: it doesn\'t read its text or what you type, and the app doesn\'t connect to the internet.</string>
 </resources>

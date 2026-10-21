@@ -1,4 +1,4 @@
-# TBF Companion
+# Consolize
 
 **An open-source, account-free gaming companion for the Lenovo Legion Y700 Gen 3 tablet — and a full configurator for the Legion Gaming Controller G9.**
 
@@ -54,7 +54,7 @@ Language, theme, app background (animated gradient, image or GIF, **your live wa
 ## Install
 
 1. Download the APK from [Releases](../../releases) and open it on the tablet (allow installing from that source if asked).
-2. Open TBF Companion; a quick setup guides you.
+2. Open Consolize; a quick setup guides you.
    - For the G9: dock the tablet in **Android mode** (dark blue light; from X-Input or DS5 hold **View + Menu** for 2 s) and allow USB access with **Always**.
    - Turn on the **accessibility service** for the game panel, shortcuts and everything automatic.
 
@@ -66,7 +66,7 @@ The game panel, shortcuts, screenshots, per-app mode switching and the automatic
 - takes screenshots when you ask, of the game window only, saved on the tablet;
 - performs gestures only on the tablet's Game Assistant (to open its panel and change its performance mode).
 
-To capture only the game window Android requires the permission to view window content; the app uses it only for the list of windows, never their text. The app has no internet permission: nothing leaves the tablet. If Android says **"Restricted setting"**: Settings → Apps → TBF Companion → ⋮ → **Allow restricted settings**.
+To capture only the game window Android requires the permission to view window content; the app uses it only for the list of windows, never their text. The app has no internet permission: nothing leaves the tablet. If Android says **"Restricted setting"**: Settings → Apps → Consolize → ⋮ → **Allow restricted settings**.
 
 ### Optional: Shizuku and one adb permission
 

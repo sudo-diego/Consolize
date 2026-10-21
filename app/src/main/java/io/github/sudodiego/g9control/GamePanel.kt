@@ -254,7 +254,7 @@ class GamePanel(private val svc: AutoModeService) {
     /** Nombre de la app al frente, para el encabezado. */
     private fun appLabel(pkg: String?): String = pkg?.let {
         runCatching { svc.packageManager.getApplicationLabel(svc.packageManager.getApplicationInfo(it, 0)).toString() }.getOrNull()
-    } ?: "TBF Companion"
+    } ?: "Consolize"
 
     /** Encabezado del panel: la app al frente, la batería (ícono con su nivel), "Bypass" o "Cargando" y la hora. */
     private fun header() {
@@ -1126,7 +1126,7 @@ class GamePanel(private val svc: AutoModeService) {
             addTile(PanelTile.G9_MODE, PanelItem("G9 · ${mode.label}", Icons.Outlined.VideogameAsset, PanelRow.SYSTEM, sub = "→ ${next.label}") { hide(); svc.manualSwitch(next) })
         }
         // Abrir TBF (no si ya está al frente: el panel se abrió dentro de la app).
-        if (svc.foregroundApp != svc.packageName) addTile(PanelTile.APP, PanelItem("TBF Companion", Icons.AutoMirrored.Outlined.OpenInNew, PanelRow.SYSTEM) {
+        if (svc.foregroundApp != svc.packageName) addTile(PanelTile.APP, PanelItem("Consolize", Icons.AutoMirrored.Outlined.OpenInNew, PanelRow.SYSTEM) {
             hide()
             svc.startActivity(Intent(svc, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         })

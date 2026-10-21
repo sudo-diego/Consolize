@@ -164,7 +164,7 @@ internal enum class PanelTile(val group: Int) {
         WIDE -> "16:9"; ASPECT -> tr("Proporción", "Aspect"); DARK_SCREEN -> tr("Pantalla oscura", "Dark screen"); WIFI -> "WiFi"; BLUETOOTH -> "Bluetooth"
         AIRPLANE -> tr("Modo avión", "Airplane mode"); NIGHT_LIGHT -> tr("Luz nocturna", "Night light"); READING -> tr("Modo lectura", "Reading mode"); MOUSE -> tr("Mouse", "Mouse")
         BACK -> tr("Atrás", "Back"); HOME -> tr("Inicio", "Home"); RECENTS_KEY -> tr("Recientes", "Recents"); QUICK_SETTINGS -> tr("Ajustes rápidos", "Quick settings")
-        SLEEP -> tr("Bloquear", "Sleep"); SETTINGS -> tr("Ajustes", "Settings"); G9_MODE -> tr("Modo del G9", "G9 mode"); APP -> "TBF Companion"
+        SLEEP -> tr("Bloquear", "Sleep"); SETTINGS -> tr("Ajustes", "Settings"); G9_MODE -> tr("Modo del G9", "G9 mode"); APP -> "Consolize"
     }
     companion object {
         fun groupLabel(g: Int) = when (g) { 0 -> tr("Arriba", "Top"); 1 -> tr("Juego", "Game"); 2 -> tr("Pantalla y conexión", "Screen and connection"); else -> tr("Sistema", "System") }

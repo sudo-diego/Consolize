@@ -873,7 +873,7 @@ class MainActivity : ComponentActivity() {
             saveProfiles(state.profiles.filter { it.name !in names } + got.map { it.copy(id = id++) })
             got.size
         }.onSuccess { state.status = if (it == 1) tr("Se importó 1 perfil.", "Imported 1 profile.") else tr("Se importaron $it perfiles.", "Imported $it profiles.") }
-            .onFailure { state.fail(tr("Error: el archivo no es un respaldo de TBF Companion.", "Error: the file isn't a TBF Companion backup.")) }
+            .onFailure { state.fail(tr("Error: el archivo no es un respaldo de Consolize.", "Error: the file isn't a Consolize backup.")) }
     }
 
     /** Respaldo completo de la app (todos los ajustes): guardar. */
@@ -900,7 +900,7 @@ class MainActivity : ComponentActivity() {
             .onFailure { state.fail(tr("Ese archivo no es un respaldo de la app.", "That file isn't a backup of the app.")) }
     }
 
-    fun saveBackup() = backupOut.launch("TBF-respaldo-${java.time.LocalDate.now()}.json")
+    fun saveBackup() = backupOut.launch("Consolize-respaldo-${java.time.LocalDate.now()}.json")
     fun loadBackup() = backupIn.launch(arrayOf("application/json", "application/octet-stream", "text/plain"))
 
     fun exportProfiles() = exportLauncher.launch( tr("G9Control-perfiles", "G9Control-profiles") + "-${java.time.LocalDate.now()}.json")
@@ -1020,8 +1020,8 @@ class MainActivity : ComponentActivity() {
     private val mediaPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
         AutoRules.setAnyShot(this, ok)
         state.anyShot = ok
-        if (!ok) state.status = tr("Sin el permiso de fotos, el aviso sale solo con las capturas de TBF y del control.",
-            "Without the photos permission, the notice only shows for TBF's and the controller's screenshots.")
+        if (!ok) state.status = tr("Sin el permiso de fotos, el aviso sale solo con las capturas de Consolize y del control.",
+            "Without the photos permission, the notice only shows for Consolize's and the controller's screenshots.")
     }
 
     fun setAnyShot(on: Boolean) {
