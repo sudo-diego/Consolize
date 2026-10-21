@@ -365,18 +365,13 @@ private fun SidePanelCard(ui: PanelUi, modifier: Modifier, onPick: (Int) -> Unit
             else if (light && ThemeState.panelBackground != PanelBackground.CLEAR)
                 Box(Modifier.matchParentSize().background(PANEL_VEIL.copy(alpha = 0.6f * (1f - ThemeState.panelSee / 160f))))
         }
-        // Con cabecera, debajo de ella: el color del panel y, con vidrio líquido, un reflejo de la imagen muy desenfocado
-        // que se apaga hacia abajo (sin él no había nada detrás de los mosaicos que doblar o desenfocar).
-        if (banner && (ThemeState.panelSeeThrough || pg != null)) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
-            Box(Modifier.matchParentSize().background(body))
-            if (pg != null) {
-                PanelImage(still = true, modifier = Modifier.matchParentSize().graphicsLayer {
-                    alpha = 0.6f
-                    renderEffect = android.graphics.RenderEffect.createBlurEffect(50f, 50f, android.graphics.Shader.TileMode.CLAMP).asComposeRenderEffect()
-                })
-                Box(Modifier.matchParentSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(
-                    0f to Color.Transparent, 0.35f to body.copy(alpha = body.alpha * 0.35f), 1f to body.copy(alpha = body.alpha * 0.8f))))
-            }
+        // Con cabecera, debajo de ella: el juego congelado y desenfocado si se congela al abrir (así el vidrio líquido
+        // tiene algo detrás), con el color del panel encima; si no, solo el color. (Antes iba un reflejo de la imagen:
+        // la imagen dos veces no quedaba bien.)
+        val frozen = PanelFreeze.frame != null && ThemeState.freezesGame
+        if (banner && (ThemeState.panelSeeThrough || pg != null || frozen)) Box(Modifier.matchParentSize().clip(shape).recordPanelGlass(pg)) {
+            if (frozen) FrozenGame(ThemeState.panelBlur)
+            Box(Modifier.matchParentSize().background(if (frozen) body.copy(alpha = body.alpha * 0.55f) else body))
         }
         Column(Modifier.fillMaxSize().graphicsLayer { alpha = ui.fade }) {
             // Cabecera: la imagen o el GIF, fundida hacia abajo. De fondo, sin ese espacio arriba.
