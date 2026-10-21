@@ -547,6 +547,12 @@ class GamePanel(private val svc: AutoModeService) {
             if (AutoRules.lowBatteryOverToast(svc)) NoticePos.entries.first { it.h == 0 && it.v == 1 } else null,
             overToast = AutoRules.lowBatteryOverToast(svc))
 
+    /** Al desenchufar: el nivel y cuánto dura a este ritmo. */
+    fun unplugNotice(level: Int, left: String?) =
+        flash.show(flash.batteryIcon(level, charging = false), tr("$level % · con batería", "$level % · on battery"),
+            left?.let { tr("Quedan $it", "$it left") }, 4000,
+            if (AutoRules.lowBatteryOverToast(svc)) NoticePos.entries.first { it.h == 0 && it.v == 1 } else null)
+
     /** Jingle de carga (al enchufar). */
     fun chargeJingle() = sounds.play(R.raw.charge)
 

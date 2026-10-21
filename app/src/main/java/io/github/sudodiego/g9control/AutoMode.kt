@@ -80,9 +80,11 @@ class AutoModeService : AccessibilityService() {
                     // Si el tiempo no se puede calcular, el aviso dice hasta dónde carga.
                     chargeJingle = AutoRules.chargeSound(this@AutoModeService) && getSystemService(android.os.PowerManager::class.java).isInteractive
                     main.removeCallbacks(chargeNotice); chargeTries = 0; chargeSamples.clear(); main.postDelayed(chargeNotice, 1_200)
+                    main.removeCallbacks(unplugNotice); unplugPending = false   // el cable fue y volvió: nada
                 }
                 Intent.ACTION_POWER_DISCONNECTED -> {
                     main.removeCallbacks(chargeNotice); chargePending = false
+                    main.removeCallbacks(unplugNotice); main.postDelayed(unplugNotice, 3_000)
                     ZuiBattery.manualOverride = false
                     smartOn = false
                     scope.launch { if (ZuiBattery.readBypass() == true) ZuiBattery.setBypass(false, manual = false) }
@@ -92,6 +94,7 @@ class AutoModeService : AccessibilityService() {
                     "shot" -> panel.previewShot()
                     "battery" -> panel.lowBattery(15, ZuiBattery.dischargeTimeLeft(this@AutoModeService, PowerLog.recentAvg)?.let { ZuiBattery.formatTime(it) })
                     "charge" -> panel.chargeNotice(42, ZuiBattery.chargeTarget(this@AutoModeService), "1 h 5 min")
+                    "unplug" -> panel.unplugNotice(78, "5 h 20 min")
                     else -> guide.preview(kind)
                 }
                 AutoRules.ACTION_DARKEN -> if (Monitor.woken) toggleTabletScreen()
@@ -405,6 +408,7 @@ class AutoModeService : AccessibilityService() {
         val now = android.os.SystemClock.uptimeMillis()
         if (now - lastUnlock < 1500) return   // USER_PRESENT y la espera pueden llegar juntos
         lastUnlock = now
+        if (unplugPending) main.postDelayed(unplugNotice, 600)
         Log.d(TAG, "desbloqueada")
         raBootCheck()
         val mode = ModeSwitcher.detect()
@@ -966,6 +970,21 @@ class AutoModeService : AccessibilityService() {
     private val chargeSamples = ArrayList<Int>()
     /** El jingle de enchufar, una vez (también sin aviso: apagado, en bypass o ya en el límite). */
     private fun jingleOnce() { if (chargeJingle) panel.chargeJingle(); chargeJingle = false }
+    /**
+     * Al desenchufar, tras 3 s seguros sin cargador (si el cable va y viene, nada): el nivel y cuánto dura. Con la
+     * pantalla apagada o bloqueada, al desbloquear.
+     */
+    private var unplugPending = false
+    private val unplugNotice: Runnable = Runnable {
+        if (!AutoRules.unplugNotice(this) || ZuiBattery.plugged(this)) { unplugPending = false; return@Runnable }
+        val km = getSystemService(android.app.KeyguardManager::class.java)
+        if (!getSystemService(android.os.PowerManager::class.java).isInteractive || km.isKeyguardLocked) { unplugPending = true; return@Runnable }
+        unplugPending = false
+        val i = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = i?.let { it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) * 100 / it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1) } ?: return@Runnable
+        panel.unplugNotice(level, ZuiBattery.dischargeTimeLeft(this, PowerLog.recentAvg)?.let { ZuiBattery.formatTime(it) })
+    }
+
     private val chargeNotice: Runnable = Runnable {
         chargePending = false
         // El estado de ahora (el último BATTERY_CHANGED puede llegar después de POWER_CONNECTED y seguir diciendo

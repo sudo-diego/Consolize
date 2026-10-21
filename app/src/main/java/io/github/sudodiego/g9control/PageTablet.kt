@@ -168,6 +168,8 @@ private fun LowBatteryPanel(a: MainActivity) {
         SwitchRow(tr("Al enchufar", "When plugged in"), charge) {
             charge = it; AutoRules.setChargeNotice(a, it)
         }
+        var unplug by remember { mutableStateOf(AutoRules.unplugNotice(a)) }
+        SwitchRow(tr("Al desenchufar", "When unplugged"), unplug) { unplug = it; AutoRules.setUnplugNotice(a, it) }
         var chargeSound by remember { mutableStateOf(AutoRules.chargeSound(a)) }
         SwitchRow(tr("Sonido al enchufar", "Sound when plugged in"), chargeSound) { chargeSound = it; AutoRules.setChargeSound(a, it) }
         var low by remember { mutableStateOf(AutoRules.lowBattery(a)) }

@@ -125,6 +125,9 @@ object AutoRules {
     fun setLowBatteryOverToast(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("low_battery_over_toast", v).apply()
     /** Al enchufar: un aviso con lo que falta para el límite (el propio o el de ZUI) o para 100 %. */
     fun chargeNotice(ctx: Context) = sp(ctx).getBoolean("charge_notice", true)
+    /** Al desenchufar (tras 3 s seguros sin cargador): el nivel y cuánto dura. */
+    fun unplugNotice(ctx: Context) = sp(ctx).getBoolean("unplug_notice", true)
+    fun setUnplugNotice(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("unplug_notice", v).apply()
     fun setChargeNotice(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("charge_notice", v).apply()
     /** Jingle al enchufar (res/raw/charge.wav), apenas se conecta el cargador. */
     fun chargeSound(ctx: Context) = sp(ctx).getBoolean("charge_sound", true)
