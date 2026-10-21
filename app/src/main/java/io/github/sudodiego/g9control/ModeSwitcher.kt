@@ -25,6 +25,11 @@ object Prefs {
     fun setPanelPauseDim(ctx: Context, v: Int) = sp(ctx).edit().putInt("panel_pause_dim", v).apply()
     fun panelFreeze(ctx: Context) = sp(ctx).getBoolean("panel_freeze", false)
     fun setPanelFreeze(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("panel_freeze", v).apply()
+    /** Mosaicos ocultos del panel y datos del mini monitor (por su clave). */
+    internal fun panelHidden(ctx: Context): Set<PanelTile> = sp(ctx).getString("panel_hidden", "")!!.split(',').mapNotNull { runCatching { PanelTile.valueOf(it) }.getOrNull() }.toSet()
+    internal fun setPanelHidden(ctx: Context, v: Set<PanelTile>) = sp(ctx).edit().putString("panel_hidden", v.joinToString(",") { it.name }).apply()
+    internal fun panelStatItems(ctx: Context): Set<PanelStat> = sp(ctx).getString("panel_stat_items", null)?.split(',')?.mapNotNull { runCatching { PanelStat.valueOf(it) }.getOrNull() }?.toSet() ?: PanelStat.DEFAULT
+    internal fun setPanelStatItems(ctx: Context, v: Set<PanelStat>) = sp(ctx).edit().putString("panel_stat_items", v.joinToString(",") { it.name }).apply()
     fun panelLiquid(ctx: Context) = sp(ctx).getBoolean("panel_liquid", false)
     fun setPanelLiquid(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("panel_liquid", v).apply()
     fun liquidParams(ctx: Context) = sp(ctx).let { LiquidParams(it.getInt("lq_blur", 38), it.getInt("lq_refr", 40), it.getInt("lq_tint", 50), it.getInt("lq_high", 50), it.getInt("lq_rim", 55)) }

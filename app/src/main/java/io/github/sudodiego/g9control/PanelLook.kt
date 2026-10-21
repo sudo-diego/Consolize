@@ -143,8 +143,39 @@ internal class PanelItem(
     val danger: Boolean = false,
     /** Línea de abajo mientras está elegido (qué hacen A e Y): así [sub] dice solo el estado y no se corta. */
     val foot: String? = null,
+    /** Cuál es, para poder ocultarlo (Panel → Qué se muestra). Null: siempre (avisos como "Activar Shizuku"). */
+    val tile: PanelTile? = null,
     val run: () -> Unit = {}
 )
+
+/**
+ * Los mosaicos que se pueden ocultar, en el orden y grupo en que aparecen en el panel. La clave se guarda (no cambiarla).
+ */
+internal enum class PanelTile(val group: Int) {
+    BRIGHTNESS(0), VOLUME(0), RECENTS(0),
+    SHOT(1), RECORD(1), SHADOW(1), ACHIEVEMENTS(1), GAME_ASSISTANT(1), PERFORMANCE(1), BYPASS(1), MONITOR(1), REFRESH(1), LOCK_GESTURES(1),
+    WIDE(2), ASPECT(2), DARK_SCREEN(2), WIFI(2), BLUETOOTH(2), AIRPLANE(2), NIGHT_LIGHT(2), READING(2), MOUSE(2),
+    BACK(3), HOME(3), RECENTS_KEY(3), QUICK_SETTINGS(3), SLEEP(3), SETTINGS(3), G9_MODE(3), APP(3);
+    val label get() = when (this) {
+        BRIGHTNESS -> tr("Brillo", "Brightness"); VOLUME -> tr("Volumen", "Volume"); RECENTS -> tr("Apps recientes", "Recent apps")
+        SHOT -> tr("Captura", "Screenshot"); RECORD -> tr("Grabar", "Record"); SHADOW -> "Shadow Rec"; ACHIEVEMENTS -> tr("Logros", "Achievements")
+        GAME_ASSISTANT -> "Game Assistant"; PERFORMANCE -> tr("Rendimiento", "Performance"); BYPASS -> "Bypass"; MONITOR -> tr("Monitor", "Monitor")
+        REFRESH -> tr("Frecuencia", "Refresh rate"); LOCK_GESTURES -> tr("Bloquear gestos", "Lock gestures")
+        WIDE -> "16:9"; ASPECT -> tr("Proporción", "Aspect"); DARK_SCREEN -> tr("Pantalla oscura", "Dark screen"); WIFI -> "WiFi"; BLUETOOTH -> "Bluetooth"
+        AIRPLANE -> tr("Modo avión", "Airplane mode"); NIGHT_LIGHT -> tr("Luz nocturna", "Night light"); READING -> tr("Modo lectura", "Reading mode"); MOUSE -> tr("Mouse", "Mouse")
+        BACK -> tr("Atrás", "Back"); HOME -> tr("Inicio", "Home"); RECENTS_KEY -> tr("Recientes", "Recents"); QUICK_SETTINGS -> tr("Ajustes rápidos", "Quick settings")
+        SLEEP -> tr("Bloquear", "Sleep"); SETTINGS -> tr("Ajustes", "Settings"); G9_MODE -> tr("Modo del G9", "G9 mode"); APP -> "TBF Companion"
+    }
+    companion object {
+        fun groupLabel(g: Int) = when (g) { 0 -> tr("Arriba", "Top"); 1 -> tr("Juego", "Game"); 2 -> tr("Pantalla y conexión", "Screen and connection"); else -> tr("Sistema", "System") }
+    }
+}
+
+/** Datos del mini monitor (se eligen cuáles; la clave se guarda). */
+internal enum class PanelStat { RAM, POWER, CPU, TEMP, HZ;
+    val label get() = when (this) { RAM -> tr("RAM libre", "Free RAM"); POWER -> tr("Consumo", "Draw"); CPU -> "CPU"; TEMP -> tr("Temperatura", "Temperature"); HZ -> "Hz" }
+    companion object { val DEFAULT = setOf(RAM, POWER, CPU, TEMP) }
+}
 
 /** Columnas de mosaicos: las de la forma elegida. */
 internal val COLUMNS get() = if (ThemeState.panelSide) 2 else ThemeState.panelShape.cols
@@ -555,24 +586,29 @@ internal fun PanelStats() {
     val plugged = remember(tick) { ZuiBattery.plugged(ctx) }
     val cpu = remember(tick) { Stats.cpuMhz() }
     val temp = remember(tick) { Stats.batteryTemp(ctx) }
+    if (ThemeState.panelStatItems.isEmpty()) return
     // Lateral (angosto): en 2 × 2.
     @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GAP), verticalArrangement = Arrangement.spacedBy(GAP),
         maxItemsInEachRow = if (ThemeState.panelSide) 2 else 4) {
-        StatChip(Icons.Outlined.Memory, Memory.gb(ram.freeBytes), tr("RAM libre", "Free RAM"), Modifier.weight(1f))
+        // Solo lo elegido (Panel → Qué se muestra), en este orden.
+        val show = ThemeState.panelStatItems
+        if (PanelStat.RAM in show) StatChip(Icons.Outlined.Memory, Memory.gb(ram.freeBytes), tr("RAM libre", "Free RAM"), Modifier.weight(1f))
         // En bypass la batería casi no da ni recibe nada (los watts saldrían ~0): el enchufe y "Bypass".
         val bypass = plugged && ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY
         // Enchufada sin cargar (límite de ZUI o el propio, llena): lo que entra es ~0, se dice por qué.
         val status = remember(tick) { ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)) }
         val held = plugged && !bypass && status?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, 0) != android.os.BatteryManager.BATTERY_STATUS_CHARGING
-        if (bypass) StatChip(Icons.Outlined.Power, "Bypass", tr("Activo", "On"), Modifier.weight(1f))
+        if (PanelStat.POWER !in show) Unit
+        else if (bypass) StatChip(Icons.Outlined.Power, "Bypass", tr("Activo", "On"), Modifier.weight(1f))
         else if (held) StatChip(Icons.Outlined.Power, ZuiBattery.heldLabel(ctx, status?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) ?: 0),
             tr("Sin cargar", "Not charging"), Modifier.weight(1f))
         else StatChip(Icons.Outlined.Bolt, w?.let { (if (plugged) "+" else "") + "%.1f W".format(it) } ?: "—",
             PowerLog.recentAvg?.takeIf { !plugged }?.let { tr("prom. %.1f W", "avg %.1f W").format(it) } ?: if (plugged) tr("Entra", "Charging") else tr("Consumo", "Draw"),
             Modifier.weight(1f))
-        StatChip(Icons.Outlined.Speed, Stats.cpuText(cpu), "CPU", Modifier.weight(1f))
-        StatChip(Icons.Outlined.Thermostat, temp?.let { "%.0f °C".format(it) } ?: "—", tr("Batería", "Battery"), Modifier.weight(1f))
+        if (PanelStat.CPU in show) StatChip(Icons.Outlined.Speed, Stats.cpuText(cpu), "CPU", Modifier.weight(1f))
+        if (PanelStat.TEMP in show) StatChip(Icons.Outlined.Thermostat, temp?.let { "%.0f °C".format(it) } ?: "—", tr("Batería", "Battery"), Modifier.weight(1f))
+        if (PanelStat.HZ in show) StatChip(Icons.Outlined.DisplaySettings, RefreshRate.current(ctx)?.let { "$it Hz" } ?: "—", tr("Pantalla", "Screen"), Modifier.weight(1f))
     }
 }
 

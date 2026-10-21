@@ -119,6 +119,10 @@ fun PanelPreview() {
     val conf = ctx.resources.configuration
     val ui = remember { sampleUi() }
     ui.stats = ThemeState.panelStats
+    // Sin lo que se ocultó (Panel → Qué se muestra), como en el panel de verdad.
+    val all = remember { ui.items }
+    ui.items = all.filter { it.tile == null || it.tile !in ThemeState.panelHidden }
+    ui.sel = ui.sel.coerceAtMost((ui.items.size - 1).coerceAtLeast(0))
     BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         // Siempre una pantalla horizontal (los juegos se juegan así): en vertical, con la forma de la pantalla, quedaba
         // angosta y altísima.
@@ -180,22 +184,22 @@ private fun sampleUi() = PanelUi().apply {
     title = tr("Mi juego", "My game")
     battery = 72; status = "72 % · 21:30"; clock = "21:30"; mode = "DS5"; chargeLeft = tr("Quedan 3 h 10 min", "3 h 10 min left")
     items = listOf(
-        PanelItem(tr("Brillo", "Brightness"), Icons.Outlined.BrightnessMedium, PanelRow.SLIDER, sub = "60 %", level = 0.6f, set = {}),
-        PanelItem(tr("Brillo automático", "Auto brightness"), Icons.Outlined.BrightnessAuto, PanelRow.SLIDER),
-        PanelItem(tr("Volumen", "Volume"), Icons.AutoMirrored.Outlined.VolumeUp, PanelRow.SLIDER, sub = "40 %", level = 0.4f, set = {}),
-        PanelItem(tr("Silenciar", "Mute"), Icons.AutoMirrored.Outlined.VolumeOff, PanelRow.SLIDER),
-        PanelItem(tr("Captura", "Screenshot"), Icons.Outlined.Screenshot, sub = tr("Guía + RB", "Guide + RB")),
-        PanelItem(tr("Grabar", "Record"), Icons.Outlined.Videocam, sub = tr("Guía + LT", "Guide + LT")),
-        PanelItem(tr("Monitor", "Monitor"), Icons.Outlined.QueryStats, sub = tr("Apagado", "Off")),
-        PanelItem(tr("Bloquear gestos", "Lock gestures"), Icons.Outlined.Lock, active = true, sub = tr("En juegos", "In games")),
-        PanelItem("RetroArch", Icons.Outlined.Layers, PanelRow.RECENT, sub = tr("Volver", "Resume")),
-        PanelItem("YouTube", Icons.Outlined.Layers, PanelRow.RECENT, sub = tr("Volver", "Resume")),
-        PanelItem("16:9", Icons.Outlined.DisplaySettings, PanelRow.SCREEN, sub = tr("Apagada", "Off")),
-        PanelItem("WiFi", Icons.Outlined.Wifi, PanelRow.SCREEN, active = true, sub = tr("Encendido", "On")),
-        PanelItem("Bluetooth", Icons.Outlined.Bluetooth, PanelRow.SCREEN, sub = tr("Apagado", "Off")),
-        PanelItem(tr("Atrás", "Back"), Icons.AutoMirrored.Outlined.ArrowBack, PanelRow.SYSTEM),
-        PanelItem(tr("Inicio", "Home"), Icons.Outlined.Home, PanelRow.SYSTEM),
-        PanelItem(tr("Ajustes", "Settings"), Icons.Outlined.Settings, PanelRow.SYSTEM),
+        PanelItem(tr("Brillo", "Brightness"), Icons.Outlined.BrightnessMedium, PanelRow.SLIDER, sub = "60 %", tile = PanelTile.BRIGHTNESS, level = 0.6f, set = {}),
+        PanelItem(tr("Brillo automático", "Auto brightness"), Icons.Outlined.BrightnessAuto, PanelRow.SLIDER, tile = PanelTile.BRIGHTNESS),
+        PanelItem(tr("Volumen", "Volume"), Icons.AutoMirrored.Outlined.VolumeUp, PanelRow.SLIDER, sub = "40 %", tile = PanelTile.VOLUME, level = 0.4f, set = {}),
+        PanelItem(tr("Silenciar", "Mute"), Icons.AutoMirrored.Outlined.VolumeOff, PanelRow.SLIDER, tile = PanelTile.VOLUME),
+        PanelItem(tr("Captura", "Screenshot"), Icons.Outlined.Screenshot, tile = PanelTile.SHOT, sub = tr("Guía + RB", "Guide + RB")),
+        PanelItem(tr("Grabar", "Record"), Icons.Outlined.Videocam, tile = PanelTile.RECORD, sub = tr("Guía + LT", "Guide + LT")),
+        PanelItem(tr("Monitor", "Monitor"), Icons.Outlined.QueryStats, tile = PanelTile.MONITOR, sub = tr("Apagado", "Off")),
+        PanelItem(tr("Bloquear gestos", "Lock gestures"), Icons.Outlined.Lock, tile = PanelTile.LOCK_GESTURES, active = true, sub = tr("En juegos", "In games")),
+        PanelItem("RetroArch", Icons.Outlined.Layers, PanelRow.RECENT, tile = PanelTile.RECENTS, sub = tr("Volver", "Resume")),
+        PanelItem("YouTube", Icons.Outlined.Layers, PanelRow.RECENT, tile = PanelTile.RECENTS, sub = tr("Volver", "Resume")),
+        PanelItem("16:9", Icons.Outlined.DisplaySettings, PanelRow.SCREEN, tile = PanelTile.WIDE, sub = tr("Apagada", "Off")),
+        PanelItem("WiFi", Icons.Outlined.Wifi, PanelRow.SCREEN, tile = PanelTile.WIFI, active = true, sub = tr("Encendido", "On")),
+        PanelItem("Bluetooth", Icons.Outlined.Bluetooth, PanelRow.SCREEN, tile = PanelTile.BLUETOOTH, sub = tr("Apagado", "Off")),
+        PanelItem(tr("Atrás", "Back"), Icons.AutoMirrored.Outlined.ArrowBack, PanelRow.SYSTEM, tile = PanelTile.BACK),
+        PanelItem(tr("Inicio", "Home"), Icons.Outlined.Home, PanelRow.SYSTEM, tile = PanelTile.HOME),
+        PanelItem(tr("Ajustes", "Settings"), Icons.Outlined.Settings, PanelRow.SYSTEM, tile = PanelTile.SETTINGS),
     )
     sel = 4
 }

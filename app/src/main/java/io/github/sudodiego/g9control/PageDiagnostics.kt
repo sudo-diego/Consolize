@@ -444,14 +444,28 @@ internal fun PanelLookPanel(a: MainActivity) {
                 level = it; Prefs.setPanelDuckLevel(a, it)
             }
         }
-        SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
-            stats = it; Prefs.setPanelStats(a, it); ThemeState.panelStats = it
-        }
         // Congelar el juego al abrir: con cualquier fondo (el fondo "Juego en pausa" ya lo hace siempre).
         if (ThemeState.panelBackground != PanelBackground.GAME) SwitchRow(tr("Congelar el juego al abrir", "Freeze the game when opening"), ThemeState.panelFreeze) {
             ThemeState.panelFreeze = it; Prefs.setPanelFreeze(a, it)
         }
         if (ThemeState.freezesGame) SliderRow(tr("Oscurecer", "Dim"), ThemeState.panelPauseDim, 0..90) { ThemeState.panelPauseDim = it; Prefs.setPanelPauseDim(a, it) }
+    }
+    // Qué aparece en el panel: el mini monitor y sus datos, y cada mosaico (por grupo, como en el panel).
+    Panel(tr("Qué se muestra", "What it shows")) {
+        SwitchRow(tr("Mini monitor", "Mini monitor"), stats) {
+            stats = it; Prefs.setPanelStats(a, it); ThemeState.panelStats = it
+        }
+        if (stats) MultiChips(PanelStat.entries.map { it to it.label }, ThemeState.panelStatItems) { st, on ->
+            ThemeState.panelStatItems = if (on) ThemeState.panelStatItems + st else ThemeState.panelStatItems - st
+            Prefs.setPanelStatItems(a, ThemeState.panelStatItems)
+        }
+        PanelTile.entries.groupBy { it.group }.forEach { (g, tiles) ->
+            Text(PanelTile.groupLabel(g), fontSize = 14.sp)
+            MultiChips(tiles.map { it to it.label }, tiles.filter { it !in ThemeState.panelHidden }.toSet()) { t, on ->
+                ThemeState.panelHidden = if (on) ThemeState.panelHidden - t else ThemeState.panelHidden + t
+                Prefs.setPanelHidden(a, ThemeState.panelHidden)
+            }
+        }
     }
     Panel(tr("Diseño", "Layout")) {
         Text(tr("Estilo", "Style"), fontSize = 14.sp)

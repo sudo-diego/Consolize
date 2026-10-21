@@ -848,6 +848,9 @@ class GamePanel(private val svc: AutoModeService) {
         main.postDelayed(timeout, 10_000)
     }
 
+    /** Agrega el mosaico salvo que se haya ocultado (Panel → Qué se muestra). */
+    private fun MutableList<PanelItem>.addTile(t: PanelTile, i: PanelItem) { if (t !in ThemeState.panelHidden) add(i) }
+
     /** Acciones según lo que hay ahora: el panel de ZUI solo en modo juego, los modos según el actual. */
     private fun items(): List<PanelItem> = buildList {
         // Apps usadas hace poco (sin la de ahora): volver a ellas como a un juego en suspensión.
@@ -861,7 +864,7 @@ class GamePanel(private val svc: AutoModeService) {
             "${recentStart + 1}–${minOf(recentStart + COLUMNS, recents.size)} of ${recents.size}") else null
         recents.drop(recentStart).take(COLUMNS).forEach { pkg ->
             val armed = closeArmed == pkg
-            add(PanelItem(RecentApps.label(svc, pkg), Icons.Outlined.Layers, PanelRow.RECENT,
+            addTile(PanelTile.RECENTS, PanelItem(RecentApps.label(svc, pkg), Icons.Outlined.Layers, PanelRow.RECENT,
                 sub = if (armed) tr("¿Cerrar? Pulsa Y", "Close? Press Y") else tr("Volver", "Resume"),
                 danger = armed, appIcon = RecentApps.icon(svc, pkg), alt = { closeRecent(pkg) }) { hide(); RecentApps.open(svc, pkg) })
         }
@@ -870,12 +873,12 @@ class GamePanel(private val svc: AutoModeService) {
         if (SystemLevels.canBrightness(svc)) {
             val auto = SystemLevels.autoBrightness(svc)
             val b = SystemLevels.brightness(svc)
-            add(PanelItem(
+            addTile(PanelTile.BRIGHTNESS, PanelItem(
                 tr("Brillo", "Brightness"), Icons.Outlined.BrightnessMedium, PanelRow.SLIDER, sub = if (auto) tr("Auto · $b %", "Auto · $b %") else "$b %",
                 adjust = { SystemLevels.stepBrightness(svc, it) }, level = b / 100f, set = { SystemLevels.setBrightness(svc, it) },
                 hint = tr("← → ajustar · A o B listo", "← → adjust · A or B done")
             ))
-            add(PanelItem(tr("Brillo automático", "Auto brightness"), Icons.Outlined.BrightnessAuto, PanelRow.SLIDER, active = auto) {
+            addTile(PanelTile.BRIGHTNESS, PanelItem(tr("Brillo automático", "Auto brightness"), Icons.Outlined.BrightnessAuto, PanelRow.SLIDER, active = auto) {
                 SystemLevels.setAutoBrightness(svc, !auto)
                 // En un juego: también lo que hace Game Assistant al entrar a los juegos (apagarlo o no), y se avisa.
                 if (ZuiGame.inGame(svc) && SystemLevels.setAutoInGames(svc, !auto).isSuccess)
@@ -886,13 +889,13 @@ class GamePanel(private val svc: AutoModeService) {
             })
         }
         val vol = SystemLevels.volume(svc)
-        add(PanelItem(
+        addTile(PanelTile.VOLUME, PanelItem(
             tr("Volumen", "Volume"), Icons.AutoMirrored.Outlined.VolumeUp, PanelRow.SLIDER, sub = if (vol == 0) tr("Silencio", "Muted") else "$vol %",
             adjust = { if (!SystemLevels.stepVolume(svc, it)) safeVolumeAsk() }, level = vol / 100f,
             set = { if (!SystemLevels.setVolume(svc, it)) safeVolumeAsk() },
             hint = tr("← → ajustar · A o B listo", "← → adjust · A or B done")
         ))
-        add(PanelItem(tr("Silenciar", "Mute"), Icons.AutoMirrored.Outlined.VolumeOff, PanelRow.SLIDER, active = vol == 0) {
+        addTile(PanelTile.VOLUME, PanelItem(tr("Silenciar", "Mute"), Icons.AutoMirrored.Outlined.VolumeOff, PanelRow.SLIDER, active = vol == 0) {
             SystemLevels.toggleMute(svc); refresh()
         })
         // Sin Shizuku lo que lo necesita no sale; en su lugar, un solo mosaico resaltado para activarlo (si la app de
@@ -902,15 +905,15 @@ class GamePanel(private val svc: AutoModeService) {
             add(PanelItem(if (Shell.state == Shell.State.NO_PERMISSION) tr("Dar permiso", "Grant permission") else tr("Activar Shizuku", "Start Shizuku"),
                 Icons.Outlined.PowerSettingsNew, active = true, sub = tr("Bypass, rendimiento y más", "Bypass, performance and more"), run = ::fixShizuku))
         // El juego. La captura toma solo la ventana del juego: no hace falta esperar a que el panel desaparezca.
-        add(PanelItem(tr("Captura", "Screenshot"), Icons.Outlined.Screenshot, sub = tr("Guía + RB", "Guide + RB")) { hide(); screenshot() })
+        addTile(PanelTile.SHOT, PanelItem(tr("Captura", "Screenshot"), Icons.Outlined.Screenshot, sub = tr("Guía + RB", "Guide + RB")) { hide(); screenshot() })
         // Grabar con la grabadora de Legion (ZUI): empezar o parar.
         val rec = recState() == 1
-        add(PanelItem(if (rec) tr("Parar grabación", "Stop recording") else tr("Grabar", "Record"), Icons.Outlined.Videocam,
+        addTile(PanelTile.RECORD, PanelItem(if (rec) tr("Parar grabación", "Stop recording") else tr("Grabar", "Record"), Icons.Outlined.Videocam,
             sub = if (rec) tr("Grabando · Guía + LT", "Recording · Guide + LT") else tr("Guía + LT", "Guide + LT"), active = rec, danger = rec) { toggleRecord() })
         // Shadow Rec de Game Assistant (en un juego): encendido, A guarda los últimos segundos e Y lo apaga.
         if (ZuiGame.inGame(svc)) {
             val shadow = shadowOn()
-            add(PanelItem("Shadow Rec", Icons.Outlined.History, active = shadow,
+            addTile(PanelTile.SHADOW, PanelItem("Shadow Rec", Icons.Outlined.History, active = shadow,
                 sub = if (shadow) tr("Encendido", "On") else tr("Apagado", "Off"),
                 foot = if (shadow) tr("A guardar clip (Guía + RT) · Y apagar · B cerrar", "A save clip (Guide + RT) · Y turn off · B close")
                     else tr("A encender (Guía + RT) · B cerrar", "A turn on (Guide + RT) · B close"),
@@ -923,7 +926,7 @@ class GamePanel(private val svc: AutoModeService) {
             val problem = RaProxy.setupNow?.takeIf { on == true }?.problem
                 ?: if (on == false && RaProxy.strandedNow) tr("RAOfflineProxy está apagado y tus emuladores le apuntan: sin logros ni con internet. Ábrelo: se vuelve a encender solo.",
                     "RAOfflineProxy is off and your emulators point to it: no achievements even online. Open it and press Start (or Stop).") else null
-            add(PanelItem(tr("Logros", "Achievements"), Icons.Outlined.Star,
+            addTile(PanelTile.ACHIEVEMENTS, PanelItem(tr("Logros", "Achievements"), Icons.Outlined.Star,
                 // El nombre y el estado se leen juntos ("Logros · Sin internet: sí"); qué hace A, en la línea de abajo.
                 sub = problem?.let { if (on == false) tr("No se guardan", "Not saved") else tr("Falta algo", "Something's missing") } ?: when (on) {
                     true -> tr("Sin internet: sí", "Offline: yes"); false -> tr("Sin internet: no", "Offline: no"); null -> "RAOfflineProxy" },
@@ -938,9 +941,9 @@ class GamePanel(private val svc: AutoModeService) {
         if (ZuiGame.inGame(svc)) {
             // Oculto: abrirlo. Visible: solo ocultarlo (abrirlo ya está a mano con su pestaña).
             val gaVisible = gaShownByUs || ZuiGame.hiddenNow == false
-            if (!gaVisible) add(PanelItem("Game Assistant", Icons.Outlined.Tune, sub = tr("Abrir", "Open")) { afterHide { openGameAssistant() } })
+            if (!gaVisible) addTile(PanelTile.GAME_ASSISTANT, PanelItem("Game Assistant", Icons.Outlined.Tune, sub = tr("Abrir", "Open")) { afterHide { openGameAssistant() } })
             else
-                add(PanelItem(tr("Ocultar", "Hide"), Icons.Outlined.VisibilityOff, sub = "Game Assistant") {
+                addTile(PanelTile.GAME_ASSISTANT, PanelItem(tr("Ocultar", "Hide"), Icons.Outlined.VisibilityOff, sub = "Game Assistant") {
                     hide()
                     gaShownByUs = false
                     scope.launch {
@@ -951,10 +954,10 @@ class GamePanel(private val svc: AutoModeService) {
             // Cambiar el modo desde aquí necesita Shizuku (mostrar Game Assistant si está oculto y leer su registro).
             // Sin él y con Game Assistant a la vista: abre su panel, que tiene el botón de modo. Oculto y sin Shizuku: no sale.
             if (ready)
-                add(PanelItem(tr("Rendimiento", "Performance"), Icons.Outlined.Speed,
+                addTile(PanelTile.PERFORMANCE, PanelItem(tr("Rendimiento", "Performance"), Icons.Outlined.Speed,
                     sub = ZuiGame.knownPerf(svc.foregroundApp)?.label ?: tr("Elegir", "Choose")) { crossfade { showPerfMenu() } })
             else if (AutoRules.gaHidden(svc) != true)
-                add(PanelItem(tr("Rendimiento", "Performance"), Icons.Outlined.Speed, sub = tr("En Game Assistant", "In Game Assistant")) { afterHide { openGameAssistant() } })
+                addTile(PanelTile.PERFORMANCE, PanelItem(tr("Rendimiento", "Performance"), Icons.Outlined.Speed, sub = tr("En Game Assistant", "In Game Assistant")) { afterHide { openGameAssistant() } })
         }
         // Bypass (con Shizuku): con la tablet enchufada, o si ya está activo para poder quitarlo.
         val bypassOn = ZuiBattery.bypassNow == true
@@ -964,7 +967,7 @@ class GamePanel(private val svc: AutoModeService) {
             // Apagado → Automático. Así lo manual siempre puede volver a lo de siempre. Sin nada automático, encendido o apagado.
             val hasAuto = svc.bypassHasAuto()
             val isAuto = hasAuto && !ZuiBattery.manualOverride
-            add(PanelItem("Bypass", Icons.Outlined.Power, active = bypassOn, sub = when {
+            addTile(PanelTile.BYPASS, PanelItem("Bypass", Icons.Outlined.Power, active = bypassOn, sub = when {
                 isAuto -> if (bypassOn) ZuiBattery.autoWhy?.let { tr("Auto: ", "Auto: ") + it.first } ?: tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
                 bypassOn -> tr("Encendido", "On")
                 else -> tr("Apagado", "Off")
@@ -993,14 +996,14 @@ class GamePanel(private val svc: AutoModeService) {
         }
         // Monitor de rendimiento sobre el juego (FPS con Shizuku; lo demás siempre).
         val hud = AutoRules.perfHud(svc)
-        add(PanelItem(tr("Monitor", "Monitor"), Icons.Outlined.QueryStats, active = hud,
+        addTile(PanelTile.MONITOR, PanelItem(tr("Monitor", "Monitor"), Icons.Outlined.QueryStats, active = hud,
             sub = AutoRules.hudLabel(svc)) {
             AutoRules.cycleHud(svc); refresh()
         })
         // Frecuencia de la pantalla para esta app (se recuerda por juego).
         val hzNow = RefreshRate.current(svc)
         val hzChosen = RefreshRate.forApp(svc, svc.foregroundApp)
-        add(PanelItem(tr("Frecuencia", "Refresh rate"), Icons.Outlined.DisplaySettings, active = hzChosen != null,
+        addTile(PanelTile.REFRESH, PanelItem(tr("Frecuencia", "Refresh rate"), Icons.Outlined.DisplaySettings, active = hzChosen != null,
             sub = run {
                     // La de esta app, la de todos los juegos (Tablet → Juego) o la que haya.
                     val games = RefreshRate.forGames(svc)?.takeIf { hzChosen == null && ZuiGame.inGame(svc) }
@@ -1012,7 +1015,7 @@ class GamePanel(private val svc: AutoModeService) {
                 }) { crossfade { showHzMenu() } })
         if (Aspect.available(svc)) {
             val wide = Aspect.is169(svc)
-            add(PanelItem("16:9", Icons.Outlined.AspectRatio, PanelRow.SCREEN,
+            addTile(PanelTile.WIDE, PanelItem("16:9", Icons.Outlined.AspectRatio, PanelRow.SCREEN,
                 sub = if (wide) tr("Encendida", "On") else tr("Apagada", "Off"), active = wide) {
                 hide()
                 scope.launch { if (!Aspect.toggle(svc)) toast(tr("No se pudo cambiar la pantalla", "Couldn't change the screen"), kind = NoteKind.FAIL) }
@@ -1022,7 +1025,7 @@ class GamePanel(private val svc: AutoModeService) {
         // aplica al volver a abrir el juego (no se reinicia solo: se perdería la partida).
         svc.foregroundApp?.takeIf { it != svc.packageName && ZuiGame.inGame(svc) }?.let { pkg ->
             val r = GameAspect.get(svc, pkg)
-            add(PanelItem(tr("Proporción", "Aspect"), Icons.Outlined.Crop, PanelRow.SCREEN,
+            addTile(PanelTile.ASPECT, PanelItem(tr("Proporción", "Aspect"), Icons.Outlined.Crop, PanelRow.SCREEN,
                 sub = r.label, active = r != GameAspect.Ratio.FULL,
                 foot = tr("A elegir (solo este juego, se ve al volver a abrirlo) · B cerrar", "A choose (this game only, shows when reopened) · B close")) {
                 crossfade { showAspectMenu(pkg) }
@@ -1031,26 +1034,26 @@ class GamePanel(private val svc: AutoModeService) {
         // Con un monitor en espejo y la pantalla de la tablet oscurecida (o encendida a mano): verla un rato o volver.
         if (Monitor.screen(svc) != Monitor.Screen.NORMAL && Monitor.current(svc) != null && Monitor.mirror(svc)) {
             val dark = svc.tabletDark
-            add(PanelItem(tr("Pantalla oscura", "Dark screen"), Icons.Outlined.TabletAndroid, PanelRow.SCREEN,
+            addTile(PanelTile.DARK_SCREEN, PanelItem(tr("Pantalla oscura", "Dark screen"), Icons.Outlined.TabletAndroid, PanelRow.SCREEN,
                 sub = if (dark) tr("Con el monitor", "With the monitor") else tr("Encendida", "On"), active = dark) {
                 hide(); svc.toggleTabletScreen()
             })
         }
         // Abajo, Android: para no tener que tocar la pantalla (con la tablet en un dock, por ejemplo).
-        add(PanelItem(tr("Atrás", "Back"), Icons.AutoMirrored.Outlined.ArrowBack, PanelRow.SYSTEM) {
+        addTile(PanelTile.BACK, PanelItem(tr("Atrás", "Back"), Icons.AutoMirrored.Outlined.ArrowBack, PanelRow.SYSTEM) {
             afterHide { svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) }
         })
-        add(PanelItem(tr("Inicio", "Home"), Icons.Outlined.Home, PanelRow.SYSTEM) { hide(); svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME) })
-        add(PanelItem(tr("Recientes", "Recents"), Icons.Outlined.Layers, PanelRow.SYSTEM) { hide(); svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS) })
-        add(PanelItem(tr("Ajustes rápidos", "Quick settings"), Icons.Outlined.ToggleOn, PanelRow.SYSTEM) {
+        addTile(PanelTile.HOME, PanelItem(tr("Inicio", "Home"), Icons.Outlined.Home, PanelRow.SYSTEM) { hide(); svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME) })
+        addTile(PanelTile.RECENTS_KEY, PanelItem(tr("Recientes", "Recents"), Icons.Outlined.Layers, PanelRow.SYSTEM) { hide(); svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS) })
+        addTile(PanelTile.QUICK_SETTINGS, PanelItem(tr("Ajustes rápidos", "Quick settings"), Icons.Outlined.ToggleOn, PanelRow.SYSTEM) {
             hide(); svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
         })
         // Los ajustes de Android, para no tener que salir del juego a buscarlos.
         // Modo espera, como en una consola: apaga la pantalla y bloquea la tablet.
-        add(PanelItem(tr("Bloquear", "Sleep"), Icons.Outlined.Bedtime, PanelRow.SYSTEM) {
+        addTile(PanelTile.SLEEP, PanelItem(tr("Bloquear", "Sleep"), Icons.Outlined.Bedtime, PanelRow.SYSTEM) {
             afterHide { svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN) }
         })
-        add(PanelItem(tr("Ajustes", "Settings"), Icons.Outlined.Settings, PanelRow.SYSTEM) {
+        addTile(PanelTile.SETTINGS, PanelItem(tr("Ajustes", "Settings"), Icons.Outlined.Settings, PanelRow.SYSTEM) {
             hide(); runCatching { svc.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         })
         // WiFi y Bluetooth: con Shizuku se encienden y apagan aquí mismo; sin él, abre el panel de Android.
@@ -1065,16 +1068,16 @@ class GamePanel(private val svc: AutoModeService) {
         val canY = Shell.state == Shell.State.READY
         fun radioFoot(list: String, on: Boolean) = tr("A $list", "A $list") +
             (if (canY) (if (on) tr(" · Y apagar", " · Y turn off") else tr(" · Y encender", " · Y turn on")) else "") + tr(" · B cerrar", " · B close")
-        add(PanelItem("WiFi", if (wifi) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, PanelRow.SCREEN, active = wifi,
+        addTile(PanelTile.WIFI, PanelItem("WiFi", if (wifi) Icons.Outlined.Wifi else Icons.Outlined.WifiOff, PanelRow.SCREEN, active = wifi,
             sub = if (wifi) tr("Encendido", "On") else tr("Apagado", "Off"), foot = radioFoot(tr("redes", "networks"), wifi),
             alt = { radio(!wifi, Shell.WIFI_ON, Shell.WIFI_OFF) }, run = wifiList))
-        add(PanelItem("Bluetooth", if (bt) Icons.Outlined.Bluetooth else Icons.Outlined.BluetoothDisabled, PanelRow.SCREEN, active = bt,
+        addTile(PanelTile.BLUETOOTH, PanelItem("Bluetooth", if (bt) Icons.Outlined.Bluetooth else Icons.Outlined.BluetoothDisabled, PanelRow.SCREEN, active = bt,
             sub = if (bt) tr("Encendido", "On") else tr("Apagado", "Off"), foot = radioFoot(tr("dispositivos", "devices"), bt),
             alt = { radio(!bt, Shell.BT_ON, Shell.BT_OFF) }, run = btList))
         // Modo avión (con Shizuku: una app no puede cambiarlo).
         if (Shell.state == Shell.State.READY) {
             val plane = android.provider.Settings.Global.getInt(cr, "airplane_mode_on", 0) != 0
-            add(PanelItem(tr("Modo avión", "Airplane mode"), if (plane) Icons.Outlined.AirplanemodeActive else Icons.Outlined.AirplanemodeInactive,
+            addTile(PanelTile.AIRPLANE, PanelItem(tr("Modo avión", "Airplane mode"), if (plane) Icons.Outlined.AirplanemodeActive else Icons.Outlined.AirplanemodeInactive,
                 PanelRow.SCREEN, active = plane, sub = if (plane) tr("Encendido", "On") else tr("Apagado", "Off")) {
                 radio(!plane, Shell.PLANE_ON, Shell.PLANE_OFF)
             })
@@ -1082,13 +1085,13 @@ class GamePanel(private val svc: AutoModeService) {
         // Luz nocturna (la "protección de la vista" de ZUI) y modo lectura: ajustes del sistema, con el permiso de pantalla.
         if (Aspect.canWrite(svc)) {
             val night = android.provider.Settings.Secure.getInt(cr, "night_display_activated", 0) == 1
-            add(PanelItem(tr("Luz nocturna", "Night light"), Icons.Outlined.NightsStay, PanelRow.SCREEN, active = night,
+            addTile(PanelTile.NIGHT_LIGHT, PanelItem(tr("Luz nocturna", "Night light"), Icons.Outlined.NightsStay, PanelRow.SCREEN, active = night,
                 sub = if (night) tr("Encendida", "On") else tr("Apagada", "Off")) {
                 runCatching { android.provider.Settings.Secure.putInt(cr, "night_display_activated", if (night) 0 else 1) }; refresh()
             })
             val read = android.provider.Settings.Global.getInt(cr, "readingmode_switch", 0) == 1
             val readType = android.provider.Settings.Global.getInt(cr, "readingmode_type", 1)
-            add(PanelItem(tr("Modo lectura", "Reading mode"), Icons.AutoMirrored.Outlined.MenuBook, PanelRow.SCREEN, active = read,
+            addTile(PanelTile.READING, PanelItem(tr("Modo lectura", "Reading mode"), Icons.AutoMirrored.Outlined.MenuBook, PanelRow.SCREEN, active = read,
                 sub = if (!read) tr("Apagado", "Off") else if (readType == 2) tr("Blanco y negro", "Black and white") else tr("Color", "Color"),
                 foot = tr("A elegir · B cerrar", "A choose · B close")) { crossfade { showReadingMenu() } })
         }
@@ -1096,14 +1099,14 @@ class GamePanel(private val svc: AutoModeService) {
         // sistema que se puede cambiar con el permiso de pantalla.
         if (ZuiGame.installed(svc) && Aspect.canWrite(svc)) {
             val locked = ZuiGame.gesturesLocked(svc)
-            add(PanelItem(tr("Bloquear gestos", "Lock gestures"), if (locked) Icons.Outlined.Lock else Icons.Outlined.LockOpen, PanelRow.GAME,
+            addTile(PanelTile.LOCK_GESTURES, PanelItem(tr("Bloquear gestos", "Lock gestures"), if (locked) Icons.Outlined.Lock else Icons.Outlined.LockOpen, PanelRow.GAME,
                 active = locked, sub = if (locked) tr("En juegos", "In games") else tr("Apagado", "Off")) {
                 ZuiGame.setGesturesLocked(svc, !locked); refresh()
             })
         }
         // Mouse virtual: para apps que no usan el control (los sticks dejan de llegar a la app mientras está).
         val mouseOn = svc.isMouseOn
-        add(PanelItem(tr("Mouse", "Mouse"), Icons.Outlined.Mouse, PanelRow.SCREEN, active = mouseOn,
+        addTile(PanelTile.MOUSE, PanelItem(tr("Mouse", "Mouse"), Icons.Outlined.Mouse, PanelRow.SCREEN, active = mouseOn,
             sub = if (mouseOn) tr("Encendido", "On") else tr("Apagado", "Off")) {
             hide(); svc.toggleMouse()
             if (!mouseOn) toast(tr("Mouse encendido", "Mouse on"),
@@ -1114,10 +1117,10 @@ class GamePanel(private val svc: AutoModeService) {
         // Un solo mosaico para el modo del G9: dice el actual y pasa al siguiente (Android → X-Input → DS5 → Android).
         if (mode != null) {
             val next = PadMode.entries[(PadMode.entries.indexOf(mode) + 1) % PadMode.entries.size]
-            add(PanelItem("G9 · ${mode.label}", Icons.Outlined.VideogameAsset, PanelRow.SYSTEM, sub = "→ ${next.label}") { hide(); svc.manualSwitch(next) })
+            addTile(PanelTile.G9_MODE, PanelItem("G9 · ${mode.label}", Icons.Outlined.VideogameAsset, PanelRow.SYSTEM, sub = "→ ${next.label}") { hide(); svc.manualSwitch(next) })
         }
         // Abrir TBF (no si ya está al frente: el panel se abrió dentro de la app).
-        if (svc.foregroundApp != svc.packageName) add(PanelItem("TBF Companion", Icons.AutoMirrored.Outlined.OpenInNew, PanelRow.SYSTEM) {
+        if (svc.foregroundApp != svc.packageName) addTile(PanelTile.APP, PanelItem("TBF Companion", Icons.AutoMirrored.Outlined.OpenInNew, PanelRow.SYSTEM) {
             hide()
             svc.startActivity(Intent(svc, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         })
