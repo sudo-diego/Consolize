@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.focus.focusRequester
+
 import androidx.compose.runtime.mutableStateOf
 
 import androidx.compose.animation.togetherWith
@@ -100,9 +102,16 @@ fun PanelPage(s: AppState, a: MainActivity) {
 private fun PanelPreviewCard(a: MainActivity) {
     // Editar los mosaicos ahí mismo: la vista previa se cambia por el editor (mover arrastrando, ocultar con el ojo).
     var editing by remember { mutableStateOf(false) }
+    val editButton = remember { androidx.compose.ui.focus.FocusRequester() }
+    // Al salir del editor, el foco vuelve al botón (antes quedaba perdido y el resaltado se veía mal).
+    var wasEditing by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(editing) {
+        if (wasEditing && !editing) { kotlinx.coroutines.delay(260); runCatching { editButton.requestFocus() } }
+        wasEditing = editing
+    }
     Panel(if (editing) tr("Editar mosaicos", "Edit tiles") else tr("Vista previa", "Preview"), trailing = {
         Row {
-            androidx.compose.material3.TextButton(onClick = { editing = !editing }) {
+            androidx.compose.material3.TextButton(onClick = { editing = !editing }, modifier = androidx.compose.ui.Modifier.focusRequester(editButton)) {
                 Text(if (editing) tr("Listo", "Done") else tr("Editar mosaicos", "Edit tiles"))
             }
             // De fondo, el degradado o una imagen propia (una captura de un juego, por ejemplo).

@@ -113,6 +113,9 @@ fun moreGroups(s: AppState): List<Pair<String, List<Entry>>> = listOf(
     tr("Ajustes", "Settings") to entriesFor(s, Section.SETTINGS),
 )
 
+/** Los íconos de los cuatro temas de Más (en el mismo orden que [moreGroups]). */
+val MORE_ICONS = listOf(Icons.Outlined.SportsEsports, Icons.Outlined.VideogameAsset, Icons.Outlined.TabletAndroid, Icons.Outlined.Settings)
+
 /** Los destinos fijos del dock (los demás son entradas fijadas desde Más). */
 object Dest {
     const val HOME = "home"; const val LIBRARY = "library"; const val PANEL = "panel"; const val CONTROL = "control"; const val MORE = "more"
@@ -267,11 +270,13 @@ private fun MoreHub(s: AppState) {
                 Surface(
                     onClick = { open = i }, interactionSource = src,
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
-                    modifier = Modifier.weight(1f).height(170.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
+                    modifier = Modifier.weight(1f).height(190.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
+                        .graphicsLayer { alpha = if (open != null && open != i) 0.3f else 1f }
                         .focusLift(focused, src, 1.04f).focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
-                        if (focused) Box(Modifier.width(28.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
+                        // Un ícono grande de línea, del color del texto (con el foco, del acento).
+                        Icon(MORE_ICONS[i], null, Modifier.size(40.dp), tint = if (focused) MaterialTheme.colorScheme.primary else cardOn().copy(alpha = 0.85f))
                         Spacer(Modifier.weight(1f))
                         Text(name, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
                         Text(items.joinToString(" · ") { it.label() }, fontSize = 12.sp, lineHeight = 17.sp, color = cardMuted(),
@@ -284,7 +289,7 @@ private fun MoreHub(s: AppState) {
         androidx.compose.animation.AnimatedVisibility(open != null, Modifier.matchParentSize(),
             enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)),
             exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140))) {
-            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)).background(Color.Black.copy(alpha = 0.35f))
+            Box(Modifier.fillMaxSize()
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { s.backOverride?.invoke() },
                 contentAlignment = Alignment.Center) {
                 val k = open ?: s.moreCat

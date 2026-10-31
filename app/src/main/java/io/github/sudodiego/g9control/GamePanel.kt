@@ -866,10 +866,12 @@ class GamePanel(private val svc: AutoModeService) {
     }
 
     /** Agrega el mosaico salvo que se haya ocultado (Panel → Qué se muestra). */
-    private fun MutableList<PanelItem>.addTile(t: PanelTile, i: PanelItem) { if (t !in ThemeState.panelHidden) add(i) }
+    private fun MutableList<PanelItem>.addTile(t: PanelTile, i: PanelItem) { if (t !in ThemeState.panelHidden) { tileOf[i] = t; add(i) } }
+    /** De qué mosaico es cada ítem (para ordenarlos como se eligió en Panel → Editar mosaicos). */
+    private val tileOf = java.util.IdentityHashMap<PanelItem, PanelTile>()
 
     /** Acciones según lo que hay ahora: el panel de ZUI solo en modo juego, los modos según el actual. */
-    private fun items(): List<PanelItem> = arrangePanel(buildItems())
+    private fun items(): List<PanelItem> { tileOf.clear(); return arrangePanel(buildItems()) { tileOf[it] ?: it.tile } }
 
     private fun buildItems(): List<PanelItem> = buildList {
         // Apps usadas hace poco (sin la de ahora): volver a ellas como a un juego en suspensión.

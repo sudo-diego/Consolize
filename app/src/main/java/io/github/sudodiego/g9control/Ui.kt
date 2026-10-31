@@ -574,9 +574,11 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
             // Entre destinos del dock, lo de adentro se desliza hacia el lado al que se va; entrar o volver, fundido.
             val move = if (from == to || from < 0 || to < 0) null else if (to > from) 1 else -1
             // Entrar a algo: crece un poco al aparecer (más fluido que un fundido solo); entre destinos, desliza.
+            // Entrar a algo: crece un poco al aparecer. Entre destinos del dock: lo nuevo entra un poco desde el lado al que se
+            // va, después de que lo anterior se fue (sin cruzarse: cruzados, con el foco saltando, parpadeaba).
             val enter = if (move == null) fadeIn(tween(220)) + androidx.compose.animation.scaleIn(tween(220), initialScale = 0.97f)
-                else slideInHorizontally(tween(240)) { it / 8 * move } + fadeIn(tween(240))
-            val exit = if (move == null) fadeOut(tween(130)) else slideOutHorizontally(tween(240)) { -it / 8 * move } + fadeOut(tween(140))
+                else slideInHorizontally(tween(220, delayMillis = 90)) { it / 14 * move } + fadeIn(tween(220, delayMillis = 90))
+            val exit = if (move == null) fadeOut(tween(130)) else fadeOut(tween(90))
             (enter togetherWith exit).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() })
         },
         label = "page"

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.DisplaySettings
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -147,8 +148,7 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
     // Cada pocos segundos, como en Batería: el bypass automático lo cambia solo (al salir de un juego quedaba "Encendido").
     LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; tick++; kotlinx.coroutines.delay(3000) } }
-    val count = (if (ready) 1 else 0) + 1 + (if (Aspect.available(a)) 1 else 0)
-    Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
         // Sin Shizuku el bypass no se puede cambiar: no sale (el aviso de arriba lo dice). Igual que en el panel: con algo
         // automático (bypass automático o límite propio) son tres estados, Automático → Encendido → Apagado → Automático.
         if (ready) {
@@ -159,7 +159,7 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
                 bypass -> tr("Encendido", "On")
                 else -> tr("Apagado", "Off")
             }
-            QuickTile(Icons.Outlined.Power, "Bypass", state, bypass, Modifier.weight(1f).fillMaxHeight()) {
+            QuickTile(Icons.Outlined.Power, "Bypass", state, bypass, Modifier) {
                 if (!isAuto && !bypass && hasAuto) {
                     AutoModeService.active?.bypassToAuto() ?: ZuiBattery.returnToAuto()
                     tick++
@@ -173,16 +173,15 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
         }
         // El monitor lo dibuja el servicio de accesibilidad: sin él no se puede encender.
         QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else { tick; AutoRules.hudLabel(a) },
-            hud && service, Modifier.weight(1f).fillMaxHeight(), enabled = service) { AutoRules.cycleHud(a); hud = AutoRules.perfHud(a); tick++ }
+            hud && service, Modifier, enabled = service) { AutoRules.cycleHud(a); hud = AutoRules.perfHud(a); tick++ }
         if (Aspect.available(a)) QuickTile(Icons.Outlined.AspectRatio, "16:9", if (wide) tr("Encendido", "On") else tr("Apagado", "Off"), wide,
-            Modifier.weight(1f).fillMaxHeight()) {
+            Modifier) {
             scope.launch {
                 Aspect.toggle(a)
                 delay(500)
                 wide = Aspect.is169(a)
             }
         }
-        repeat(5 - count) { Spacer(Modifier.weight(1f)) }
     }
 }
 
@@ -196,26 +195,20 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
     val c = MaterialTheme.colorScheme
     val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
-    Surface(
-        onClick = onClick, enabled = enabled, interactionSource = src, shape = RoundedCornerShape(18.dp),
-        modifier = modifier.alpha(if (enabled) 1f else 0.5f).focusLift(focused, src, 1.03f)
-            .focusHalo(focused, RoundedCornerShape(18.dp)),
-        color = cardColor(), contentColor = cardOn()
-    ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).background(androidx.compose.animation.animateColorAsState(if (on) c.primary else cardOn().copy(alpha = 0.12f), label = "badge").value,
-                RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, Modifier.size(22.dp), tint = if (on) c.onPrimary else cardOn())
-            }
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text(state, fontSize = 13.sp, color = if (on) c.primary else cardMuted(), maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            }
+    Column(Modifier.width(112.dp).alpha(if (enabled) 1f else 0.5f), horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(onClick = onClick, enabled = enabled, interactionSource = src, shape = androidx.compose.foundation.shape.CircleShape,
+            color = androidx.compose.animation.animateColorAsState(if (on) c.primary else cardColor(), label = "q").value,
+            contentColor = if (on) c.onPrimary else cardOn(),
+            modifier = Modifier.size(76.dp).focusLift(focused, src, 1.08f).focusHalo(focused, androidx.compose.foundation.shape.CircleShape)) {
+            Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(32.dp)) }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = backdropOn(), maxLines = 1)
+        Text(state, fontSize = 12.sp, color = if (on) c.primary else backdropMuted(), maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
+
 /**
  * Controles conectados ahora, de cualquier marca. El G9 con su modo (y el acceso a su sección); los demás solo el
  * nombre: el panel de juego, las capturas con L3 + R3 y el monitor sirven con cualquiera.
@@ -367,7 +360,7 @@ private fun android.graphics.drawable.Drawable.toBitmapSafe(): android.graphics.
  */
 @Composable
 fun HomeSummary(s: AppState, a: MainActivity) {
-    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(34.dp)) {
         ServiceWarning(s, a)
         ShizukuWarning(a)
         HomeHero(a)
@@ -429,35 +422,46 @@ private fun HomeHero(a: MainActivity) {
 private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String?, modifier: Modifier,
     accent: Boolean = false, onClick: (() -> Unit)? = null) {
     val c = MaterialTheme.colorScheme
-    Row(modifier.clip(RoundedCornerShape(16.dp)).background(cardColor())
+    Row(modifier.clip(RoundedCornerShape(12.dp))
         .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-        .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(20.dp), tint = c.primary)
+        .padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(22.dp), tint = c.primary)
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(value, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else cardOn())
-            if (label != null) Text(label, fontSize = 11.sp, color = cardMuted(), maxLines = 1)
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else backdropOn())
+            if (label != null) Text(label, fontSize = 11.sp, color = backdropMuted(), maxLines = 1)
         }
     }
 }
 
-/** Accesos: lo fijado desde Más (Y), en mosaicos, y "Editar" que lleva a Más. */
+/** Accesos: lo fijado desde Más (Y), como íconos grandes con su nombre debajo; "+" lleva a Más para elegir. */
 @Composable
 private fun HomeAccess(s: AppState) {
-    val c = MaterialTheme.colorScheme
     val entries = allEntries(s).associateBy { it.id }
     val pins = s.homePins.mapNotNull { entries[it] }
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(tr("ACCESOS", "SHORTCUTS"), fontSize = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = backdropMuted())
-        (pins.map { it as Entry? } + null).chunked(5).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { e ->
-                    if (e != null) EntryTile(s, e, Modifier.weight(1f))
-                    else EditTile(Modifier.weight(1f)) { s.goDest(Dest.MORE) }
-                }
-                repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
+    @OptIn(ExperimentalLayoutApi::class)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        pins.forEach { e -> AccessIcon(e.icon, e.label()) { s.goDest(e.id) } }
+        AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true) { s.goDest(Dest.MORE) }
+    }
+}
+
+/** Un acceso: el ícono en un cuadrado redondeado grande (crece con el foco) y su nombre debajo. */
+@Composable
+private fun AccessIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, ghost: Boolean = false, onClick: () -> Unit) {
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(26.dp)
+    Column(Modifier.width(112.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(onClick = onClick, interactionSource = src, shape = shape,
+            color = if (ghost) androidx.compose.ui.graphics.Color.Transparent else cardColor(), contentColor = cardOn(),
+            border = if (ghost) androidx.compose.foundation.BorderStroke(2.dp, backdropOn().copy(alpha = 0.3f)) else null,
+            modifier = Modifier.size(88.dp).focusLift(focused, src, 1.08f).focusHalo(focused, shape)) {
+            Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(38.dp), tint = if (ghost) backdropOn() else cardOn()) }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(label, fontSize = 13.sp, color = backdropOn(), maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 

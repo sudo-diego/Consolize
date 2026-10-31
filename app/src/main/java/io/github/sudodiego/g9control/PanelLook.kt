@@ -191,9 +191,9 @@ internal val PanelRow.label get() = when (this) {
  * Los ítems en el orden elegido para los mosaicos (Panel → Orden). Los que no se pueden ocultar (como "Activar Shizuku")
  * van primero en su sección. Sin cambiar el orden de lo que es del mismo mosaico (las dos piezas del brillo, las recientes).
  */
-internal fun arrangePanel(items: List<PanelItem>): List<PanelItem> {
+internal fun arrangePanel(items: List<PanelItem>, tileOf: (PanelItem) -> PanelTile? = { it.tile }): List<PanelItem> {
     val order = ThemeState.panelTileOrder
-    return items.sortedBy { it.tile?.let { t -> order.indexOf(t) } ?: -1 }
+    return items.sortedBy { tileOf(it)?.let { t -> order.indexOf(t) } ?: -1 }
 }
 
 /** Datos del mini monitor (se eligen cuáles; la clave se guarda). */

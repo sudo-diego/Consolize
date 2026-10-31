@@ -35,6 +35,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.animation.core.VectorConverter
+import kotlinx.coroutines.launch
 import androidx.compose.ui.focus.focusRequester
 
 /** El ícono de cada mosaico del panel (los mismos que usa el panel). */
@@ -53,10 +55,11 @@ internal val PanelTile.icon: ImageVector get() = when (this) {
 }
 
 /**
- * Editar el panel viéndolo, como los íconos de Android o iOS: las secciones y sus mosaicos tal como salen.
- * - Con el dedo: mantener un mosaico y arrastrarlo lo cambia de lugar; tocar uno lo toma y tocar otro lo pone ahí; el ojo
- *   lo oculta o lo muestra. Tocar el nombre de una sección la toma y tocar otra la pone en su lugar.
- * - Con el control: A toma el mosaico (o la sección), las flechas lo mueven y A lo suelta; Y lo oculta o lo muestra.
+ * Editar el panel viéndolo, como los íconos de Android o iOS: cada sección es un bloque con su manija (⋮⋮) y sus
+ * mosaicos tal como salen.
+ * - Con el dedo: mantener un mosaico y arrastrarlo lo cambia de lugar (los demás se corren con una animación); tocar uno
+ *   y después otro también. El ojo lo oculta o lo muestra. Una sección se mueve manteniendo y arrastrando su manija.
+ * - Con el control: A toma el mosaico (o la sección, en su manija), las flechas lo mueven y A lo suelta; Y lo oculta.
  * B suelta lo tomado o sale del editor.
  */
 @Composable
@@ -67,12 +70,16 @@ fun PanelEditor(onDone: () -> Unit) {
     val cols = COLUMNS
     var picked by remember { mutableStateOf<PanelTile?>(null) }
     var pickedSec by remember { mutableStateOf<PanelRow?>(null) }
-    // Arrastrando con el dedo: el mosaico, dónde está el dedo (en la pantalla) y dónde se lo tomó.
+    // Arrastre con el dedo (un mosaico o una sección): dónde está el dedo (en la pantalla) y dónde se lo tomó.
     var dragging by remember { mutableStateOf<PanelTile?>(null) }
+    var draggingSec by remember { mutableStateOf<PanelRow?>(null) }
     var finger by remember { mutableStateOf(Offset.Zero) }
     var grab by remember { mutableStateOf(Offset.Zero) }
+    var holdOver by remember { mutableStateOf<Any?>(null) }
     val bounds = remember { mutableStateMapOf<PanelTile, Rect>() }
+    val secBounds = remember { mutableStateMapOf<PanelRow, Rect>() }
     val focus = remember { PanelTile.entries.associateWith { androidx.compose.ui.focus.FocusRequester() } }
+    val secFocus = remember { PanelRow.entries.associateWith { androidx.compose.ui.focus.FocusRequester() } }
 
     fun save(order: List<PanelTile>) { ThemeState.panelTileOrder = order; Prefs.setPanelTileOrder(ctx, order) }
     /** Lleva [t] a la posición [to] de su sección (los de las otras secciones no se mueven). */
@@ -90,48 +97,73 @@ fun PanelEditor(onDone: () -> Unit) {
         ThemeState.panelHidden = if (t in ThemeState.panelHidden) ThemeState.panelHidden - t else ThemeState.panelHidden + t
         Prefs.setPanelHidden(ctx, ThemeState.panelHidden)
     }
-    fun moveSection(sec: PanelRow, d: Int) {
+    fun moveSectionTo(sec: PanelRow, to: Int) {
         val list = ThemeState.panelSections.toMutableList()
-        val i = list.indexOf(sec); val j = (i + d).coerceIn(0, list.size - 1)
+        val i = list.indexOf(sec); val j = to.coerceIn(0, list.size - 1)
         if (i == j) return
         list.add(j, list.removeAt(i)); ThemeState.panelSections = list; Prefs.setPanelSections(ctx, list)
     }
-    // B: suelta lo tomado o sale.
     DisposableEffect(Unit) {
         s?.backOverride = { if (picked != null || pickedSec != null) { picked = null; pickedSec = null } else onDone(); true }
         onDispose { s?.backOverride = null }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ThemeState.panelSections.forEach { sec -> key(sec) {
             val tiles = ThemeState.panelTileOrder.filter { it.section == sec }
             val secSrc = remember { MutableInteractionSource() }
             val secFocused by secSrc.collectIsFocusedAsState()
-            val secPicked = pickedSec == sec
-            // Nombre de la sección: tomarla y moverla (A o tocar; ↑ ↓ con el control; tocar otra la pone ahí).
-            Row(Modifier.clip(RoundedCornerShape(10.dp))
-                .background(if (secPicked) c.primary.copy(alpha = 0.22f) else Color.Transparent)
-                .then(if (secFocused) Modifier.border(2.dp, c.onSurface, RoundedCornerShape(10.dp)) else Modifier)
-                .clickable(interactionSource = secSrc, indication = null) {
-                    val p = pickedSec
-                    pickedSec = when {
-                        p == null -> sec
-                        p == sec -> null
-                        else -> { moveSection(p, ThemeState.panelSections.indexOf(sec) - ThemeState.panelSections.indexOf(p)); null }
+            val secLifted = pickedSec == sec || draggingSec == sec
+            val slide = rememberSlide()
+            val sb = secBounds[sec]
+            Column(Modifier
+                .onGloballyPositioned { secBounds[sec] = it.boundsInRoot(); slide.moved(it.boundsInRoot().topLeft, draggingSec == sec) }
+                .zIndex(if (secLifted) 10f else 0f)
+                .graphicsLayer {
+                    val o = slide.offset
+                    translationX = o.x
+                    translationY = o.y + if (draggingSec == sec && sb != null) finger.y - grab.y - sb.top else 0f
+                    val k = if (secLifted) 1.02f else 1f; scaleX = k; scaleY = k
+                    shadowElevation = if (secLifted) 16f else 0f
+                }
+                .clip(RoundedCornerShape(18.dp))
+                .background(if (secLifted) c.primary.copy(alpha = 0.10f) else Color.Transparent)
+                .padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // La manija de la sección: mantener y arrastrar (o A y ↑ ↓ con el control).
+                Row(Modifier.focusRequester(secFocus.getValue(sec)).clip(RoundedCornerShape(10.dp))
+                    .then(if (secFocused || pickedSec == sec) Modifier.border(2.dp, if (pickedSec == sec) c.primary else c.onSurface, RoundedCornerShape(10.dp)) else Modifier)
+                    .pointerInput(sec) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { p -> val b = secBounds[sec] ?: return@detectDragGesturesAfterLongPress
+                                draggingSec = sec; pickedSec = null; holdOver = null; grab = Offset(p.x, p.y + 4f); finger = Offset(b.left + p.x, b.top + p.y + 4f) },
+                            onDragEnd = { draggingSec = null }, onDragCancel = { draggingSec = null }
+                        ) { ch, d ->
+                            ch.consume(); finger += d
+                            val over = secBounds.entries.firstOrNull { (o, b) -> o != sec && finger.y > b.top + b.height * 0.25f && finger.y < b.bottom - b.height * 0.25f }?.key
+                            if (over != null && over != holdOver) { moveSectionTo(sec, ThemeState.panelSections.indexOf(over)); holdOver = over }
+                            else if (over == null) holdOver = null
+                        }
                     }
+                    .clickable(interactionSource = secSrc, indication = null) { pickedSec = if (pickedSec == sec) null else sec; picked = null }
+                    .onPreviewKeyEvent { e ->
+                        if (pickedSec != sec || e.type != KeyEventType.KeyDown) false
+                        else when (e.key) {
+                            Key.DirectionUp -> { moveSectionTo(sec, ThemeState.panelSections.indexOf(sec) - 1); runCatching { secFocus.getValue(sec).requestFocus() }; true }
+                            Key.DirectionDown -> { moveSectionTo(sec, ThemeState.panelSections.indexOf(sec) + 1); runCatching { secFocus.getValue(sec).requestFocus() }; true }
+                            else -> false
+                        }
+                    }
+                    .padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.DragIndicator, null, Modifier.size(20.dp), tint = if (secLifted) c.primary else c.onSurfaceVariant)
+                    Spacer(Modifier.width(6.dp))
+                    Text(sec.label.uppercase(), fontSize = 12.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (secLifted) c.primary else c.onSurfaceVariant)
                 }
-                .onPreviewKeyEvent { e ->
-                    if (!secPicked || e.type != KeyEventType.KeyDown) false
-                    else when (e.key) { Key.DirectionUp -> { moveSection(sec, -1); true }; Key.DirectionDown -> { moveSection(sec, 1); true }; else -> false }
-                }
-                .padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (secPicked) { Icon(Icons.Outlined.OpenWith, null, Modifier.size(16.dp), tint = c.primary); Spacer(Modifier.width(6.dp)) }
-                Text(sec.label.uppercase(), fontSize = 12.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold,
-                    color = if (secPicked) c.primary else c.onSurfaceVariant)
-            }
-            @OptIn(ExperimentalLayoutApi::class)
-            FlowRow(maxItemsInEachRow = if (sec == PanelRow.SLIDER) 2 else cols,
-                horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Todos los mosaicos de la sección en el mismo contenedor: al cambiar de fila no se corta el arrastre.
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(maxItemsInEachRow = if (sec == PanelRow.SLIDER) 2 else cols,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     tiles.forEach { t -> key(t) {
                         val hidden = t in ThemeState.panelHidden
                         val src = remember { MutableInteractionSource() }
@@ -140,30 +172,36 @@ fun PanelEditor(onDone: () -> Unit) {
                         val isDragged = dragging == t
                         val lift by animateFloatAsState(if (isPicked || isDragged) 1.08f else if (focused) 1.04f else 1f,
                             spring(dampingRatio = 0.6f, stiffness = 500f), label = "lift")
+                        val tSlide = rememberSlide()
                         val r = bounds[t]
                         Box(Modifier.weight(1f).height(60.dp)
+                            .onGloballyPositioned { bounds[t] = it.boundsInRoot(); tSlide.moved(it.boundsInRoot().topLeft, isDragged) }
                             .zIndex(if (isDragged) 10f else if (isPicked) 5f else 0f)
-                            .onGloballyPositioned { bounds[t] = it.boundsInRoot() }
                             .graphicsLayer {
                                 scaleX = lift; scaleY = lift
-                                if (isDragged && r != null) { translationX = finger.x - grab.x - r.left; translationY = finger.y - grab.y - r.top }
+                                val o = tSlide.offset
+                                translationX = o.x + if (isDragged && r != null) finger.x - grab.x - r.left else 0f
+                                translationY = o.y + if (isDragged && r != null) finger.y - grab.y - r.top else 0f
                                 shadowElevation = if (isPicked || isDragged) 18f else 0f
                                 shape = RoundedCornerShape(16.dp); clip = false
                             }
                             .focusRequester(focus.getValue(t))
                             .clip(RoundedCornerShape(16.dp))
-                            .background(if (isPicked || isDragged) c.primary.copy(alpha = 0.28f) else cardColor())
+                            .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(cardColor(), c.primary, 0.3f) else cardColor())
                             .then(if (focused || isPicked) Modifier.border(2.dp, if (isPicked) c.primary else cardOn(), RoundedCornerShape(16.dp)) else Modifier)
                             .pointerInput(t) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { p -> val b = bounds[t] ?: return@detectDragGesturesAfterLongPress
-                                        dragging = t; picked = null; grab = p; finger = Offset(b.left + p.x, b.top + p.y) },
+                                        dragging = t; picked = null; holdOver = null; grab = p; finger = Offset(b.left + p.x, b.top + p.y) },
                                     onDragEnd = { dragging = null }, onDragCancel = { dragging = null }
                                 ) { ch, d ->
                                     ch.consume(); finger += d
-                                    // Sobre otro mosaico de su sección: se pone en su lugar (los demás se corren).
-                                    val over = bounds.entries.firstOrNull { (o, b) -> o != t && o.section == t.section && b.contains(finger) }?.key
-                                    if (over != null) moveTo(t, indexOf(over))
+                                    // Solo cuando el dedo llega al centro de otro mosaico de su sección (no al rozarlo): así no
+                                    // salta de ida y vuelta; y no otra vez sobre el mismo hasta salir de él.
+                                    val over = bounds.entries.firstOrNull { (o, b) -> o != t && o.section == t.section &&
+                                        Rect(b.left + b.width * 0.25f, b.top + b.height * 0.2f, b.right - b.width * 0.25f, b.bottom - b.height * 0.2f).contains(finger) }?.key
+                                    if (over != null && over != holdOver) { moveTo(t, indexOf(over)); holdOver = over }
+                                    else if (over == null && (holdOver as? PanelTile)?.let { bounds[it]?.contains(finger) } != true) holdOver = null
                                 }
                             }
                             .clickable(interactionSource = src, indication = null) {
@@ -174,13 +212,14 @@ fun PanelEditor(onDone: () -> Unit) {
                                     p.section == t.section -> { moveTo(p, indexOf(t)); null }
                                     else -> t
                                 }
+                                pickedSec = null
                             }
                             .onPreviewKeyEvent { e ->
                                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                                 if (e.key == Key.ButtonY) { toggleHidden(t); return@onPreviewKeyEvent true }
                                 if (!isPicked) return@onPreviewKeyEvent false
-                                val d = when (e.key) { Key.DirectionLeft -> -1; Key.DirectionRight -> 1
-                                    Key.DirectionUp -> -(if (t.section == PanelRow.SLIDER) 2 else cols); Key.DirectionDown -> if (t.section == PanelRow.SLIDER) 2 else cols; else -> 0 }
+                                val per = if (t.section == PanelRow.SLIDER) 2 else cols
+                                val d = when (e.key) { Key.DirectionLeft -> -1; Key.DirectionRight -> 1; Key.DirectionUp -> -per; Key.DirectionDown -> per; else -> 0 }
                                 if (d == 0) false else { moveTo(t, indexOf(t) + d); runCatching { focus.getValue(t).requestFocus() }; true }
                             }
                             .graphicsLayer { alpha = if (hidden && !isPicked) 0.4f else 1f },
@@ -191,16 +230,15 @@ fun PanelEditor(onDone: () -> Unit) {
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Text(t.label, Modifier.weight(1f), fontSize = 13.sp, color = cardOn(), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                // Ojo: mostrar u ocultar (con el dedo; con el control, Y).
                                 Icon(if (hidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null,
                                     Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).clickable { toggleHidden(t) }.padding(4.dp),
                                     tint = if (hidden) cardOn().copy(alpha = 0.6f) else cardOn().copy(alpha = 0.35f))
                             }
                         }
                     } }
+                }
             }
         } }
-        // Lo que hacen los botones, chico y abajo.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             PadBadge("A", round = true); Spacer(Modifier.width(6.dp))
             Text(if (picked != null || pickedSec != null) tr("Soltar", "Drop") else tr("Mover", "Move"), fontSize = 13.sp, color = c.onSurfaceVariant)
@@ -211,3 +249,25 @@ fun PanelEditor(onDone: () -> Unit) {
         }
     }
 }
+
+/**
+ * Deslizar a su lugar nuevo: cuando algo cambia de posición (por reordenar), arranca desde donde estaba y llega al nuevo
+ * con un resorte. Lo que se arrastra con el dedo no (lo lleva el dedo).
+ */
+class Slide(private val scope: kotlinx.coroutines.CoroutineScope) {
+    private val anim = androidx.compose.animation.core.Animatable(Offset.Zero, Offset.VectorConverter)
+    private var last: Offset? = null
+    val offset get() = anim.value
+    fun moved(pos: Offset, skip: Boolean) {
+        val prev = last; last = pos
+        if (prev == null || prev == pos) return
+        if (skip) { scope.launch { anim.snapTo(Offset.Zero) }; return }
+        val from = prev - pos + anim.value
+        scope.launch {
+            anim.snapTo(from)
+            anim.animateTo(Offset.Zero, spring(dampingRatio = 0.8f, stiffness = 380f))
+        }
+    }
+}
+@Composable
+fun rememberSlide(): Slide { val scope = rememberCoroutineScope(); return remember { Slide(scope) } }
