@@ -16,6 +16,27 @@ import androidx.compose.runtime.setValue
  * mezclan encima de lo que suene, así la música de un launcher (que la pausa cuando otra app pide el audio) no se corta. En la
  * app si están encendidos; en el panel de juego solo si además se pidió ([AutoRules]-like prefs en [Prefs]).
  */
+/**
+ * Juegos de sonidos de navegación (tools/sounds/make_nav_sounds.py los genera; "Clásico", los de siempre). Las referencias
+ * a R.raw van escritas (no por nombre): así la reducción de recursos de la versión publicada no los borra.
+ */
+enum class NavPack {
+    CLASSIC, BUBBLE, GLASS, WOOD, SOFT, DIGITAL;
+    val label get() = when (this) {
+        CLASSIC -> tr("Clásico", "Classic"); BUBBLE -> tr("Burbuja", "Bubble"); GLASS -> tr("Cristal", "Glass")
+        WOOD -> tr("Madera", "Wood"); SOFT -> tr("Suave", "Soft"); DIGITAL -> tr("Digital", "Digital")
+    }
+    /** Mover, elegir, volver, sección, abrir el panel y salir. */
+    val raw: List<Int> get() = when (this) {
+        CLASSIC -> listOf(R.raw.nav_move, R.raw.nav_select, R.raw.nav_back, R.raw.nav_tab, R.raw.nav_open, R.raw.nav_exit)
+        BUBBLE -> listOf(R.raw.nav_burbuja_move, R.raw.nav_burbuja_select, R.raw.nav_burbuja_back, R.raw.nav_burbuja_tab, R.raw.nav_burbuja_open, R.raw.nav_burbuja_exit)
+        GLASS -> listOf(R.raw.nav_cristal_move, R.raw.nav_cristal_select, R.raw.nav_cristal_back, R.raw.nav_cristal_tab, R.raw.nav_cristal_open, R.raw.nav_cristal_exit)
+        WOOD -> listOf(R.raw.nav_madera_move, R.raw.nav_madera_select, R.raw.nav_madera_back, R.raw.nav_madera_tab, R.raw.nav_madera_open, R.raw.nav_madera_exit)
+        SOFT -> listOf(R.raw.nav_suave_move, R.raw.nav_suave_select, R.raw.nav_suave_back, R.raw.nav_suave_tab, R.raw.nav_suave_open, R.raw.nav_suave_exit)
+        DIGITAL -> listOf(R.raw.nav_digital_move, R.raw.nav_digital_select, R.raw.nav_digital_back, R.raw.nav_digital_tab, R.raw.nav_digital_open, R.raw.nav_digital_exit)
+    }
+}
+
 object UiSounds {
     /** MOVE: se movió la selección; SELECT: A; BACK: se cerró o volvió algo; TAB: otra pestaña o sección; OPEN: se abrió el panel; EXIT: se salió de la app. */
     enum class Kind { MOVE, SELECT, BACK, TAB, OPEN, EXIT }
@@ -32,14 +53,18 @@ object UiSounds {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
         ).build()
         val app = ctx.applicationContext
-        ids[Kind.MOVE] = p.load(app, R.raw.nav_move, 1)
-        ids[Kind.SELECT] = p.load(app, R.raw.nav_select, 1)
-        ids[Kind.BACK] = p.load(app, R.raw.nav_back, 1)
-        ids[Kind.TAB] = p.load(app, R.raw.nav_tab, 1)
-        ids[Kind.OPEN] = p.load(app, R.raw.nav_open, 1)
-        ids[Kind.EXIT] = p.load(app, R.raw.nav_exit, 1)
+        val raw = Prefs.navPack(ctx).raw
+        Kind.entries.forEachIndexed { i, k -> ids[k] = p.load(app, raw[i], 1) }
         pool = p
         return p
+    }
+
+    /** Otro juego elegido: se sueltan los cargados y se cargan los nuevos (y suena una muestra cuando están). */
+    fun reload(ctx: Context, sample: Kind? = Kind.SELECT) {
+        pool?.release(); pool = null; ids.clear()
+        val p = runCatching { ensure(ctx) }.getOrNull() ?: return
+        val want = sample?.let { ids[it] } ?: return
+        p.setOnLoadCompleteListener { sp, id, _ -> if (id == want) { val v = Prefs.navVolume(ctx) / 100f; sp.play(id, v, v, 1, 0, 1f) } }
     }
 
     /** Cargar los sonidos de antemano (SoundPool carga en segundo plano: el primero se perdía). */

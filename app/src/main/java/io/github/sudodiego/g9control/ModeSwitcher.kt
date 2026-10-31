@@ -119,6 +119,8 @@ object Prefs {
     fun setPanelTone(ctx: Context, v: PanelTone) = sp(ctx).edit().putString("panel_tone", v.name).apply()
     /** Acento guardado como "#RRGGBB" (vacío = el celeste de siempre). */
     /** Sonidos de navegación (en la app; en el panel aparte) y su volumen; música ambiental (archivo propio). */
+    fun navPack(ctx: Context) = runCatching { NavPack.valueOf(sp(ctx).getString("nav_pack", null)!!) }.getOrDefault(NavPack.CLASSIC)
+    fun setNavPack(ctx: Context, v: NavPack) = sp(ctx).edit().putString("nav_pack", v.name).apply()
     fun navSounds(ctx: Context) = sp(ctx).getBoolean("nav_sounds", false)
     fun setNavSounds(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("nav_sounds", v).apply()
     fun navSoundsPanel(ctx: Context) = sp(ctx).getBoolean("nav_sounds_panel", false)

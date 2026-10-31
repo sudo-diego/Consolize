@@ -692,6 +692,11 @@ private fun SoundSettings(a: MainActivity) {
         nav = it; Prefs.setNavSounds(a, it); if (it) { UiSounds.preload(a); UiSounds.play(a, UiSounds.Kind.SELECT) }
     }
     if (nav) {
+        // El juego de sonidos: al elegir uno suena su "elegir" para escucharlo.
+        var pack by remember { mutableStateOf(Prefs.navPack(a)) }
+        ChoiceRow(tr("Estilo de los sonidos", "Sound style"), NavPack.entries.map { it to it.label }, pack) {
+            pack = it; Prefs.setNavPack(a, it); UiSounds.reload(a)
+        }
         SwitchRow(tr("También en el panel de juego", "Also in the game panel"), navPanel) { navPanel = it; Prefs.setNavSoundsPanel(a, it) }
         SliderRow(tr("Volumen de los sonidos", "Sound volume"), navVol, 10..100, "$navVol %") {
             navVol = it; Prefs.setNavVolume(a, it); UiSounds.play(a, UiSounds.Kind.MOVE)
