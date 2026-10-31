@@ -14,7 +14,9 @@ A console-like layer for playing on the Y700: a game panel you open from any gam
 
 No account, no internet permission, no ads. Things that need more than a regular app's permissions are marked and dimmed until you enable them, and the app says why.
 
-The app has three sections (LT / RT switch between them, LB / RB between tabs):
+You move around like on a console, with a dock at the bottom: **Home** (battery, tablet stats, quick settings and your shortcuts), **Library**, **Panel**, **Controller** and **More** (everything else, in four topics). LB / RB move between them, and you pick what goes in the middle of the dock and in Home's shortcuts (in More: X pins to the dock, Y to Home). The accent color and the card color are chosen separately, with a color wheel or a hex code.
+
+What's in it:
 
 ### Tablet (any controller)
 

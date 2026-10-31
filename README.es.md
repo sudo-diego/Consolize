@@ -14,7 +14,9 @@ Una capa de consola para jugar en la Y700: un panel que se abre desde cualquier 
 
 Sin cuenta, sin permiso de internet, sin publicidad. Lo que necesita más permisos que una app normal se ve atenuado hasta activarlo, y la app dice por qué.
 
-Tiene tres secciones (LT / RT cambian de sección, LB / RB de pestaña):
+Se navega como una consola, con un dock abajo: **Inicio** (la batería, los datos de la tablet, ajustes rápidos y tus accesos), **Biblioteca**, **Panel**, **Control** y **Más** (todo lo demás, en cuatro temas). LB / RB pasan de uno a otro, y lo de en medio del dock y los accesos de Inicio los eliges tú (en Más: X fija en el dock, Y en Inicio). El color de acento y el de las tarjetas se eligen aparte, con una rueda de colores o su código.
+
+Lo que hay:
 
 ### Tablet (cualquier control)
 
