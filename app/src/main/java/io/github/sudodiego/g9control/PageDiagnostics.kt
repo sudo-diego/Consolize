@@ -60,6 +60,10 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                         ThemeState.cardCustom = it; Prefs.setCardCustom(a, it)
                         ThemeState.cardTone = CardTone.CUSTOM; Prefs.setCardTone(a, CardTone.CUSTOM); wheel = false
                     }
+                    // Lo que va directo sobre el fondo (la batería grande, el dibujo del control, los títulos).
+                    ChoiceRow(tr("Texto sobre el fondo", "Text over the background"), BackdropText.entries.map { it to it.label }, ThemeState.backdropText) {
+                        ThemeState.backdropText = it; Prefs.setBackdropText(a, it)
+                    }
                     // El foco: el borde y, si se quiere, un halo del color de acento que sube y baja.
                     Text(tr("Halo del foco", "Focus halo"), fontSize = 14.sp)
                     ChoiceChips(Halo.entries.map { it to it.label }, ThemeState.halo) { ThemeState.halo = it; Prefs.setHalo(a, it) }

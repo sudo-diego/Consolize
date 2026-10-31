@@ -573,8 +573,10 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
             val from = ids.indexOf(initialState.dest); val to = ids.indexOf(targetState.dest)
             // Entre destinos del dock, lo de adentro se desliza hacia el lado al que se va; entrar o volver, fundido.
             val move = if (from == to || from < 0 || to < 0) null else if (to > from) 1 else -1
-            val enter = if (move == null) fadeIn(tween(160)) else slideInHorizontally(tween(220)) { it / 6 * move } + fadeIn(tween(220))
-            val exit = if (move == null) fadeOut(tween(120)) else slideOutHorizontally(tween(220)) { -it / 6 * move } + fadeOut(tween(160))
+            // Entrar a algo: crece un poco al aparecer (más fluido que un fundido solo); entre destinos, desliza.
+            val enter = if (move == null) fadeIn(tween(220)) + androidx.compose.animation.scaleIn(tween(220), initialScale = 0.97f)
+                else slideInHorizontally(tween(240)) { it / 8 * move } + fadeIn(tween(240))
+            val exit = if (move == null) fadeOut(tween(130)) else slideOutHorizontally(tween(240)) { -it / 8 * move } + fadeOut(tween(140))
             (enter togetherWith exit).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() })
         },
         label = "page"
@@ -1343,3 +1345,110 @@ fun ColorWheel(h: Float, s: Float, v: Float, modifier: Modifier, onChange: (Floa
 
 /** Lo que muestra el centro: la tarjeta de [section] (page null) o una de sus líneas abierta. */
 private data class Screen(val dest: String, val section: Section, val page: Page?, val sub: String?, val only: Set<String>?)
+
+/**
+ * Un ajuste en una sola línea, como en una consola: su nombre (y los botones dibujados, si es un atajo) y a la derecha lo
+ * elegido. A despliega las opciones ahí mismo (una lista, la elegida marcada) y elegir una la cierra; B también la
+ * cierra. Así no se ven todas las opciones de todo a la vez.
+ */
+@Composable
+fun <T> ChoiceRow(title: String, options: List<Pair<T, String>>, selected: T, keys: List<String>? = null, onPick: (T) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    var open by remember { mutableStateOf(false) }
+    val head = remember { FocusRequester() }
+    val sel = remember { FocusRequester() }
+    val s = LocalAppState.current
+    DisposableEffect(open) {
+        val was = open
+        if (was) s?.backOverride = { open = false; runCatching { head.requestFocus() }; true }
+        onDispose { if (was) s?.backOverride = null }
+    }
+    LaunchedEffect(open) { if (open) { kotlinx.coroutines.delay(60); runCatching { sel.requestFocus() } } }
+    val editable = LocalEditable.current
+    Column {
+        Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).focusRequester(head).clickable(enabled = editable) { open = !open }
+            .padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (keys != null) { KeyCombo(keys, Modifier.widthIn(min = 110.dp)); Spacer(Modifier.width(12.dp)) }
+            Text(title, Modifier.weight(1f), fontSize = 15.sp, color = if (editable) c.onSurface else c.onSurface.copy(alpha = 0.5f))
+            Text(options.firstOrNull { it.first == selected }?.second ?: "", fontSize = 15.sp, color = c.primary, fontWeight = FontWeight.Medium)
+            Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, Modifier.size(20.dp), tint = c.onSurfaceVariant)
+        }
+        androidx.compose.animation.AnimatedVisibility(open,
+            enter = androidx.compose.animation.expandVertically(tween(200)) + fadeIn(tween(200)),
+            exit = androidx.compose.animation.shrinkVertically(tween(160)) + fadeOut(tween(120))) {
+            Column(Modifier.padding(start = 16.dp, bottom = 6.dp).clip(RoundedCornerShape(14.dp)).background(c.onSurface.copy(alpha = 0.05f))) {
+                options.forEach { (v, label) ->
+                    val on = v == selected
+                    Row(Modifier.fillMaxWidth().then(if (on) Modifier.focusRequester(sel) else Modifier)
+                        .clickable { onPick(v); open = false; runCatching { head.requestFocus() } }
+                        .padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, Modifier.weight(1f), fontSize = 15.sp, color = if (on) c.primary else c.onSurface,
+                            fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
+                        if (on) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = c.primary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Apps instaladas que se abren desde el cajón (nombre y paquete), para elegirlas en una lista. */
+object InstalledApps {
+    var list by mutableStateOf<List<Pair<String, String>>?>(null)
+    suspend fun load(ctx: android.content.Context) {
+        if (list != null) return
+        list = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val pm = ctx.packageManager
+            pm.queryIntentActivities(android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER), 0)
+                .map { it.activityInfo.applicationInfo }.distinctBy { it.packageName }.filter { it.packageName != ctx.packageName }
+                .map { it.packageName to pm.getApplicationLabel(it).toString() }.sortedBy { it.second.lowercase() }
+        }
+    }
+}
+
+/**
+ * Elegir apps en una línea: a la derecha cuántas; A despliega la lista de apps instaladas (las elegidas primero, con su
+ * marca) y A en una la pone o la quita. B la cierra.
+ */
+@Composable
+fun AppsRow(title: String, chosen: Set<String>, onChange: (Set<String>) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var open by remember { mutableStateOf(false) }
+    val head = remember { FocusRequester() }
+    val first = remember { FocusRequester() }
+    val s = LocalAppState.current
+    LaunchedEffect(open) { if (open) { InstalledApps.load(ctx); kotlinx.coroutines.delay(60); runCatching { first.requestFocus() } } }
+    DisposableEffect(open) {
+        val was = open
+        if (was) s?.backOverride = { open = false; runCatching { head.requestFocus() }; true }
+        onDispose { if (was) s?.backOverride = null }
+    }
+    val apps = InstalledApps.list
+    val names = apps?.associate { it } ?: emptyMap()
+    val value = when (chosen.size) { 0 -> tr("Ninguna", "None"); 1 -> names[chosen.first()] ?: tr("1 app", "1 app"); else -> tr("${chosen.size} apps", "${chosen.size} apps") }
+    Column {
+        Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).focusRequester(head).clickable { open = !open }
+            .padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, Modifier.weight(1f), fontSize = 15.sp)
+            Text(value, fontSize = 15.sp, color = c.primary, fontWeight = FontWeight.Medium)
+            Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, null, Modifier.size(20.dp), tint = c.onSurfaceVariant)
+        }
+        androidx.compose.animation.AnimatedVisibility(open,
+            enter = androidx.compose.animation.expandVertically(tween(200)) + fadeIn(tween(200)),
+            exit = androidx.compose.animation.shrinkVertically(tween(160)) + fadeOut(tween(120))) {
+            Column(Modifier.padding(start = 16.dp, bottom = 6.dp).clip(RoundedCornerShape(14.dp)).background(c.onSurface.copy(alpha = 0.05f))) {
+                if (apps == null) Text(tr("Cargando…", "Loading…"), Modifier.padding(14.dp), fontSize = 14.sp, color = c.onSurfaceVariant)
+                else apps.sortedByDescending { it.first in chosen }.forEachIndexed { i, (pkg, label) ->
+                    val on = pkg in chosen
+                    Row(Modifier.fillMaxWidth().then(if (i == 0) Modifier.focusRequester(first) else Modifier)
+                        .clickable { onChange(if (on) chosen - pkg else chosen + pkg) }
+                        .padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, Modifier.weight(1f), fontSize = 15.sp, color = if (on) c.primary else c.onSurface)
+                        if (on) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = c.primary)
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.animation.togetherWith
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -59,8 +61,17 @@ fun GamesPage(s: AppState, a: MainActivity) {
     }
     DisposableEffect(Unit) { onDispose { s.detail = null; s.closeDetail = null } }
     var lastPkg by remember { mutableStateOf<String?>(null) }
+    // Abrir un juego: la ficha entra creciendo un poco y la lista se va; al volver, al revés.
+    androidx.compose.animation.AnimatedContent(open?.pkg, transitionSpec = {
+        val opening = targetState != null
+        (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) +
+            androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(220), initialScale = if (opening) 0.94f else 1.04f)) togetherWith
+            (androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140)) +
+                androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(140), targetScale = if (opening) 1.04f else 0.96f))
+    }, label = "game") { pkg ->
+    val shown = list.firstOrNull { it.pkg == pkg }
     Centered {
-        if (open != null) GameDetail(s, a, open)
+        if (shown != null) GameDetail(s, a, shown)
         else Panel {
             ChoiceChips(listOf(false to tr("Juegos", "Games"), true to tr("Todas las apps", "All apps")), all) { all = it }
             if (apps == null) Text(tr("Cargando…", "Loading…"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -72,6 +83,7 @@ fun GamesPage(s: AppState, a: MainActivity) {
                 }
             }
         }
+    }
     }
 }
 /** Las apps del cajón; las que cuentan como juego marcadas. */
@@ -148,23 +160,20 @@ private fun GameDetail(s: AppState, a: MainActivity, g: GameEntry) {
         key(g.pkg) {
             var hz by remember { mutableIntStateOf(RefreshRate.forApp(a, g.pkg) ?: 0) }
             val def = RefreshRate.forGames(a)?.let { "$it Hz" } ?: tr("Sistema", "System")
-            Text(tr("Frecuencia", "Refresh rate"), fontSize = 14.sp)
-            ChoiceChips(listOf(0 to tr("Como todos ($def)", "Like all ($def)")) + RefreshRate.supported(a).map { it to "$it Hz" }, hz) {
+            ChoiceRow(tr("Frecuencia", "Refresh rate"), listOf(0 to tr("Como todos ($def)", "Like all ($def)")) + RefreshRate.supported(a).map { it to "$it Hz" }, hz) {
                 hz = it; RefreshRate.setForApp(a, g.pkg, it.takeIf { v -> v > 0 })
             }
 
             // Proporción con la vista de juego de ZUI: solo donde está (Game Assistant).
             if (ZuiGame.installed(a)) {
                 var ratio by remember { mutableStateOf(GameAspect.get(a, g.pkg)) }
-                Text(tr("Proporción", "Aspect ratio"), fontSize = 14.sp)
-                ChoiceChips(GameAspect.Ratio.entries.map { it to it.label }, ratio) { r ->
+                ChoiceRow(tr("Proporción", "Aspect ratio"), GameAspect.Ratio.entries.map { it to it.label }, ratio) { r ->
                     scope.launch { if (GameAspect.set(a, g.pkg, r)) ratio = r else s.fail(tr("Necesita Shizuku.", "Needs Shizuku.")) }
                 }
             }
 
             var tap by remember { mutableStateOf(AutoRules.guideTap(a, g.pkg)) }
-            Text(tr("Tocar la guía", "Tap the guide"), fontSize = 14.sp)
-            ChoiceChips(AutoRules.GuideTap.entries.map { it to it.label }, tap) { tap = it; AutoRules.setGuideTap(a, g.pkg, it) }
+            ChoiceRow(tr("Tocar la guía", "Tap the guide"), AutoRules.GuideTap.entries.map { it to it.label }, tap) { tap = it; AutoRules.setGuideTap(a, g.pkg, it) }
             if (tap == AutoRules.GuideTap.PASS) {
                 var byGame by remember { mutableStateOf(AutoRules.shotByGame(a, g.pkg)) }
                 SwitchRow(tr("Guía + RB: captura del juego", "Guide + RB: game's screenshot"), byGame) { byGame = it; AutoRules.setShotByGame(a, g.pkg, it) }
@@ -179,8 +188,7 @@ private fun GameDetail(s: AppState, a: MainActivity, g: GameEntry) {
 
             // Modo del G9 al abrirlo: solo si hay (o hubo) un G9.
             if (s.g9Known) {
-                Text(tr("Modo del G9", "G9 mode"), fontSize = 14.sp)
-                ChoiceChips(listOf<Pair<AutoTarget?, String>>(null to "Android", AutoTarget.XINPUT to "X-Input", AutoTarget.DS5 to "DS5"), s.autoRules[g.pkg]) { t ->
+                ChoiceRow(tr("Modo del G9", "G9 mode"), listOf<Pair<AutoTarget?, String>>(null to "Android", AutoTarget.XINPUT to "X-Input", AutoTarget.DS5 to "DS5"), s.autoRules[g.pkg]) { t ->
                     val next = if (t == null) s.autoRules - g.pkg else s.autoRules + (g.pkg to t)
                     s.autoRules = next; AutoRules.setRules(a, next)
                 }

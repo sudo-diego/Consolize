@@ -50,17 +50,7 @@ private fun GuidePanel(a: MainActivity) {
                 // Tocar, tocar dos veces y mantener: cada uno hace lo que se elija.
                 AutoRules.GuidePress.entries.forEach { p ->
                     val st = actions.getValue(p)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        KeyCombo(listOf(tr("Guía", "Guide")), Modifier.widthIn(min = 132.dp))
-                        Spacer(Modifier.width(14.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(p.label, fontSize = 15.sp)
-                            if (p == AutoRules.GuidePress.DOUBLE && st.value != AutoRules.GuideAction.NONE)
-                                Text(tr("Tocar una vez espera un momento por si viene el segundo", "A single tap waits a moment for a second one"),
-                                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    if (LocalEditable.current) ChoiceChips(AutoRules.GuideAction.entries.map { it to it.label }, st.value) {
+                    ChoiceRow(p.label, AutoRules.GuideAction.entries.map { it to it.label }, st.value, keys = listOf(tr("Guía", "Guide"))) {
                         st.value = it; AutoRules.setGuideAction(a, p, it)
                     }
                 }
@@ -115,58 +105,28 @@ private fun ChordEditor(a: MainActivity, c: AutoRules.Chord) {
     var where by remember { mutableStateOf(AutoRules.chordWhere(a, c)) }
     var apps by remember { mutableStateOf(AutoRules.chordApps(a, c)) }
     var press by remember { mutableStateOf(AutoRules.chordPress(a)) }
-    var editKeys by remember { mutableStateOf(false) }
-    val how = listOfNotNull(
-        if (c == AutoRules.Chord.PANEL) (if (press == AutoRules.Press.TAP) tr("Tocar · mantener: captura", "Tap · hold: screenshot") else tr("Mantener", "Hold")) else null,
-        when (where) {
-            AutoRules.Where.ALL -> null
-            AutoRules.Where.ONLY -> tr("Solo en ${apps.size} apps", "Only in ${apps.size} apps")
-            AutoRules.Where.EXCEPT -> tr("Menos en ${apps.size} apps", "Except ${apps.size} apps")
-        }
-    ).joinToString(" · ").ifEmpty { null }
-    ShortcutRow(listOf(keys.first.label, keys.second.label), how, c.label, on) { on = it; AutoRules.setChordOn(a, c, it) }
+    ShortcutRow(listOf(keys.first.label, keys.second.label), null, c.label, on) { on = it; AutoRules.setChordOn(a, c, it) }
     if (!on || !LocalEditable.current) return
-    // Los mismos dos botones que otro atajo encendido: gana el que va antes (Panel, Captura, Atrás). Se avisa.
+    // Los mismos dos botones que otro atajo encendido: gana el que va antes (Panel, Captura, Atrás).
     val clash = AutoRules.Chord.entries.firstOrNull { o ->
         o != c && AutoRules.chordOn(a, o) && AutoRules.chordKeys(a, o).let { setOf(it.first, it.second) } == setOf(keys.first, keys.second)
     }
-    Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (clash != null) Text(tr("Los mismos botones que ${clash.short}: cambia uno de los dos.", "Same buttons as ${clash.short}: change one of them."),
-            fontSize = 13.sp, color = col.error)
-        TextButton(onClick = { editKeys = !editKeys }, contentPadding = PaddingValues(horizontal = 4.dp)) {
-            Text(if (editKeys) tr("Listo", "Done") else tr("Cambiar botones", "Change buttons"))
+    Column(Modifier.padding(start = 14.dp)) {
+        if (clash != null) Text(tr("Mismos botones que ${clash.short}", "Same buttons as ${clash.short}"), fontSize = 13.sp, color = col.error)
+        ChoiceRow(tr("Primer botón", "First button"), AutoRules.PadKey.entries.map { it to it.label }, keys.first) { k ->
+            val second = if (k == keys.second) AutoRules.PadKey.entries.first { it != k } else keys.second
+            keys = k to second; AutoRules.setChordKeys(a, c, k, second)
         }
-        if (editKeys) {
-            Text(tr("Primer botón", "First button"), fontSize = 13.sp, color = col.onSurfaceVariant)
-            ChoiceChips(AutoRules.PadKey.entries.map { it to it.label }, keys.first) { k ->
-                val second = if (k == keys.second) AutoRules.PadKey.entries.first { it != k } else keys.second
-                keys = k to second; AutoRules.setChordKeys(a, c, k, second)
-            }
-            Text(tr("Segundo botón", "Second button"), fontSize = 13.sp, color = col.onSurfaceVariant)
-            ChoiceChips(AutoRules.PadKey.entries.filter { it != keys.first }.map { it to it.label }, keys.second) { k ->
-                keys = keys.first to k; AutoRules.setChordKeys(a, c, keys.first, k)
-            }
-            Text(tr("El primero llega al juego; el segundo se lo queda el atajo.", "The first one reaches the game; the shortcut keeps the second."),
-                fontSize = 12.sp, color = col.onSurfaceVariant)
+        ChoiceRow(tr("Segundo botón", "Second button"), AutoRules.PadKey.entries.filter { it != keys.first }.map { it to it.label }, keys.second) { k ->
+            keys = keys.first to k; AutoRules.setChordKeys(a, c, keys.first, k)
         }
-        if (c == AutoRules.Chord.PANEL) {
-            ChoiceChips(AutoRules.Press.entries.map { it to it.label }, press) { press = it; AutoRules.setChordPress(a, it) }
-            if (press == AutoRules.Press.HOLD) Text(
-                tr("Los dos botones llegan al juego y el panel se abre si se mantienen un momento: sirve en juegos que usan la misma combinación.",
-                    "Both buttons reach the game and the panel opens if they're held for a moment: works in games that use the same combo."),
-                fontSize = 12.sp, color = col.onSurfaceVariant)
+        if (c == AutoRules.Chord.PANEL) ChoiceRow(tr("Se activa al", "Triggers on"),
+            listOf(AutoRules.Press.TAP to tr("Tocar", "Tap"), AutoRules.Press.HOLD to tr("Mantener (llega al juego)", "Hold (reaches the game)")), press) {
+            press = it; AutoRules.setChordPress(a, it)
         }
-        ChoiceChips(AutoRules.Where.entries.map { it to it.label }, where) { where = it; AutoRules.setChordWhere(a, c, it) }
-        if (where != AutoRules.Where.ALL) {
-            val pm = a.packageManager
-            val named = apps.mapNotNull { p -> runCatching { p to pm.getApplicationLabel(pm.getApplicationInfo(p, 0)).toString() }.getOrNull() }
-                .sortedBy { it.second.lowercase() }
-            if (named.isEmpty()) Text(tr("Ninguna app elegida.", "No apps chosen."), fontSize = 13.sp, color = col.onSurfaceVariant)
-            else MultiChips(named, named.map { it.first }.toSet()) { p, keep ->
-                apps = if (keep) apps + p else apps - p; AutoRules.setChordApps(a, c, apps)
-            }
-            Text(tr("Tocar una app la quita. Se agregan en Juegos → Biblioteca, en la ficha de cada una.",
-                "Tap an app to remove it. Add them in Games → Library, on each app's page."), fontSize = 12.sp, color = col.onSurfaceVariant)
+        ChoiceRow(tr("Funciona en", "Works in"), AutoRules.Where.entries.map { it to it.label }, where) { where = it; AutoRules.setChordWhere(a, c, it) }
+        if (where != AutoRules.Where.ALL) AppsRow(if (where == AutoRules.Where.ONLY) tr("Apps", "Apps") else tr("Menos en", "Except in"), apps) {
+            apps = it; AutoRules.setChordApps(a, c, it)
         }
     }
 }
