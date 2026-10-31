@@ -5,16 +5,16 @@
 <title>Consolize · rediseño (v4)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root{ --acc:#5cc8ff; --on-acc:#052238; --bg:#0d1220; --tile:#1f2a42; --fg:#fff; --mut:#9aa6bf; --dim:#66728c; }
+  :root{ --acc:#5cc8ff; --on-acc:#052238; --bg:#0d1220; --tile:#1f2a42; --card:#202b45dd; --card2:#19223add; --fg:#fff; --mut:#9aa6bf; --dim:#66728c; --badge:#ffffff21; --ink:#ffffffd9; --dockbg:#0b1120d9; }
   *{box-sizing:border-box}
   html,body{margin:0;background:#06080f;color:var(--fg);font:15px/1.4 "Roboto","Inter",system-ui,sans-serif}
   .top{display:flex;gap:10px;align-items:center;justify-content:center;padding:12px;flex-wrap:wrap;color:var(--mut);font-size:13px}
-  .top button{background:#151e31;color:var(--fg);border:0;border-radius:999px;padding:7px 14px;font:inherit;cursor:pointer}
+  .top button{background:#151e31;color:#fff;border:0;border-radius:999px;padding:7px 14px;font:inherit;cursor:pointer}
   .top button.on{background:var(--acc);color:var(--on-acc);font-weight:600}
   .sw{width:22px;height:22px;border-radius:50%;border:0;cursor:pointer;padding:0}
   .sw.on{outline:2px solid #fff;outline-offset:2px}
   .keys{width:100%;text-align:center}
-  kbd{background:#1a2439;border-radius:5px;padding:1px 6px;font:12px ui-monospace,monospace;color:var(--fg)}
+  kbd{background:#1a2439;border-radius:5px;padding:1px 6px;font:12px ui-monospace,monospace;color:#fff}
   .tab{width:min(1200px,96vw);aspect-ratio:16/10;margin:0 auto 18px;border-radius:22px;overflow:hidden;position:relative;
        background:radial-gradient(120% 90% at 85% -10%,#1d2c55 0%,transparent 55%),radial-gradient(90% 70% at -10% 110%,#13314a 0%,transparent 60%),var(--bg);
        box-shadow:0 0 0 10px #000,0 30px 80px #0008}
@@ -27,8 +27,9 @@
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
   .t{height:80px;border-radius:18px;background:var(--tile);display:flex;align-items:center;gap:12px;padding:0 12px;cursor:pointer;
      box-shadow:0 6px 18px #0005;transition:transform .12s;position:relative}
-  .t .b{width:40px;height:40px;border-radius:12px;background:#ffffff21;display:grid;place-items:center;flex:none}
-  .t .b svg{width:22px;height:22px;fill:#ffffffd9}
+  .t .b{width:40px;height:40px;border-radius:12px;background:var(--badge);display:grid;place-items:center;flex:none}
+  .t .b svg{width:22px;height:22px;fill:var(--ink)}
+  .t,.chip,.cat,.li{color:var(--fg)}
   .t.act .b{background:var(--acc)} .t.act .b svg{fill:var(--on-acc)} .t.act .s{color:var(--acc)}
   .t .n{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .t .s{font-size:12px;color:var(--mut);white-space:nowrap}
@@ -91,7 +92,7 @@
   .pad .bt{color:var(--fg);font-size:15px}
   /* Dock */
   .dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:7px;border-radius:22px;
-        background:#0b1120d9;backdrop-filter:blur(14px);box-shadow:0 10px 30px #0008,0 1px 0 #ffffff12 inset}
+        background:var(--dockbg);backdrop-filter:blur(14px);box-shadow:0 10px 30px #0008,0 1px 0 #ffffff12 inset}
   .dk{display:flex;align-items:center;gap:9px;padding:10px 16px;border-radius:15px;color:var(--mut);font-weight:500;cursor:pointer;transition:.12s;white-space:nowrap}
   .dk svg{width:20px;height:20px;fill:currentColor}
   .dk.cur{color:var(--on-acc);background:var(--acc)}
@@ -111,7 +112,7 @@
      radial-gradient(50% 50% at 10% 95%,#2f6bffbb 0%,transparent 60%),#121833}
   .tab.img:before{content:"";position:absolute;inset:0;background:
      repeating-linear-gradient(115deg,#ffffff07 0 2px,transparent 2px 22px),linear-gradient(180deg,#0a0f1f55,#0a0f1fcc)}
-  .tab.img .t,.tab.img .chip,.tab.img .grp{background:linear-gradient(180deg,#25304bdd,#1a2338dd);backdrop-filter:blur(18px)}
+  .tab.img .t,.tab.img .chip,.tab.img .grp{background:linear-gradient(180deg,var(--card),var(--card2));backdrop-filter:blur(18px)}
   .t{transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
   .t.f{transform:translateY(-3px) scale(1.045)}
   .t.f .b{animation:pop .35s cubic-bezier(.34,1.56,.64,1)}
@@ -124,7 +125,7 @@
 
   .rows{display:flex;flex-direction:column;gap:14px}
   .mrow{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:12px}
-  .mname{font-size:20px;font-weight:600;letter-spacing:-.2px;color:#ffffffe6}
+  .mname{font-size:20px;font-weight:600;letter-spacing:-.2px;color:var(--fg)}
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   .grid4 .t{height:70px}
   .t .tags{position:absolute;top:8px;right:10px;margin:0}
@@ -137,7 +138,7 @@
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 
   .cats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  .cat{height:150px;border-radius:24px;background:linear-gradient(180deg,#25304bdd,#1a2338dd);backdrop-filter:blur(18px);box-shadow:0 6px 18px #0005;
+  .cat{height:150px;border-radius:24px;background:linear-gradient(180deg,var(--card),var(--card2));backdrop-filter:blur(18px);box-shadow:0 6px 18px #0005;
        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;opacity:.75;
        transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .2s}
   .cat.sel{opacity:1}
@@ -152,13 +153,15 @@
   .subs{margin-top:22px;min-height:130px}
   @keyframes slide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
   .slide{animation:slide .2s ease-out}
+  .hero .pct,.hero .sub,.art .nm,.art .sub,.bar,.mname,.lbl{color:#fff;text-shadow:0 1px 8px #0008}
+  .hero .sub,.art .sub,.bar,.lbl{color:#ffffffcc}
   .note{max-width:1200px;margin:0 auto 30px;color:var(--mut);font-size:14px;padding:0 20px}
 </style>
 </head>
 <body>
 <div class="top">
   <span>Control:</span><button data-pad="g8" class="on">GameSir G8+</button><button data-pad="g9">Legion G9</button><button data-pad="other">Razer Kishi</button><button data-pad="none">Ninguno</button><span style="margin-left:14px">Fondo:</span><button data-bg="img" class="on">Imagen</button><button data-bg="plain">Oscuro</button><span style="margin-left:14px">Panel:</span><button data-ps="center" class="on">Al centro</button><button data-ps="side">Lateral</button><span style="margin-left:14px">Halo:</span><button data-halo="off">No</button><button data-halo="slow" class="on">Lento</button><button data-halo="fast">Rápido</button><span style="margin-left:14px">Sonidos:</span><button data-snd="1">Sí</button><button data-snd="0" class="on">No</button>
-  <span style="margin-left:14px">Acento:</span><span id="acc"></span>
+  <span style="margin-left:14px">Tarjetas:</span><span id="cards"></span><span style="margin-left:14px">Acento:</span><span id="acc"></span>
   <div class="keys"><kbd>←↑→↓</kbd> moverse · <kbd>Enter</kbd> A · <kbd>Esc</kbd> B · <kbd>Q</kbd>/<kbd>E</kbd> LB/RB · en Más: <kbd>Y</kbd> fijar en Inicio, <kbd>X</kbd> fijar en el dock · toca un dato de Inicio para cambiar lo que muestra</div>
 </div>
 <div class="tab"><div id="screen"></div></div>
@@ -169,7 +172,7 @@ const I={"dashboard": "<path d=\"M19 5v2h-4V5h4M9 5v6H5V5h4m10 8v6h-4v-6h4M9 17v
 const padArt=k=>{const op=k==='none'?.35:1;const L='#ffffffb3',T=2.2;
  return `<svg class="padsvg" viewBox="0 0 320 200" style="opacity:${op}" fill="none" stroke="${L}" stroke-width="${T}" stroke-linecap="round" stroke-linejoin="round">
  <path d="M84 46 C120 38 200 38 236 46 C262 52 276 66 286 96 C298 134 302 166 284 176 C268 185 252 176 240 158 C232 146 224 140 210 140 L110 140 C96 140 88 146 80 158 C68 176 52 185 36 176 C18 166 22 134 34 96 C44 66 58 52 84 46Z"/>
- <path d="M96 40 C100 32 112 28 124 30 M224 40 C220 32 208 28 196 30" stroke-width="${T*1.2}"/>
+ <path d="M62 56 C70 40 86 33 104 32 C114 31 122 33 128 38 M258 56 C250 40 234 33 216 32 C206 31 198 33 192 38" stroke-width="${T*2.4}" stroke="#ffffff66"/>
  <circle cx="104" cy="90" r="17"/><circle cx="104" cy="90" r="7"/>
  <circle cx="196" cy="118" r="17"/><circle cx="196" cy="118" r="7"/>
  <path d="M128 112v18M119 121h18"/>
@@ -272,14 +275,36 @@ document.getElementById('screen').addEventListener('click',e=>{
   const el=e.target.closest('[data-nav]');if(el){setF(el);act(el);}});
 document.getElementById('acc').innerHTML=ACC.map(([c,o],i)=>`<button class="sw ${i?'':'on'}" style="background:${c}" data-c="${c}" data-o="${o}"></button>`).join(' ');
 document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{document.documentElement.style.setProperty('--acc',b.dataset.c);document.documentElement.style.setProperty('--on-acc',b.dataset.o);document.querySelectorAll('.sw').forEach(x=>x.classList.toggle('on',x===b));});
+// Color de las tarjetas, aparte del acento: el tono de fondo de mosaicos, temas, datos y dock (y el texto que va encima).
+const CARDS={
+ 'Azul noche':{tile:'#1f2a42',card:'#202b45dd',card2:'#19223add',fg:'#fff',mut:'#9aa6bf',badge:'#ffffff21',ink:'#ffffffd9',dock:'#0b1120d9'},
+ 'Grafito':{tile:'#26282d',card:'#2a2c31dd',card2:'#202226dd',fg:'#fff',mut:'#a3a6ad',badge:'#ffffff1c',ink:'#ffffffd9',dock:'#141518e0'},
+ 'Negro':{tile:'#0c0c0e',card:'#0d0d10e6',card2:'#09090be6',fg:'#fff',mut:'#8d9099',badge:'#ffffff17',ink:'#ffffffd9',dock:'#000000e0'},
+ 'Del acento':{tile:'color-mix(in srgb,var(--acc) 22%,#141a2c)',card:'color-mix(in srgb,var(--acc) 24%,#151b2ddd)',card2:'color-mix(in srgb,var(--acc) 16%,#121828dd)',fg:'#fff',mut:'#c6d0e4',badge:'#ffffff26',ink:'#fff',dock:'color-mix(in srgb,var(--acc) 18%,#0b1120e0)'},
+ 'Claro':{tile:'#f2f5fa',card:'#f6f8fce6',card2:'#e9eef6e6',fg:'#14203a',mut:'#56607a',badge:'#14203a12',ink:'#14203acc',dock:'#f3f6fbe6'},
+};
+document.getElementById('cards').innerHTML=Object.keys(CARDS).map((n,i)=>`<button data-cards="${n}" class="${i?'':'on'}">${n}</button>`).join('');
 const grp=(attr,fn)=>document.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{document.querySelectorAll(`[${attr}]`).forEach(x=>x.classList.toggle('on',x===b));fn(b.getAttribute(attr));render();});
 grp('data-bg',v=>document.querySelector('.tab').classList.toggle('img',v==='img'));
 grp('data-ps',v=>sideP=v==='side');
+grp('data-cards',n=>{const c=CARDS[n],r=document.documentElement.style;r.setProperty('--tile',c.tile);r.setProperty('--card',c.card);r.setProperty('--card2',c.card2);
+  r.setProperty('--fg',c.fg);r.setProperty('--mut',c.mut);r.setProperty('--badge',c.badge);r.setProperty('--ink',c.ink);r.setProperty('--dockbg',c.dock);});
 grp('data-halo',v=>{const t=document.querySelector('.tab');t.classList.toggle('nohalo',v==='off');t.style.setProperty('--halo',v==='fast'?'1.3s':'2.6s');}); grp('data-snd',v=>sounds=v==='1');
 document.querySelector('.tab').classList.add('img');
-document.querySelectorAll('[data-pad]').forEach(b=>b.onclick=()=>{padKind=b.dataset.pad;const grp=(attr,fn)=>document.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{document.querySelectorAll(`[${attr}]`).forEach(x=>x.classList.toggle('on',x===b));fn(b.getAttribute(attr));render();});
+document.querySelectorAll('[data-pad]').forEach(b=>b.onclick=()=>{padKind=b.dataset.pad;// Color de las tarjetas, aparte del acento: el tono de fondo de mosaicos, temas, datos y dock (y el texto que va encima).
+const CARDS={
+ 'Azul noche':{tile:'#1f2a42',card:'#202b45dd',card2:'#19223add',fg:'#fff',mut:'#9aa6bf',badge:'#ffffff21',ink:'#ffffffd9',dock:'#0b1120d9'},
+ 'Grafito':{tile:'#26282d',card:'#2a2c31dd',card2:'#202226dd',fg:'#fff',mut:'#a3a6ad',badge:'#ffffff1c',ink:'#ffffffd9',dock:'#141518e0'},
+ 'Negro':{tile:'#0c0c0e',card:'#0d0d10e6',card2:'#09090be6',fg:'#fff',mut:'#8d9099',badge:'#ffffff17',ink:'#ffffffd9',dock:'#000000e0'},
+ 'Del acento':{tile:'color-mix(in srgb,var(--acc) 22%,#141a2c)',card:'color-mix(in srgb,var(--acc) 24%,#151b2ddd)',card2:'color-mix(in srgb,var(--acc) 16%,#121828dd)',fg:'#fff',mut:'#c6d0e4',badge:'#ffffff26',ink:'#fff',dock:'color-mix(in srgb,var(--acc) 18%,#0b1120e0)'},
+ 'Claro':{tile:'#f2f5fa',card:'#f6f8fce6',card2:'#e9eef6e6',fg:'#14203a',mut:'#56607a',badge:'#14203a12',ink:'#14203acc',dock:'#f3f6fbe6'},
+};
+document.getElementById('cards').innerHTML=Object.keys(CARDS).map((n,i)=>`<button data-cards="${n}" class="${i?'':'on'}">${n}</button>`).join('');
+const grp=(attr,fn)=>document.querySelectorAll(`[${attr}]`).forEach(b=>b.onclick=()=>{document.querySelectorAll(`[${attr}]`).forEach(x=>x.classList.toggle('on',x===b));fn(b.getAttribute(attr));render();});
 grp('data-bg',v=>document.querySelector('.tab').classList.toggle('img',v==='img'));
 grp('data-ps',v=>sideP=v==='side');
+grp('data-cards',n=>{const c=CARDS[n],r=document.documentElement.style;r.setProperty('--tile',c.tile);r.setProperty('--card',c.card);r.setProperty('--card2',c.card2);
+  r.setProperty('--fg',c.fg);r.setProperty('--mut',c.mut);r.setProperty('--badge',c.badge);r.setProperty('--ink',c.ink);r.setProperty('--dockbg',c.dock);});
 grp('data-halo',v=>{const t=document.querySelector('.tab');t.classList.toggle('nohalo',v==='off');t.style.setProperty('--halo',v==='fast'?'1.3s':'2.6s');}); grp('data-snd',v=>sounds=v==='1');
 document.querySelector('.tab').classList.add('img');
 document.querySelectorAll('[data-pad]').forEach(x=>x.classList.toggle('on',x===b));render();});
