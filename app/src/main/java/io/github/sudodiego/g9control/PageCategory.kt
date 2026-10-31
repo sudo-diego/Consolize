@@ -34,6 +34,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -243,9 +244,16 @@ fun PadLineArt(modifier: Modifier) {
 private fun MoreHub(s: AppState) {
     val c = MaterialTheme.colorScheme
     val groups = moreGroups(s)
-    var cat by rememberSaveable { mutableIntStateOf(0) }
+    var cat by remember { mutableIntStateOf(s.moreCat.coerceIn(0, groups.size - 1)) }
+    LaunchedEffect(cat) { s.moreCat = cat }
     val catFocus = remember { List(groups.size) { FocusRequester() } }
     val firstOption = remember { FocusRequester() }
+    // B en una opción vuelve a su tema (B lo maneja la actividad: se le avisa mientras el foco está en las opciones).
+    var inOptions by remember { mutableStateOf(false) }
+    DisposableEffect(inOptions) {
+        s.backOverride = if (inOptions && s.inHub) ({ runCatching { catFocus[cat].requestFocus() }; true }) else null
+        onDispose { s.backOverride = null }
+    }
     Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth()) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             groups.forEachIndexed { i, (name, items) ->
@@ -272,9 +280,7 @@ private fun MoreHub(s: AppState) {
         }
         Spacer(Modifier.height(22.dp))
         // B en una opción vuelve a su tema.
-        Box(Modifier.onPreviewKeyEvent { e ->
-            if (e.type == KeyEventType.KeyUp && (e.key == Key.ButtonB || e.key == Key.Back)) { runCatching { catFocus[cat].requestFocus() }; true } else false
-        }) {
+        Box(Modifier.onFocusChanged { inOptions = it.hasFocus }) {
             androidx.compose.animation.AnimatedContent(cat, transitionSpec = {
                 (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) +
                     androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(200)) { -it / 12 }) togetherWith

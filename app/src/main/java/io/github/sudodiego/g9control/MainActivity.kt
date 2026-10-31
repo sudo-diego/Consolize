@@ -1156,7 +1156,12 @@ class AppState {
     /** Algo abierto dentro de la página (la ficha de un juego): su nombre va en el título y B lo cierra primero. */
     var detail by mutableStateOf<String?>(null)
     var closeDetail: (() -> Unit)? = null
+    /** Un paso de B que resuelve la pantalla misma (en Más, de una opción a su tema); true si lo hizo. */
+    var backOverride: (() -> Boolean)? = null
+    /** El tema elegido en Más (se recuerda al volver de una opción). */
+    var moreCat by mutableStateOf(0)
     fun back(): Boolean = when {
+        backOverride?.invoke() == true -> true
         detail != null -> { closeDetail?.invoke(); detail = null; true }
         // Lo abierto como raíz de un destino del dock (Biblioteca, Panel, algo fijado): B vuelve a Inicio.
         !inHub && rootPage -> { goDest(Dest.HOME); true }
