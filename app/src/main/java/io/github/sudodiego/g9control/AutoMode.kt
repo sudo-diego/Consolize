@@ -917,7 +917,7 @@ class AutoModeService : AccessibilityService() {
         val trigger = k == KeyEvent.KEYCODE_BUTTON_L2 || k == KeyEvent.KEYCODE_BUTTON_R2
         if (k != KeyEvent.KEYCODE_BUTTON_R1 && k != KeyEvent.KEYCODE_BUTTON_L1 && !trigger) return false
         if (e.action == KeyEvent.ACTION_UP) {
-            if (k == KeyEvent.KEYCODE_BUTTON_R1) main.removeCallbacks(burst)
+            if (k == burstKey) main.removeCallbacks(burst)
             return chordSwallow.remove(k)
         }
         if (e.repeatCount > 0) return k in chordSwallow
@@ -931,18 +931,15 @@ class AutoModeService : AccessibilityService() {
         if (trigger && !guideNow) return false
         if (!legionChording && !guideNow) return false
         // La captura la saca el emulador: RB le llega (Guía + RB es su atajo) y aquí solo el aviso.
-        if (passChord && k == KeyEvent.KEYCODE_BUTTON_R1 && AutoRules.shotByGame(this, lastPackage)) {
+        val combo = AutoRules.GuideCombo.of(k) ?: return false
+        val action = AutoRules.comboAction(this, combo)
+        if (passChord && action == AutoRules.ComboAction.SHOT && AutoRules.shotByGame(this, lastPackage)) {
             Log.d(TAG, "Guía + RB: captura del emulador")
             panel.gameShotNotice()
             return false
         }
-        // Ese atajo apagado: RB o LB llegan normal.
-        if (!AutoRules.guide(this, when (k) {
-                KeyEvent.KEYCODE_BUTTON_R1 -> AutoRules.Guide.RB_SHOT
-                KeyEvent.KEYCODE_BUTTON_L1 -> AutoRules.Guide.LB_BACK
-                KeyEvent.KEYCODE_BUTTON_L2 -> AutoRules.Guide.LT_REC
-                else -> AutoRules.Guide.RT_SHADOW
-            })) return false
+        // Ese atajo apagado: el botón llega normal.
+        if (!AutoRules.guide(this, combo.guide)) return false
         legionPending = false
         legionChording = true
         main.removeCallbacks(legionHold)
@@ -950,30 +947,35 @@ class AutoModeService : AccessibilityService() {
         main.removeCallbacks(chordExpire)
         main.postDelayed(chordExpire, 2000)
         chordSwallow += k
-        if (trigger) {
-            Log.d(TAG, "Legion + ${if (k == KeyEvent.KEYCODE_BUTTON_L2) "LT: grabar" else "RT: Shadow Rec"}")
-            if (k == KeyEvent.KEYCODE_BUTTON_L2) panel.toggleRecord() else panel.shadowAction()
-        } else if (k == KeyEvent.KEYCODE_BUTTON_R1) {
-            Log.d(TAG, "Legion + RB: captura")
-            panel.capture()
-            main.removeCallbacks(burst)
-            if (AutoRules.burstShots(this)) main.postDelayed(burst, 1000)
-        } else {
-            Log.d(TAG, "Legion + LB: Atrás mantenido")
-            scope.launch {
+        Log.d(TAG, "Legion + ${combo.key}: $action")
+        // Lo elegido para esa combinación (Controles → Botón guía, manteniendo su tarjeta).
+        when (action) {
+            AutoRules.ComboAction.SHOT -> {
+                panel.capture()
+                main.removeCallbacks(burst)
+                burstKey = k
+                if (AutoRules.burstShots(this)) main.postDelayed(burst, 1000)
+            }
+            AutoRules.ComboAction.BACK_HOLD -> scope.launch {
                 if (Shell.run(Shell.BACK_LONG) == null) {
                     performGlobalAction(GLOBAL_ACTION_BACK)
                     panel.message(tr("Se hizo un Atrás normal", "Did a normal Back"), tr("Mantener Atrás necesita Shizuku.", "Holding Back needs Shizuku."))
                 }
             }
+            AutoRules.ComboAction.RECORD -> panel.toggleRecord()
+            AutoRules.ComboAction.SHADOW -> panel.shadowAction()
+            AutoRules.ComboAction.PANEL -> panel.show()
+            AutoRules.ComboAction.HOME -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_HOME) }
+            AutoRules.ComboAction.RECENTS -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_RECENTS) }
         }
         return true
     }
 
-    /** Ráfaga: RB sigue apretado (desde la combinación con Legion). */
+    /** Ráfaga: el botón de la captura sigue apretado (desde la combinación con Legion). */
+    private var burstKey = KeyEvent.KEYCODE_BUTTON_R1
     private val burst: Runnable = object : Runnable {
         override fun run() {
-            if (KeyEvent.KEYCODE_BUTTON_R1 !in chordSwallow) return
+            if (burstKey !in chordSwallow) return
             panel.capture()
             main.postDelayed(this, 1100)
         }

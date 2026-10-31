@@ -1,5 +1,16 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,49 +46,187 @@ private fun ShortcutsContent(s: AppState, a: MainActivity) {
     TwoPane(first = { GuidePanel(a) }, second = { OtherShortcutsPanel(a); TabletButtonsPanel(a) })
 }
 
+/** Íconos de lo que puede hacer la guía y sus combinaciones. */
+private val AutoRules.GuideAction.icon: ImageVector get() = when (this) {
+    AutoRules.GuideAction.NONE -> Icons.Outlined.Block; AutoRules.GuideAction.BACK -> Icons.AutoMirrored.Outlined.ArrowBack
+    AutoRules.GuideAction.HOME -> Icons.Outlined.Home; AutoRules.GuideAction.RECENTS -> Icons.Outlined.Layers
+    AutoRules.GuideAction.PANEL -> Icons.Outlined.Dashboard; AutoRules.GuideAction.SHOT -> Icons.Outlined.Screenshot
+    AutoRules.GuideAction.NOTIFICATIONS -> Icons.Outlined.Notifications; AutoRules.GuideAction.QUICK_SETTINGS -> Icons.Outlined.ToggleOn
+}
+private val AutoRules.ComboAction.icon: ImageVector get() = when (this) {
+    AutoRules.ComboAction.SHOT -> Icons.Outlined.Screenshot; AutoRules.ComboAction.BACK_HOLD -> Icons.AutoMirrored.Outlined.ArrowBack
+    AutoRules.ComboAction.RECORD -> Icons.Outlined.Videocam; AutoRules.ComboAction.SHADOW -> Icons.Outlined.History
+    AutoRules.ComboAction.PANEL -> Icons.Outlined.Dashboard; AutoRules.ComboAction.HOME -> Icons.Outlined.Home
+    AutoRules.ComboAction.RECENTS -> Icons.Outlined.Layers
+}
+
+/**
+ * Botón guía, visual: el control dibujado; tocar (•), tocar dos veces (••) y mantener (▬) como tres tarjetas con el
+ * ícono de lo que hacen (A en una despliega las acciones); y las combinaciones como botones dibujados + un ícono:
+ * tocar una la enciende o apaga (apagada, tenue) y mantenerla (o Y) despliega qué hace. Casi sin texto.
+ */
 @Composable
 private fun GuidePanel(a: MainActivity) {
     var on by remember { mutableStateOf(AutoRules.legionKeys(a)) }
     val states = remember { AutoRules.Guide.entries.associateWith { mutableStateOf(AutoRules.guide(a, it)) } }
     val actions = remember { AutoRules.GuidePress.entries.associateWith { mutableStateOf(AutoRules.guideAction(a, it)) } }
+    val combos = remember { AutoRules.GuideCombo.entries.associateWith { mutableStateOf(AutoRules.comboAction(a, it)) } }
     var burst by remember { mutableStateOf(AutoRules.burstShots(a)) }
     var streamTip by remember { mutableStateOf(AutoRules.streamTip(a)) }
+    // Lo desplegado: una forma de apretar (tocar, dos veces, mantener) o una combinación.
+    var openPress by remember { mutableStateOf<AutoRules.GuidePress?>(null) }
+    var openCombo by remember { mutableStateOf<AutoRules.GuideCombo?>(null) }
+    val s = LocalAppState.current
+    DisposableEffect(openPress, openCombo) {
+        val open = openPress != null || openCombo != null
+        if (open) s?.backOverride = { openPress = null; openCombo = null; true }
+        onDispose { if (open) s?.backOverride = null }
+    }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
         Panel(tr("Botón guía", "Guide button"), null,
             trailing = { Switch(on, { on = it; AutoRules.setLegionKeys(a, it) }, enabled = LocalGateOk.current) }) {
-            CompositionLocalProvider(LocalEditable provides (on && LocalGateOk.current)) {
-                fun row(g: AutoRules.Guide) = states.getValue(g)
-                // Tocar, tocar dos veces y mantener: cada uno hace lo que se elija.
-                AutoRules.GuidePress.entries.forEach { p ->
-                    val st = actions.getValue(p)
-                    ChoiceRow(p.label, AutoRules.GuideAction.entries.map { it to it.label }, st.value, keys = listOf(tr("Guía", "Guide"))) {
-                        st.value = it; AutoRules.setGuideAction(a, p, it)
+            val editable = on && LocalGateOk.current
+            Row(Modifier.alpha(if (editable) 1f else 0.45f), verticalAlignment = Alignment.CenterVertically) {
+                PadLineArt(Modifier.width(240.dp))
+                Spacer(Modifier.width(24.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        AutoRules.GuidePress.entries.forEach { p ->
+                            val act = actions.getValue(p).value
+                            PressCard(p, act, openPress == p, editable, Modifier.weight(1f)) { openCombo = null; openPress = if (openPress == p) null else p }
+                        }
+                    }
+                    openPress?.let { p ->
+                        OptionStrip(AutoRules.GuideAction.entries.map { Triple(it, it.icon, it.label) }, actions.getValue(p).value) {
+                            actions.getValue(p).value = it; AutoRules.setGuideAction(a, p, it); openPress = null
+                        }
+                    }
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        AutoRules.GuideCombo.entries.forEach { c ->
+                            val st = states.getValue(c.guide)
+                            val act = combos.getValue(c).value
+                            ComboChip(c.key, act.icon, if (act == AutoRules.ComboAction.BACK_HOLD) "0,5 s" else null, st.value, openCombo == c, editable,
+                                onToggle = { st.value = !st.value; AutoRules.setGuide(a, c.guide, st.value) },
+                                onMenu = { openPress = null; openCombo = if (openCombo == c) null else c })
+                        }
+                        // Mantener la guía 5 s: el control se apaga y la tablet se bloquea.
+                        val lock = states.getValue(AutoRules.Guide.HOLD_LOCK)
+                        ComboChip("5 s", Icons.Outlined.Bedtime, null, lock.value, false, editable,
+                            onToggle = { lock.value = !lock.value; AutoRules.setGuide(a, AutoRules.Guide.HOLD_LOCK, lock.value) }, onMenu = {})
+                    }
+                    openCombo?.let { c ->
+                        OptionStrip(AutoRules.ComboAction.entries.map { Triple(it, it.icon, it.label) }, combos.getValue(c).value) {
+                            combos.getValue(c).value = it; AutoRules.setComboAction(a, c, it)
+                            if (it != AutoRules.ComboAction.SHOT) openCombo = null
+                        }
+                        // Con la captura: seguir manteniendo el botón saca una por segundo.
+                        if (combos.getValue(c).value == AutoRules.ComboAction.SHOT)
+                            SwitchRow(tr("Ráfaga al mantener", "Burst while held"), burst) { burst = it; AutoRules.setBurstShots(a, it) }
                     }
                 }
-                ShortcutRow(listOf(tr("Guía", "Guide")), tr("Mantener 5 s (el control se apaga)", "Hold 5 s (the controller turns off)"), tr("Bloquear la pantalla", "Lock the screen"),
-                    row(AutoRules.Guide.HOLD_LOCK).value) {
-                    row(AutoRules.Guide.HOLD_LOCK).value = it; AutoRules.setGuide(a, AutoRules.Guide.HOLD_LOCK, it)
-                }
-                ShortcutRow(listOf(tr("Guía", "Guide"), "RB"), null, tr("Captura", "Screenshot"), row(AutoRules.Guide.RB_SHOT).value) {
-                    row(AutoRules.Guide.RB_SHOT).value = it; AutoRules.setGuide(a, AutoRules.Guide.RB_SHOT, it)
-                }
-                ShortcutRow(emptyList(), tr("Seguir manteniendo RB", "Keep holding RB"), tr("Ráfaga, una por segundo", "Burst, one per second"), burst) {
-                    burst = it; AutoRules.setBurstShots(a, it)
-                }
-                ShortcutRow(listOf(tr("Guía", "Guide"), "LB"), null, tr("Mantener Atrás", "Hold Back"),
-                    row(AutoRules.Guide.LB_BACK).value) {
-                    row(AutoRules.Guide.LB_BACK).value = it; AutoRules.setGuide(a, AutoRules.Guide.LB_BACK, it)
-                }
-                ShortcutRow(listOf(tr("Guía", "Guide"), "LT"), tr("En X-Input no", "Not in X-Input"), tr("Grabar o parar", "Record or stop"), row(AutoRules.Guide.LT_REC).value) {
-                    row(AutoRules.Guide.LT_REC).value = it; AutoRules.setGuide(a, AutoRules.Guide.LT_REC, it)
-                }
-                ShortcutRow(listOf(tr("Guía", "Guide"), "RT"), tr("En X-Input no", "Not in X-Input"), tr("Shadow Rec: guardar lo último", "Shadow Rec: save the latest"), row(AutoRules.Guide.RT_SHADOW).value) {
-                    row(AutoRules.Guide.RT_SHADOW).value = it; AutoRules.setGuide(a, AutoRules.Guide.RT_SHADOW, it)
-                }
             }
-            // Sin la nota larga de cómo se hace todo transmitiendo: lo dicen las filas de arriba ("Transmitiendo").
-            SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip, tr("Recuerda estos atajos en Artemis y Moonlight", "Reminds these shortcuts in Artemis and Moonlight")) {
-                streamTip = it; AutoRules.setStreamTip(a, it)
+            SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip) { streamTip = it; AutoRules.setStreamTip(a, it) }
+        }
+    }
+}
+
+/** Una forma de apretar la guía: los puntos (•, ••, ▬) con su nombre chico y, grande, el ícono y lo que hace. */
+@Composable
+private fun PressCard(p: AutoRules.GuidePress, act: AutoRules.GuideAction, open: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val src = remember { MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(20.dp)
+    Surface(onClick = onClick, enabled = enabled, interactionSource = src, shape = shape, color = cardColor(), contentColor = cardOn(),
+        modifier = modifier.focusLift(focused, src, 1.04f).bump(shape).focusHalo(focused || open, shape)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PressDots(p)
+                Spacer(Modifier.width(8.dp))
+                Text(p.label, fontSize = 12.sp, color = cardMuted())
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(13.dp))
+                    .background(if (act == AutoRules.GuideAction.NONE) cardOn().copy(alpha = 0.12f) else c.primary), contentAlignment = Alignment.Center) {
+                    Icon(act.icon, null, Modifier.size(24.dp), tint = if (act == AutoRules.GuideAction.NONE) cardOn() else c.onPrimary)
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(act.label, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+            }
+        }
+    }
+}
+
+/** Cómo se aprieta: un punto (tocar), dos (dos veces) o una raya (mantener). */
+@Composable
+private fun PressDots(p: AutoRules.GuidePress) {
+    val col = cardMuted()
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        when (p) {
+            AutoRules.GuidePress.TAP -> Box(Modifier.size(9.dp).clip(RoundedCornerShape(5.dp)).background(col))
+            AutoRules.GuidePress.DOUBLE -> repeat(2) { Box(Modifier.size(9.dp).clip(RoundedCornerShape(5.dp)).background(col)) }
+            AutoRules.GuidePress.HOLD -> Box(Modifier.size(width = 30.dp, height = 9.dp).clip(RoundedCornerShape(5.dp)).background(col))
+        }
+    }
+}
+
+/**
+ * Una combinación: [guía] + [botón] y el ícono de lo que hace (con [note] chico debajo, como "0,5 s" en mantener Atrás).
+ * Tocarla la enciende o apaga (apagada, tenue); mantenerla con el dedo, o Y con el control, despliega qué hace.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun ComboChip(key: String, icon: ImageVector, note: String?, on: Boolean, open: Boolean, enabled: Boolean, onToggle: () -> Unit, onMenu: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val src = remember { MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(16.dp)
+    Row(Modifier.focusLift(focused, src, 1.05f).bump(shape).focusHalo(focused || open, shape).clip(shape).background(cardColor())
+        .combinedClickable(interactionSource = src, indication = null, enabled = enabled, onClick = onToggle, onLongClick = onMenu)
+        .onPreviewKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.ButtonY) { onMenu(); true } else false }
+        .alpha(if (on) 1f else 0.4f)
+        .padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        // La guía: un círculo del color de acento con la casita.
+        Box(Modifier.size(28.dp).border(2.dp, c.primary, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.Home, null, Modifier.size(15.dp), tint = c.primary)
+        }
+        Text("  +  ", fontSize = 13.sp, color = cardMuted(), fontWeight = FontWeight.Bold)
+        Box(Modifier.height(28.dp).widthIn(min = 30.dp).border(2.dp, cardOn(), RoundedCornerShape(8.dp)).padding(horizontal = 7.dp), contentAlignment = Alignment.Center) {
+            Text(key, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cardOn())
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, null, Modifier.size(22.dp), tint = c.primary)
+            if (note != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Schedule, null, Modifier.size(10.dp), tint = cardMuted())
+                Text(note, fontSize = 9.sp, color = cardMuted())
+            }
+        }
+    }
+}
+
+/** Las opciones desplegadas: cada una con su ícono y su nombre; la elegida, del color de acento. A elige; B cierra. */
+@Composable
+private fun <T> OptionStrip(options: List<Triple<T, ImageVector, String>>, selected: T, onPick: (T) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val first = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); runCatching { first.requestFocus() } }
+    @OptIn(ExperimentalLayoutApi::class)
+    FlowRow(Modifier.clip(RoundedCornerShape(18.dp)).background(cardOn().copy(alpha = 0.05f)).padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (v, icon, label) ->
+            val sel = v == selected
+            val src = remember { MutableInteractionSource() }
+            val focused by src.collectIsFocusedAsState()
+            val shape = RoundedCornerShape(14.dp)
+            Row(Modifier.then(if (sel) Modifier.focusRequester(first) else Modifier)
+                .focusLift(focused, src, 1.05f).focusHalo(focused, shape).clip(shape).background(if (sel) c.primary else cardColor())
+                .clickable(interactionSource = src, indication = null) { onPick(v) }
+                .padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, Modifier.size(20.dp), tint = if (sel) c.onPrimary else cardOn())
+                Spacer(Modifier.width(8.dp))
+                Text(label, fontSize = 14.sp, color = if (sel) c.onPrimary else cardOn())
             }
         }
     }

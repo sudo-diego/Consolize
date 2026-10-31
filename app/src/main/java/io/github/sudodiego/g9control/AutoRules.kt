@@ -283,6 +283,24 @@ object AutoRules {
     /** Cada atajo del botón guía, por separado (con el botón guía activado). */
     enum class Guide(val key: String) { TAP_BACK("guide_tap_back"), HOLD_PANEL("guide_hold_panel"), RB_SHOT("guide_rb_shot"), LB_BACK("guide_lb_back"), HOLD_LOCK("guide_hold_lock"), LT_REC("guide_lt_rec"), RT_SHADOW("guide_rt_shadow") }
 
+    /** Lo que puede hacer Guía + RB / LB / LT / RT (cada una se elige en Botón guía, manteniendo su tarjeta). */
+    enum class ComboAction { SHOT, BACK_HOLD, RECORD, SHADOW, PANEL, HOME, RECENTS;
+        val label get() = when (this) {
+            SHOT -> tr("Captura", "Screenshot"); BACK_HOLD -> tr("Mantener Atrás", "Hold Back"); RECORD -> tr("Grabar", "Record")
+            SHADOW -> "Shadow Rec"; PANEL -> tr("Panel de juego", "Game panel"); HOME -> tr("Inicio", "Home"); RECENTS -> tr("Recientes", "Recents")
+        }
+    }
+    /** Las combinaciones con la guía: su interruptor ([Guide]), el botón y lo que hacen por defecto. */
+    enum class GuideCombo(val guide: Guide, val code: Int, val key: String, val def: ComboAction) {
+        RB(Guide.RB_SHOT, KeyEvent.KEYCODE_BUTTON_R1, "RB", ComboAction.SHOT),
+        LB(Guide.LB_BACK, KeyEvent.KEYCODE_BUTTON_L1, "LB", ComboAction.BACK_HOLD),
+        LT(Guide.LT_REC, KeyEvent.KEYCODE_BUTTON_L2, "LT", ComboAction.RECORD),
+        RT(Guide.RT_SHADOW, KeyEvent.KEYCODE_BUTTON_R2, "RT", ComboAction.SHADOW);
+        companion object { fun of(code: Int) = entries.firstOrNull { it.code == code } }
+    }
+    fun comboAction(ctx: Context, c: GuideCombo) = runCatching { ComboAction.valueOf(sp(ctx).getString("combo_action_${c.name}", null)!!) }.getOrDefault(c.def)
+    fun setComboAction(ctx: Context, c: GuideCombo, v: ComboAction) = sp(ctx).edit().putString("combo_action_${c.name}", v.name).apply()
+
     /** Qué puede hacer el botón guía al tocarlo, tocarlo dos veces o mantenerlo. La clave se guarda. */
     enum class GuideAction { NONE, BACK, HOME, RECENTS, PANEL, SHOT, NOTIFICATIONS, QUICK_SETTINGS;
         val label get() = when (this) {

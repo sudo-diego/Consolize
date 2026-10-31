@@ -363,9 +363,17 @@ fun HomeSummary(s: AppState, a: MainActivity) {
     Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(34.dp)) {
         ServiceWarning(s, a)
         ShizukuWarning(a)
-        HomeHero(a)
-        QuickTiles(s, a)
-        HomeAccess(s)
+        // A la izquierda lo que se usa (volver a una app, la última captura, los ajustes rápidos y tus accesos); a la
+        // derecha, cómo está la tablet.
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(30.dp)) {
+                HomeRecents(a)
+                QuickTiles(s, a)
+                HomeAccess(s)
+            }
+            Spacer(Modifier.width(40.dp))
+            HomeHero(a)
+        }
     }
 }
 
@@ -391,29 +399,28 @@ private fun HomeHero(a: MainActivity) {
     val w = remember(tick) { ZuiBattery.watts(a) }
     val cpu = remember(tick) { Stats.cpuMhz() }
     val hz = remember(tick) { RefreshRate.current(a) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(width = 64.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.graphicsLayer { scaleX = 2.3f; scaleY = 2.3f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held, ink = backdropOn(), accent = c.primary) }
-        }
-        Spacer(Modifier.width(18.dp))
-        Column {
-            Text("${b.level} %", fontSize = 52.sp, fontWeight = FontWeight.SemiBold, lineHeight = 54.sp, color = backdropOn())
-            Text(sub, fontSize = 15.sp, color = backdropMuted(), maxLines = 1)
-        }
-        Spacer(Modifier.width(36.dp))
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // RAM: la usada de toda (o la libre); se cambia tocándola.
-            HomeChip(Icons.Outlined.Memory,
-                if (ramUsed) "%.1f / %.0f GB".format((ram.totalBytes - ram.freeBytes) / 1_073_741_824.0, ram.totalBytes / 1_073_741_824.0) else Memory.gb(ram.freeBytes),
-                if (ramUsed) tr("RAM en uso", "RAM in use") else tr("RAM libre", "Free RAM"), Modifier.weight(1.2f)) {
-                ramUsed = !ramUsed; Prefs.setHomeRamUsed(a, ramUsed)
+    // A la derecha, en columna: la batería (en una línea: ya está grande arriba) y los datos del mini monitor.
+    Column(Modifier.width(250.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(width = 30.dp, height = 22.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.graphicsLayer { scaleX = 1.1f; scaleY = 1.1f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held, ink = backdropOn(), accent = c.primary) }
             }
-            // Lo que entra o se consume, sin etiqueta: el rayo y el color de acento si entra.
-            HomeChip(Icons.Outlined.Bolt, w?.let { (if (b.plugged) "+" else "") + "%.1f W".format(it) } ?: "—", null, Modifier.weight(1f), accent = b.plugged)
-            HomeChip(Icons.Outlined.Speed, cpu?.let { if (it >= 1000) "%.1f GHz".format(it / 1000f) else "$it MHz" } ?: "—", "CPU", Modifier.weight(1f))
-            HomeChip(Icons.Outlined.Thermostat, "%.0f °C".format(b.tempC), tr("Batería", "Battery"), Modifier.weight(1f))
-            HomeChip(Icons.Outlined.DisplaySettings, hz?.let { "$it Hz" } ?: "—", tr("Pantalla", "Screen"), Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text("${b.level} %", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = backdropOn())
+                Text(sub, fontSize = 11.sp, color = backdropMuted(), maxLines = 1)
+            }
         }
+        // RAM: la usada de toda (o la libre); se cambia tocándola.
+        HomeChip(Icons.Outlined.Memory,
+            if (ramUsed) "%.1f / %.0f GB".format((ram.totalBytes - ram.freeBytes) / 1_073_741_824.0, ram.totalBytes / 1_073_741_824.0) else Memory.gb(ram.freeBytes),
+            if (ramUsed) tr("RAM en uso", "RAM in use") else tr("RAM libre", "Free RAM"), Modifier) {
+            ramUsed = !ramUsed; Prefs.setHomeRamUsed(a, ramUsed)
+        }
+        HomeChip(Icons.Outlined.Bolt, w?.let { (if (b.plugged) "+" else "") + "%.1f W".format(it) } ?: "—", null, Modifier, accent = b.plugged)
+        HomeChip(Icons.Outlined.Speed, cpu?.let { if (it >= 1000) "%.1f GHz".format(it / 1000f) else "$it MHz" } ?: "—", "CPU", Modifier)
+        HomeChip(Icons.Outlined.Thermostat, "%.0f °C".format(b.tempC), tr("Batería", "Battery"), Modifier)
+        HomeChip(Icons.Outlined.DisplaySettings, hz?.let { "$it Hz" } ?: "—", tr("Pantalla", "Screen"), Modifier)
     }
 }
 
@@ -481,3 +488,71 @@ private fun EditTile(modifier: Modifier, onClick: () -> Unit) {
         }
     }
 }
+
+/**
+ * Volver a lo último: las apps recientes (un toque y se vuelve a ellas tal como quedaron) y la última captura (abre la
+ * galería). Sin permiso de fotos, la captura no sale.
+ */
+@Composable
+private fun HomeRecents(a: MainActivity) {
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { delay(5000); tick++ } }
+    val recents = remember(tick) { RecentApps.list(a).filter { it != a.packageName }.take(4) }
+    var shot by remember { mutableStateOf<Pair<android.net.Uri, androidx.compose.ui.graphics.ImageBitmap>?>(null) }
+    LaunchedEffect(tick) { shot = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { latestShot(a) } }
+    if (recents.isEmpty() && shot == null) return
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.Top) {
+        recents.forEach { pkg ->
+            val icon = remember(pkg) { RecentApps.icon(a, pkg) }
+            AppIconTile(icon, RecentApps.label(a, pkg)) { RecentApps.open(a, pkg) }
+        }
+        shot?.let { (uri, bmp) ->
+            val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            val focused by src.collectIsFocusedAsState()
+            val shape = RoundedCornerShape(20.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(onClick = {
+                    runCatching { a.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW).setDataAndType(uri, "image/*")
+                        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+                }, interactionSource = src, shape = shape, color = cardColor(),
+                    modifier = Modifier.size(width = 156.dp, height = 88.dp).focusLift(focused, src, 1.06f).bump(shape).focusHalo(focused, shape)) {
+                    androidx.compose.foundation.Image(bmp, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(tr("Última captura", "Last screenshot"), fontSize = 13.sp, color = backdropOn())
+            }
+        }
+    }
+}
+
+/** El ícono de una app en un cuadrado redondeado (como los accesos) y su nombre debajo. */
+@Composable
+private fun AppIconTile(icon: androidx.compose.ui.graphics.ImageBitmap?, label: String, onClick: () -> Unit) {
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(26.dp)
+    Column(Modifier.width(112.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(onClick = onClick, interactionSource = src, shape = shape, color = cardColor(),
+            modifier = Modifier.size(88.dp).focusLift(focused, src, 1.08f).bump(shape).focusHalo(focused, shape)) {
+            Box(contentAlignment = Alignment.Center) {
+                if (icon != null) androidx.compose.foundation.Image(icon, null, Modifier.size(58.dp).clip(RoundedCornerShape(14.dp)))
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(label, fontSize = 13.sp, color = backdropOn(), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+}
+
+/** La última captura de pantalla (su dirección y una miniatura), si hay permiso de fotos. */
+private fun latestShot(ctx: android.content.Context): Pair<android.net.Uri, androidx.compose.ui.graphics.ImageBitmap>? = runCatching {
+    if (ctx.checkSelfPermission(AutoRules.MEDIA_PERMISSION) != android.content.pm.PackageManager.PERMISSION_GRANTED) return null
+    val col = android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+    val proj = arrayOf(android.provider.MediaStore.Images.Media._ID)
+    val sel = "${android.provider.MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
+    ctx.contentResolver.query(col, proj, sel, arrayOf("%Screenshots%"), "${android.provider.MediaStore.Images.Media.DATE_ADDED} DESC")?.use { c ->
+        if (!c.moveToFirst()) return null
+        val uri = android.content.ContentUris.withAppendedId(col, c.getLong(0))
+        val bmp = ctx.contentResolver.loadThumbnail(uri, android.util.Size(320, 180), null)
+        uri to bmp.asImageBitmap()
+    }
+}.getOrNull()
