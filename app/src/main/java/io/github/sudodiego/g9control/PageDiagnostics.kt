@@ -615,7 +615,7 @@ private fun lockOf(block: Boolean, sticks: Boolean) = if (!block) 0 else if (!st
 /** Qué bloquea un aviso mientras está en pantalla, en una sola elección. */
 @Composable
 private fun LockChips(level: Int, onPick: (Int) -> Unit) {
-    ChoiceRow(tr("Mientras está en pantalla, bloquear", "While on screen, block"), listOf(0 to tr("Nada", "Nothing"), 1 to tr("Botones", "Buttons"), 2 to tr("Todo", "Everything")), level, onPick)
+    ChoiceRow(tr("Mientras está en pantalla, bloquear", "While on screen, block"), listOf(0 to tr("Nada", "Nothing"), 1 to tr("Botones", "Buttons"), 2 to tr("Todo", "Everything")), level, onPick = onPick)
     when (level) {
         1 -> Hint(tr("Sticks y gatillos siguen llegando al juego.", "Sticks and triggers still reach the game."))
         2 -> Hint(tr("También sticks y gatillos. La app puede pausarse.", "Also sticks and triggers. The app may pause."))
