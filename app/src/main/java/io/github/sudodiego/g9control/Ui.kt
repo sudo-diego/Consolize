@@ -1454,3 +1454,15 @@ fun AppsRow(title: String, chosen: Set<String>, onChange: (Set<String>) -> Unit)
         }
     }
 }
+
+/** Un color en una línea: su nombre y una muestra; A abre la rueda de colores. */
+@Composable
+fun ColorRow(title: String, argb: Long, onPick: (Long) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable { open = true }.padding(vertical = 10.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), fontSize = 15.sp)
+        Box(Modifier.size(28.dp).clip(CircleShape).background(Color(argb)).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
+    }
+    if (open) ColorWheelDialog(title, argb, { open = false }) { onPick(it); open = false }
+}

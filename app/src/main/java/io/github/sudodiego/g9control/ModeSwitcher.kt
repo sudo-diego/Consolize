@@ -53,6 +53,10 @@ object Prefs {
     fun setCardTone(ctx: Context, v: CardTone) = sp(ctx).edit().putString("card_tone", v.name).apply()
     fun cardCustom(ctx: Context) = sp(ctx).getLong("card_custom", 0xFF2A3B4F)
     fun setCardCustom(ctx: Context, v: Long) = sp(ctx).edit().putLong("card_custom", v).apply()
+    fun stripeBase(ctx: Context) = sp(ctx).getLong("stripe_base", 0xFFEEF2F6)
+    fun setStripeBase(ctx: Context, v: Long) = sp(ctx).edit().putLong("stripe_base", v).apply()
+    fun stripeLine(ctx: Context) = sp(ctx).getLong("stripe_line", 0xFFE3E9F0)
+    fun setStripeLine(ctx: Context, v: Long) = sp(ctx).edit().putLong("stripe_line", v).apply()
     fun backdropText(ctx: Context) = runCatching { BackdropText.valueOf(sp(ctx).getString("backdrop_text", null)!!) }.getOrDefault(BackdropText.AUTO)
     fun setBackdropText(ctx: Context, v: BackdropText) = sp(ctx).edit().putString("backdrop_text", v.name).apply()
     fun halo(ctx: Context) = runCatching { Halo.valueOf(sp(ctx).getString("halo", null)!!) }.getOrDefault(Halo.SLOW)
@@ -84,7 +88,7 @@ object Prefs {
     fun setTheme(ctx: Context, v: AppTheme) = sp(ctx).edit().putString("theme", v.name).apply()
 
     /** Fondo de la app: degradado (por defecto), una imagen o GIF elegido, o liso; y cuánto se desenfoca la imagen. */
-    fun background(ctx: Context) = runCatching { AppBackground.valueOf(sp(ctx).getString("background", null)!!) }.getOrDefault(AppBackground.GRADIENT)
+    fun background(ctx: Context) = runCatching { AppBackground.valueOf(sp(ctx).getString("background", null)!!) }.getOrDefault(AppBackground.STRIPES)
     fun setBackground(ctx: Context, v: AppBackground) = sp(ctx).edit().putString("background", v.name).apply()
     fun backgroundUri(ctx: Context) = sp(ctx).getString("background_uri", null)
     fun setBackgroundUri(ctx: Context, v: String?) = sp(ctx).edit().putString("background_uri", v).apply()
@@ -119,7 +123,7 @@ object Prefs {
     fun setPanelTone(ctx: Context, v: PanelTone) = sp(ctx).edit().putString("panel_tone", v.name).apply()
     /** Acento guardado como "#RRGGBB" (vacío = el celeste de siempre). */
     /** Sonidos de navegación (en la app; en el panel aparte) y su volumen; música ambiental (archivo propio). */
-    fun navPack(ctx: Context) = runCatching { NavPack.valueOf(sp(ctx).getString("nav_pack", null)!!) }.getOrDefault(NavPack.CLASSIC)
+    fun navPack(ctx: Context) = runCatching { NavPack.valueOf(sp(ctx).getString("nav_pack", null)!!) }.getOrDefault(NavPack.WOOD)
     fun setNavPack(ctx: Context, v: NavPack) = sp(ctx).edit().putString("nav_pack", v.name).apply()
     fun navSounds(ctx: Context) = sp(ctx).getBoolean("nav_sounds", false)
     fun setNavSounds(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("nav_sounds", v).apply()

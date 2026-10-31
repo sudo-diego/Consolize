@@ -74,9 +74,14 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
 
                 }
                 Panel(tr("Fondo", "Background")) {
-                    ChoiceChips(AppBackground.entries.map { it to it.label }, ThemeState.background) {
+                    ChoiceRow(tr("Fondo", "Background"), AppBackground.entries.map { it to it.label }, ThemeState.background) {
                         if (it == AppBackground.IMAGE && ThemeState.backgroundUri == null) a.pickBackground()
                         else { ThemeState.background = it; Prefs.setBackground(a, it) }
+                    }
+                    // Consola: el color del fondo y el de las rayitas, cada uno con la rueda.
+                    if (ThemeState.background == AppBackground.STRIPES) {
+                        ColorRow(tr("Color del fondo", "Background color"), ThemeState.stripeBase) { ThemeState.stripeBase = it; Prefs.setStripeBase(a, it) }
+                        ColorRow(tr("Color de las rayas", "Stripe color"), ThemeState.stripeLine) { ThemeState.stripeLine = it; Prefs.setStripeLine(a, it) }
                     }
                     if (ThemeState.background == AppBackground.IMAGE) {
                         ImageButtons(a) { a.pickBackground() }

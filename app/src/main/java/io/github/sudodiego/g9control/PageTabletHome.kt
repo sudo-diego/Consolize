@@ -199,7 +199,7 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
         Surface(onClick = onClick, enabled = enabled, interactionSource = src, shape = androidx.compose.foundation.shape.CircleShape,
             color = androidx.compose.animation.animateColorAsState(if (on) c.primary else cardColor(), label = "q").value,
             contentColor = if (on) c.onPrimary else cardOn(),
-            modifier = Modifier.size(76.dp).focusLift(focused, src, 1.08f).focusHalo(focused, androidx.compose.foundation.shape.CircleShape)) {
+            modifier = Modifier.size(76.dp).focusLift(focused, src, 1.08f).bump(androidx.compose.foundation.shape.CircleShape).focusHalo(focused, androidx.compose.foundation.shape.CircleShape)) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(32.dp)) }
         }
         Spacer(Modifier.height(8.dp))
@@ -456,7 +456,7 @@ private fun AccessIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, la
         Surface(onClick = onClick, interactionSource = src, shape = shape,
             color = if (ghost) androidx.compose.ui.graphics.Color.Transparent else cardColor(), contentColor = cardOn(),
             border = if (ghost) androidx.compose.foundation.BorderStroke(2.dp, backdropOn().copy(alpha = 0.3f)) else null,
-            modifier = Modifier.size(88.dp).focusLift(focused, src, 1.08f).focusHalo(focused, shape)) {
+            modifier = Modifier.size(88.dp).focusLift(focused, src, 1.08f).then(if (ghost) Modifier else Modifier.bump(shape)).focusHalo(focused, shape)) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(38.dp), tint = if (ghost) backdropOn() else cardOn()) }
         }
         Spacer(Modifier.height(8.dp))

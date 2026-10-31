@@ -55,6 +55,16 @@ fun Backdrop() {
     val base = MaterialTheme.colorScheme.background
     when (ThemeState.background) {
         AppBackground.PLAIN -> Box(Modifier.fillMaxSize().background(base))
+        // Consola: liso con rayitas horizontales finas (los dos colores se eligen en Apariencia).
+        AppBackground.STRIPES -> {
+            val bg = Color(ThemeState.stripeBase); val line = Color(ThemeState.stripeLine)
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                drawRect(bg)
+                val step = 6.dp.toPx(); val h = 3.dp.toPx()
+                var y = step - h
+                while (y < size.height) { drawRect(line, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, h)); y += step }
+            }
+        }
         AppBackground.GRADIENT -> GradientBackdrop(dark)
         AppBackground.IMAGE -> {
             val uri = ThemeState.backgroundUri
@@ -248,7 +258,7 @@ fun GlassSurface(shape: androidx.compose.ui.graphics.Shape, modifier: Modifier =
         else -> base
     }
     val radiusPx = with(androidx.compose.ui.platform.LocalDensity.current) { 28.dp.toPx() }
-    Box(modifier.onGloballyPositioned { origin = it.positionInRoot(); size = it.size.toSize() }.clip(shape)) {
+    Box(modifier.onGloballyPositioned { origin = it.positionInRoot(); size = it.size.toSize() }.bump(shape).clip(shape)) {
         if (liquid) Box(Modifier.matchParentSize().graphicsLayer {
             renderEffect = liquidEffect(lq, size, radiusPx)?.asComposeRenderEffect()
         }.drawBehind { translate(-origin.x, -origin.y) { drawLayer(layer!!) } })

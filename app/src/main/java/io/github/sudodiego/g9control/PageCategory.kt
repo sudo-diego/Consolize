@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.draw.drawBehind
@@ -274,7 +275,7 @@ private fun MoreHub(s: AppState) {
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
                     modifier = Modifier.weight(1f).height(250.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
                         .graphicsLayer { alpha = if (open != null && open != i) 0.3f else 1f }
-                        .focusLift(focused, src, 1.04f).focusHalo(focused, RoundedCornerShape(24.dp))
+                        .focusLift(focused, src, 1.04f).bump(RoundedCornerShape(24.dp)).focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
                         // Un ícono grande de línea, del color del texto (con el foco, del acento).
@@ -337,11 +338,27 @@ private fun MoreHub(s: AppState) {
 fun backdropOn(): Color = when (ThemeState.backdropText) {
     BackdropText.LIGHT -> Color.White
     BackdropText.DARK -> Color(0xFF14203A)
-    BackdropText.AUTO -> if (ThemeState.background == AppBackground.IMAGE || ThemeState.background == AppBackground.WALLPAPER) Color.White
-        else MaterialTheme.colorScheme.onBackground
+    BackdropText.AUTO -> when {
+        ThemeState.background == AppBackground.IMAGE || ThemeState.background == AppBackground.WALLPAPER -> Color.White
+        ThemeState.consoleLook -> if (Color(ThemeState.stripeBase).luminance() > 0.4f) Color(0xFF2B3340) else Color.White
+        else -> MaterialTheme.colorScheme.onBackground
+    }
 }
 @Composable
 fun backdropMuted(): Color = backdropOn().copy(alpha = 0.72f)
+
+/**
+ * Consola: las tarjetas "abultadas", con un borde sólido abajo un poco más oscuro (como un botón). Con otros fondos, nada.
+ */
+@Composable
+fun Modifier.bump(shape: androidx.compose.ui.graphics.Shape): Modifier {
+    if (!ThemeState.consoleLook) return this
+    val lip = androidx.compose.ui.graphics.lerp(cardBase(), Color.Black, 0.16f)
+    return drawBehind {
+        val o = shape.createOutline(size, layoutDirection, this)
+        translate(0f, 3.dp.toPx()) { drawOutline(o, lip) }
+    }
+}
 
 /** El color base de las tarjetas: la superficie del tema, que ya lleva lo elegido en Apariencia → Tarjetas. */
 @Composable
@@ -407,7 +424,7 @@ fun EntryTile(s: AppState, e: Entry, modifier: Modifier, pins: Boolean = false) 
         onClick = { s.enter(e.page, e.parts?.invoke(), label) }, interactionSource = src,
         shape = RoundedCornerShape(18.dp), color = cardColor(), contentColor = cardOn(),
         modifier = modifier.height(72.dp).focusRequester(focus)
-            .focusLift(focused, src, 1.03f).focusHalo(focused, RoundedCornerShape(18.dp))
+            .focusLift(focused, src, 1.03f).bump(RoundedCornerShape(18.dp)).focusHalo(focused, RoundedCornerShape(18.dp))
             .then(if (pins) Modifier.onPreviewKeyEvent { k ->
                 if (k.type != KeyEventType.KeyUp) return@onPreviewKeyEvent k.key == Key.ButtonY || k.key == Key.ButtonX
                 when (k.key) {
@@ -445,7 +462,8 @@ private fun PinTag(text: String) {
 @Composable
 fun DockBar(s: AppState) {
     val c = MaterialTheme.colorScheme
-    Surface(shape = RoundedCornerShape(22.dp), color = cardBase().copy(alpha = 0.92f), contentColor = cardOn(), shadowElevation = 8.dp) {
+    Surface(shape = RoundedCornerShape(22.dp), color = cardBase().copy(alpha = if (ThemeState.consoleLook) 1f else 0.92f), contentColor = cardOn(),
+        shadowElevation = if (ThemeState.consoleLook) 0.dp else 8.dp, modifier = Modifier.bump(RoundedCornerShape(22.dp))) {
         Row(Modifier.padding(7.dp), verticalAlignment = Alignment.CenterVertically) {
             PadBadge("LB"); Spacer(Modifier.width(4.dp))
             dockItems(s).forEach { (id, label, icon) ->

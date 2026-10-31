@@ -111,8 +111,9 @@ enum class AppTheme { SYSTEM, LIGHT, DARK;
     val label get() = when (this) { SYSTEM -> tr("Del sistema", "System"); LIGHT -> tr("Claro", "Light"); DARK -> tr("Oscuro", "Dark") }
 }
 
-enum class AppBackground { GRADIENT, IMAGE, WALLPAPER, PLAIN;
+enum class AppBackground { STRIPES, GRADIENT, IMAGE, WALLPAPER, PLAIN;
     val label get() = when (this) {
+        STRIPES -> tr("Consola", "Console")
         GRADIENT -> tr("Degradado", "Gradient"); IMAGE -> tr("Imagen o GIF", "Image or GIF")
         WALLPAPER -> tr("Fondo de pantalla", "Wallpaper"); PLAIN -> tr("Liso", "Plain")
     }
@@ -174,7 +175,11 @@ enum class PanelTone { DARK, LIGHT, SYSTEM;
 /** Tema y fondo elegidos en Ajustes. */
 object ThemeState {
     var theme by androidx.compose.runtime.mutableStateOf(AppTheme.SYSTEM)
-    var background by androidx.compose.runtime.mutableStateOf(AppBackground.GRADIENT)
+    var background by androidx.compose.runtime.mutableStateOf(AppBackground.STRIPES)
+    /** Fondo "Consola": el color de fondo y el de las rayitas (se eligen en Apariencia). */
+    var stripeBase by androidx.compose.runtime.mutableLongStateOf(0xFFEEF2F6)
+    var stripeLine by androidx.compose.runtime.mutableLongStateOf(0xFFE3E9F0)
+    val consoleLook get() = background == AppBackground.STRIPES
     var backgroundUri by androidx.compose.runtime.mutableStateOf<String?>(null)
     var backgroundBlur by androidx.compose.runtime.mutableIntStateOf(24)
     var backgroundLoop by androidx.compose.runtime.mutableStateOf(true)
@@ -248,19 +253,19 @@ object ThemeState {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
         backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); liquidParams = Prefs.liquidParams(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
-        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); backdropText = Prefs.backdropText(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
+        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); stripeBase = Prefs.stripeBase(ctx); stripeLine = Prefs.stripeLine(ctx); backdropText = Prefs.backdropText(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.
         panelUri?.takeIf { panelBackground == PanelBackground.IMAGE }?.let { ImageCache.preload(ctx, "panel", it) }
     }
     /** Con fondo (degradado o imagen) las tarjetas son de vidrio: translúcidas con un borde claro. */
-    val glass get() = background != AppBackground.PLAIN && surfaces != Surfaces.SOLID
+    val glass get() = background != AppBackground.PLAIN && background != AppBackground.STRIPES && surfaces != Surfaces.SOLID
     /** Vidrio líquido de verdad: con un fondo que dibuja la app (degradado o imagen) y Android 12+. */
     val liquid get() = surfaces == Surfaces.LIQUID && android.os.Build.VERSION.SDK_INT >= 31 &&
         (background == AppBackground.GRADIENT || background == AppBackground.IMAGE)
 }
 
 @Composable
-fun isDarkTheme() = when (ThemeState.theme) {
+fun isDarkTheme() = if (ThemeState.consoleLook) Color(ThemeState.stripeBase).luminance() < 0.4f else when (ThemeState.theme) {
     AppTheme.SYSTEM -> isSystemInDarkTheme()
     AppTheme.LIGHT -> false
     AppTheme.DARK -> true
@@ -273,7 +278,10 @@ fun isDarkTheme() = when (ThemeState.theme) {
  */
 private fun withCards(s: ColorScheme): ColorScheme {
     val base = when (ThemeState.cardTone) {
-        CardTone.NIGHT -> return s
+        CardTone.NIGHT -> if (ThemeState.consoleLook) {
+            val bg = Color(ThemeState.stripeBase)
+            if (bg.luminance() > 0.4f) Color.White else androidx.compose.ui.graphics.lerp(bg, Color.White, 0.08f)
+        } else return s
         CardTone.GRAPHITE -> Color(0xFF2A2C31)
         CardTone.BLACK -> Color(0xFF0D0D10)
         CardTone.ACCENT -> androidx.compose.ui.graphics.lerp(s.primary, Color(0xFF141A2C), 0.78f)
