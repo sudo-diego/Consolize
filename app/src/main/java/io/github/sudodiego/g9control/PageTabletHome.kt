@@ -198,7 +198,7 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
     val focused by src.collectIsFocusedAsState()
     Surface(
         onClick = onClick, enabled = enabled, interactionSource = src, shape = RoundedCornerShape(18.dp),
-        modifier = modifier.alpha(if (enabled) 1f else 0.5f).graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }
+        modifier = modifier.alpha(if (enabled) 1f else 0.5f).focusLift(focused, src, 1.03f)
             .focusHalo(focused, RoundedCornerShape(18.dp)),
         color = cardColor(), contentColor = cardOn()
     ) {
@@ -467,7 +467,7 @@ private fun EditTile(modifier: Modifier, onClick: () -> Unit) {
     val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
     Surface(onClick = onClick, interactionSource = src, shape = RoundedCornerShape(18.dp), color = cardColor(), contentColor = cardOn(),
-        modifier = modifier.height(72.dp).graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }.focusHalo(focused, RoundedCornerShape(18.dp))) {
+        modifier = modifier.height(72.dp).focusLift(focused, src, 1.03f).focusHalo(focused, RoundedCornerShape(18.dp))) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(cardOn().copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
                 Icon(Icons.Outlined.Edit, null, Modifier.size(22.dp))

@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -267,7 +268,7 @@ private fun MoreHub(s: AppState) {
                     onClick = { open = i }, interactionSource = src,
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
                     modifier = Modifier.weight(1f).height(170.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
-                        .graphicsLayer { val k = if (focused) 1.04f else 1f; scaleX = k; scaleY = k }.focusHalo(focused, RoundedCornerShape(24.dp))
+                        .focusLift(focused, src, 1.04f).focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
                         if (focused) Box(Modifier.width(28.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
@@ -346,6 +347,17 @@ fun cardOn(): Color = MaterialTheme.colorScheme.onSurface
 fun cardMuted(): Color = cardOn().copy(alpha = 0.66f)
 
 /**
+ * Crecer con el foco (con un rebote suave, como en RomSync) y hundirse un poco al tocarlo: más vivo que cambiar de golpe.
+ */
+@Composable
+fun Modifier.focusLift(focused: Boolean, src: androidx.compose.foundation.interaction.InteractionSource, grow: Float): Modifier {
+    val pressed by src.collectIsPressedAsState()
+    val k by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.96f else if (focused) grow else 1f,
+        androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 500f), label = "lift")
+    return graphicsLayer { scaleX = k; scaleY = k }
+}
+
+/**
  * El foco de un mosaico: borde blanco (oscuro sobre tarjetas claras) y, si se eligió, un halo del color de acento que
  * sube y baja (Apariencia → Halo del foco).
  */
@@ -386,7 +398,7 @@ fun EntryTile(s: AppState, e: Entry, modifier: Modifier, pins: Boolean = false) 
         onClick = { s.enter(e.page, e.parts?.invoke(), label) }, interactionSource = src,
         shape = RoundedCornerShape(18.dp), color = cardColor(), contentColor = cardOn(),
         modifier = modifier.height(72.dp).focusRequester(focus)
-            .graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }.focusHalo(focused, RoundedCornerShape(18.dp))
+            .focusLift(focused, src, 1.03f).focusHalo(focused, RoundedCornerShape(18.dp))
             .then(if (pins) Modifier.onPreviewKeyEvent { k ->
                 if (k.type != KeyEventType.KeyUp) return@onPreviewKeyEvent k.key == Key.ButtonY || k.key == Key.ButtonX
                 when (k.key) {

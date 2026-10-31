@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.runtime.mutableStateOf
+
 import androidx.compose.animation.togetherWith
 
 import androidx.compose.material3.MaterialTheme
