@@ -195,17 +195,17 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
     val c = MaterialTheme.colorScheme
     Surface(
         onClick = onClick, enabled = enabled, modifier = modifier.alpha(if (enabled) 1f else 0.5f), shape = MaterialTheme.shapes.large,
-        color = cardColor()
+        color = cardColor(), contentColor = cardOn()
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).background(androidx.compose.animation.animateColorAsState(if (on) c.primary else c.onSurface.copy(alpha = 0.08f), label = "badge").value,
+            Box(Modifier.size(40.dp).background(androidx.compose.animation.animateColorAsState(if (on) c.primary else cardOn().copy(alpha = 0.12f), label = "badge").value,
                 RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                Icon(icon, null, Modifier.size(22.dp), tint = if (on) c.onPrimary else c.onSurface)
+                Icon(icon, null, Modifier.size(22.dp), tint = if (on) c.onPrimary else cardOn())
             }
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                Text(state, fontSize = 13.sp, color = if (on) c.primary else c.onSurfaceVariant, maxLines = 1,
+                Text(state, fontSize = 13.sp, color = if (on) c.primary else cardMuted(), maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
         }
@@ -430,8 +430,8 @@ private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, valu
         Icon(icon, null, Modifier.size(20.dp), tint = c.primary)
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(value, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else c.onSurface)
-            if (label != null) Text(label, fontSize = 11.sp, color = c.onSurfaceVariant, maxLines = 1)
+            Text(value, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else cardOn())
+            if (label != null) Text(label, fontSize = 11.sp, color = cardMuted(), maxLines = 1)
         }
     }
 }

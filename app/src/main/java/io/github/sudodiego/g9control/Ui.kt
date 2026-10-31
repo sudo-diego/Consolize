@@ -1,5 +1,9 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.input.key.onKeyEvent
+
+import androidx.compose.foundation.gestures.detectDragGestures
+
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.focus.focusRestorer
@@ -1261,37 +1265,80 @@ fun AccentPicker(current: Accent, onPick: (Accent) -> Unit) {
 }
 
 @Composable
-private fun CustomColorDialog(start: Accent, onDismiss: () -> Unit, onDone: (Accent) -> Unit) {
-    val hsv = remember { FloatArray(3).also { android.graphics.Color.colorToHSV((start.base ?: 0xFF6EC9FF).toInt(), it) } }
+private fun CustomColorDialog(start: Accent, onDismiss: () -> Unit, onDone: (Accent) -> Unit) =
+    ColorWheelDialog(tr("Color personalizado", "Custom color"), start.base ?: 0xFF6EC9FF, onDismiss) { onDone(Accent(it)) }
+
+/**
+ * Elegir un color con una rueda (el ángulo es el tono y la distancia al centro la intensidad), su brillo y el código hex.
+ * Con el control: ← → cambian el tono, ↑ ↓ la intensidad (con el foco en la rueda).
+ */
+@Composable
+fun ColorWheelDialog(title: String, startArgb: Long, onDismiss: () -> Unit, preview: (@Composable (Color) -> Unit)? = null, onDone: (Long) -> Unit) {
+    val hsv = remember { FloatArray(3).also { android.graphics.Color.colorToHSV(startArgb.toInt(), it) } }
     var h by remember { mutableFloatStateOf(hsv[0]) }
     var s by remember { mutableFloatStateOf(hsv[1]) }
     var v by remember { mutableFloatStateOf(hsv[2]) }
     val argb = android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)).toLong() and 0xFFFFFFFF
     var hexText by remember { mutableStateOf("#%06X".format(argb and 0xFFFFFF)) }
-    // Al mover las barras el código se actualiza; al escribir un código válido, las barras.
     fun fromHex(t: String) { hexText = t; Accent.parse(t)?.base?.let { b -> FloatArray(3).also { android.graphics.Color.colorToHSV(b.toInt(), it); h = it[0]; s = it[1]; v = it[2] } } }
     fun sync() { hexText = "#%06X".format(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)) and 0xFFFFFF) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(tr("Color personalizado", "Custom color")) },
+        title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(argb)))
-                Text(tr("Tono", "Hue"), fontSize = 13.sp)
-                Box(Modifier.fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(androidx.compose.ui.graphics.Brush.horizontalGradient(
-                    (0..6).map { Color(android.graphics.Color.HSVToColor(floatArrayOf(it * 60f, 1f, 1f))) })))
-                Slider(h, { h = it; sync() }, valueRange = 0f..360f)
-                Text(tr("Saturación", "Saturation"), fontSize = 13.sp)
-                Slider(s, { s = it; sync() })
-                Text(tr("Brillo", "Brightness"), fontSize = 13.sp)
-                Slider(v, { v = it; sync() })
-                OutlinedTextField(hexText, { fromHex(it) }, label = { Text(tr("Código hex", "Hex code")) }, singleLine = true,
-                    isError = Accent.parse(hexText) == null)
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                ColorWheel(h, s, v, Modifier.size(200.dp)) { nh, ns -> h = nh; s = ns; sync() }
+                Column(Modifier.width(220.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (preview != null) preview(Color(argb)) else Box(Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(argb)))
+                    Text(tr("Brillo", "Brightness"), fontSize = 13.sp)
+                    Slider(v, { v = it; sync() }, valueRange = 0.05f..1f)
+                    OutlinedTextField(hexText, { fromHex(it) }, label = { Text(tr("Código hex", "Hex code")) }, singleLine = true,
+                        isError = Accent.parse(hexText) == null)
+                }
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(Accent(argb or 0xFF000000)) }) { Text(tr("Usar", "Use")) } },
+        confirmButton = { TextButton(onClick = { onDone(argb or 0xFF000000) }) { Text(tr("Usar", "Use")) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancelar", "Cancel")) } }
     )
+}
+
+/** La rueda: tonos alrededor, blanco al centro; el punto marca el elegido. Se toca o arrastra; con el control, las flechas. */
+@Composable
+fun ColorWheel(h: Float, s: Float, v: Float, modifier: Modifier, onChange: (Float, Float) -> Unit) {
+    val src = remember { MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val ring = MaterialTheme.colorScheme.primary
+    fun pick(p: androidx.compose.ui.geometry.Offset, size: androidx.compose.ui.unit.IntSize) {
+        val r = size.width / 2f
+        val dx = p.x - r; val dy = p.y - r
+        val hue = ((Math.toDegrees(kotlin.math.atan2(dy, dx).toDouble()) + 360) % 360).toFloat()
+        onChange(hue, (kotlin.math.hypot(dx, dy) / r).coerceIn(0f, 1f))
+    }
+    androidx.compose.foundation.Canvas(modifier
+        .focusable(interactionSource = src)
+        .onKeyEvent { e ->
+            if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
+            when (e.key) {
+                Key.DirectionLeft -> { onChange((h - 6f + 360f) % 360f, s); true }
+                Key.DirectionRight -> { onChange((h + 6f) % 360f, s); true }
+                Key.DirectionUp -> { onChange(h, (s + 0.05f).coerceAtMost(1f)); true }
+                Key.DirectionDown -> { onChange(h, (s - 0.05f).coerceAtLeast(0f)); true }
+                else -> false
+            }
+        }
+        .pointerInput(Unit) { detectTapGestures { pick(it, size) } }
+        .pointerInput(Unit) { detectDragGestures { ch, _ -> pick(ch.position, size) } }
+    ) {
+        val r = size.minDimension / 2f
+        drawCircle(androidx.compose.ui.graphics.Brush.sweepGradient((0..6).map { Color(android.graphics.Color.HSVToColor(floatArrayOf(it * 60f, 1f, 1f))) }), r)
+        drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(listOf(Color.White, Color.White.copy(alpha = 0f)), center, r), r)
+        // El brillo oscurece toda la rueda (así se ve el color tal cual).
+        drawCircle(Color.Black.copy(alpha = 1f - v), r)
+        val a = Math.toRadians(h.toDouble())
+        val p = androidx.compose.ui.geometry.Offset(center.x + (kotlin.math.cos(a) * s * r).toFloat(), center.y + (kotlin.math.sin(a) * s * r).toFloat())
+        drawCircle(Color.White, 9.dp.toPx(), p, style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+        if (focused) drawCircle(ring, r - 1.5.dp.toPx(), style = androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx()))
+    }
 }
 
 /** Lo que muestra el centro: la tarjeta de [section] (page null) o una de sus líneas abierta. */

@@ -90,6 +90,17 @@ data class Accent(val base: Long?) {
         fun parse(text: String): Accent? = text.trim().removePrefix("#").takeIf { it.length == 6 }?.toLongOrNull(16)?.let { Accent(0xFF000000 or it) }
     }
 }
+/** Color de las tarjetas (mosaicos, temas, datos, dock), aparte del acento. Con [CUSTOM], el elegido en la rueda. */
+enum class CardTone { NIGHT, GRAPHITE, BLACK, ACCENT, LIGHT, CUSTOM;
+    val label get() = when (this) {
+        NIGHT -> tr("Azul noche", "Night blue"); GRAPHITE -> tr("Grafito", "Graphite"); BLACK -> tr("Negro", "Black")
+        ACCENT -> tr("Del acento", "From accent"); LIGHT -> tr("Claro", "Light"); CUSTOM -> tr("Propio", "Custom")
+    }
+}
+/** Halo del foco: el borde de lo elegido con un brillo del color de acento que sube y baja, o sin él. */
+enum class Halo { OFF, SLOW, FAST;
+    val label get() = when (this) { OFF -> tr("Sin halo", "No halo"); SLOW -> tr("Lento", "Slow"); FAST -> tr("Rápido", "Fast") }
+}
 enum class AppTheme { SYSTEM, LIGHT, DARK;
     val label get() = when (this) { SYSTEM -> tr("Del sistema", "System"); LIGHT -> tr("Claro", "Light"); DARK -> tr("Oscuro", "Dark") }
 }
@@ -188,6 +199,9 @@ object ThemeState {
     /** Congelar el juego al abrir el panel, con cualquier fondo (con "Juego en pausa" siempre). */
     var panelFreeze by androidx.compose.runtime.mutableStateOf(false)
     internal var panelHidden by androidx.compose.runtime.mutableStateOf(emptySet<PanelTile>())
+    var cardTone by androidx.compose.runtime.mutableStateOf(CardTone.NIGHT)
+    var cardCustom by androidx.compose.runtime.mutableLongStateOf(0xFF2A3B4F)
+    var halo by androidx.compose.runtime.mutableStateOf(Halo.SLOW)
     /** Orden de las secciones del panel (barras, juego, recientes…) y de los mosaicos dentro de cada una. */
     internal var panelSections by androidx.compose.runtime.mutableStateOf(PANEL_SECTIONS)
     internal var panelTileOrder by androidx.compose.runtime.mutableStateOf(PanelTile.entries.toList())
@@ -227,7 +241,7 @@ object ThemeState {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
         backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); liquidParams = Prefs.liquidParams(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
-        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
+        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.
         panelUri?.takeIf { panelBackground == PanelBackground.IMAGE }?.let { ImageCache.preload(ctx, "panel", it) }
     }

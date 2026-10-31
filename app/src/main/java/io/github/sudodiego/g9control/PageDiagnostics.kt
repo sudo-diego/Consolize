@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.graphics.luminance
+
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
@@ -47,6 +49,20 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                     }
                     Text(tr("Color", "Color"), fontSize = 14.sp)
                     AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
+                    // Las tarjetas (mosaicos, temas, datos y dock), aparte del acento; "Propio" abre la rueda de colores.
+                    Text(tr("Tarjetas", "Cards"), fontSize = 14.sp)
+                    var wheel by remember { mutableStateOf(false) }
+                    ChoiceChips(CardTone.entries.map { it to (if (it == CardTone.CUSTOM) tr("Propio…", "Custom…") else it.label) }, ThemeState.cardTone) {
+                        if (it == CardTone.CUSTOM) wheel = true else { ThemeState.cardTone = it; Prefs.setCardTone(a, it) }
+                    }
+                    if (wheel) ColorWheelDialog(tr("Color de las tarjetas", "Card color"), ThemeState.cardCustom, { wheel = false },
+                        preview = { col -> CardSample(col) }) {
+                        ThemeState.cardCustom = it; Prefs.setCardCustom(a, it)
+                        ThemeState.cardTone = CardTone.CUSTOM; Prefs.setCardTone(a, CardTone.CUSTOM); wheel = false
+                    }
+                    // El foco: el borde y, si se quiere, un halo del color de acento que sube y baja.
+                    Text(tr("Halo del foco", "Focus halo"), fontSize = 14.sp)
+                    ChoiceChips(Halo.entries.map { it to it.label }, ThemeState.halo) { ThemeState.halo = it; Prefs.setHalo(a, it) }
                     Text(tr("Superficies", "Surfaces"), fontSize = 14.sp)
                     // Con el fondo de pantalla de Android no hay vidrio líquido (no se puede capturar lo de detrás de la ventana).
                     ChoiceChips(Surfaces.entries.filter { it != Surfaces.LIQUID || ThemeState.background != AppBackground.WALLPAPER }.map { it to it.label }, ThemeState.surfaces) { ThemeState.surfaces = it; Prefs.setSurfaces(a, it) }
@@ -801,5 +817,20 @@ private fun MoveButtons(up: Boolean, down: Boolean, what: String, onMove: (Int) 
     }
     IconButton(onClick = { onMove(1) }, enabled = down, modifier = Modifier.size(36.dp)) {
         Icon(Icons.Filled.KeyboardArrowDown, tr("Bajar $what", "Move $what down"))
+    }
+}
+
+/** Cómo queda un mosaico con el color elegido (en la rueda de las tarjetas): fondo, insignia y texto. */
+@Composable
+private fun CardSample(col: androidx.compose.ui.graphics.Color) {
+    val on = if (col.luminance() > 0.5f) androidx.compose.ui.graphics.Color(0xFF14203A) else androidx.compose.ui.graphics.Color.White
+    Row(Modifier.fillMaxWidth().height(64.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(col).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(11.dp)).background(on.copy(alpha = 0.12f)))
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(tr("Mosaico", "Tile"), color = on, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text(tr("Así se ve", "How it looks"), color = on.copy(alpha = 0.66f), fontSize = 12.sp)
+        }
     }
 }

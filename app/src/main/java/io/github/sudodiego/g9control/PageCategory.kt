@@ -23,6 +23,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.togetherWith
@@ -249,9 +252,8 @@ private fun MoreHub(s: AppState) {
                 LaunchedEffect(focused) { if (focused) cat = i }
                 Surface(
                     onClick = { cat = i; runCatching { firstOption.requestFocus() } }, interactionSource = src,
-                    shape = RoundedCornerShape(24.dp), color = cardColor(),
-                    border = if (focused) BorderStroke(2.dp, Color.White) else null,
-                    modifier = Modifier.weight(1f).height(140.dp).focusRequester(catFocus[i]).graphicsLayer {
+                    shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
+                    modifier = Modifier.weight(1f).height(140.dp).focusRequester(catFocus[i]).focusHalo(focused, RoundedCornerShape(24.dp)).graphicsLayer {
                         val k = if (focused) 1.04f else 1f; scaleX = k; scaleY = k
                         alpha = if (i == cat) 1f else 0.75f
                     }
@@ -260,7 +262,7 @@ private fun MoreHub(s: AppState) {
                         if (i == cat) Box(Modifier.width(28.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.primary))
                         Spacer(Modifier.weight(1f))
                         Text(name, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
-                        Text(items.joinToString(" · ") { it.label() }, fontSize = 12.sp, lineHeight = 17.sp, color = c.onSurfaceVariant,
+                        Text(items.joinToString(" · ") { it.label() }, fontSize = 12.sp, lineHeight = 17.sp, color = cardMuted(),
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
@@ -297,9 +299,50 @@ private fun MoreHub(s: AppState) {
     }
 }
 
-/** El color de las tarjetas (mosaicos, temas, dock): el de la superficie del tema, un poco translúcido sobre el fondo. */
+/** El color base de las tarjetas, según lo elegido en Apariencia (aparte del acento). */
 @Composable
-fun cardColor(): Color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (ThemeState.glass) 0.85f else 1f)
+fun cardBase(): Color {
+    val c = MaterialTheme.colorScheme
+    return when (ThemeState.cardTone) {
+        CardTone.NIGHT -> c.surfaceContainerHigh
+        CardTone.GRAPHITE -> Color(0xFF2A2C31)
+        CardTone.BLACK -> Color(0xFF0D0D10)
+        CardTone.ACCENT -> androidx.compose.ui.graphics.lerp(c.primary, Color(0xFF141A2C), 0.78f)
+        CardTone.LIGHT -> Color(0xFFF2F5FA)
+        CardTone.CUSTOM -> Color(ThemeState.cardCustom)
+    }
+}
+/** El color de las tarjetas (mosaicos, temas, datos, dock): un poco translúcido sobre el fondo. */
+@Composable
+fun cardColor(): Color = cardBase().copy(alpha = if (ThemeState.glass) 0.88f else 1f)
+/** Texto e íconos sobre las tarjetas: oscuros si la tarjeta es clara. */
+@Composable
+fun cardOn(): Color = if (cardBase().luminance() > 0.5f) Color(0xFF14203A) else Color.White
+@Composable
+fun cardMuted(): Color = cardOn().copy(alpha = 0.66f)
+
+/**
+ * El foco de un mosaico: borde blanco (oscuro sobre tarjetas claras) y, si se eligió, un halo del color de acento que
+ * sube y baja (Apariencia → Halo del foco).
+ */
+@Composable
+fun Modifier.focusHalo(focused: Boolean, shape: androidx.compose.ui.graphics.Shape): Modifier {
+    val accent = MaterialTheme.colorScheme.primary
+    val edge = cardOn()
+    val halo = ThemeState.halo
+    val pulse = if (focused && halo != Halo.OFF) {
+        val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "halo")
+        t.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(if (halo == Halo.FAST) 650 else 1300), androidx.compose.animation.core.RepeatMode.Reverse), label = "pulse").value
+    } else 0f
+    return this
+        .then(if (focused && halo != Halo.OFF) Modifier.drawBehind {
+            val o = outlineFor(shape)
+            for (i in 1..3) drawOutline(o, accent.copy(alpha = 0.16f * pulse / i), style = androidx.compose.ui.graphics.drawscope.Stroke(width = (4 + i * 5).dp.toPx()))
+        } else Modifier)
+        .then(if (focused) Modifier.border(2.dp, edge, shape) else Modifier)
+}
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.outlineFor(shape: androidx.compose.ui.graphics.Shape) = shape.createOutline(size, layoutDirection, this)
 
 /**
  * Un mosaico de una cosa de la app (como los del panel): el ícono en su insignia y el nombre. Con [pins], Y lo fija en
@@ -317,9 +360,8 @@ fun EntryTile(s: AppState, e: Entry, modifier: Modifier, pins: Boolean = false) 
     LaunchedEffect(Unit) { if (s.lastSub == label) { kotlinx.coroutines.delay(60); runCatching { focus.requestFocus() }; s.lastSub = null } }
     Surface(
         onClick = { s.enter(e.page, e.parts?.invoke(), label) }, interactionSource = src,
-        shape = RoundedCornerShape(18.dp), color = cardColor(),
-        border = if (focused) BorderStroke(2.dp, Color.White) else null,
-        modifier = modifier.height(72.dp).focusRequester(focus)
+        shape = RoundedCornerShape(18.dp), color = cardColor(), contentColor = cardOn(),
+        modifier = modifier.height(72.dp).focusRequester(focus).focusHalo(focused, RoundedCornerShape(18.dp))
             .graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }
             .then(if (pins) Modifier.onPreviewKeyEvent { k ->
                 if (k.type != KeyEventType.KeyUp) return@onPreviewKeyEvent k.key == Key.ButtonY || k.key == Key.ButtonX
@@ -331,8 +373,8 @@ fun EntryTile(s: AppState, e: Entry, modifier: Modifier, pins: Boolean = false) 
             } else Modifier)
     ) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(c.onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                Icon(e.icon, null, Modifier.size(22.dp), tint = c.onSurface.copy(alpha = 0.85f))
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(cardOn().copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                Icon(e.icon, null, Modifier.size(22.dp), tint = cardOn().copy(alpha = 0.85f))
             }
             Spacer(Modifier.width(12.dp))
             Text(label, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -358,7 +400,7 @@ private fun PinTag(text: String) {
 @Composable
 fun DockBar(s: AppState) {
     val c = MaterialTheme.colorScheme
-    Surface(shape = RoundedCornerShape(22.dp), color = c.surfaceContainerHigh.copy(alpha = 0.9f), shadowElevation = 8.dp) {
+    Surface(shape = RoundedCornerShape(22.dp), color = cardBase().copy(alpha = 0.92f), contentColor = cardOn(), shadowElevation = 8.dp) {
         Row(Modifier.padding(7.dp), verticalAlignment = Alignment.CenterVertically) {
             PadBadge("LB"); Spacer(Modifier.width(4.dp))
             dockItems(s).forEach { (id, label, icon) ->
@@ -367,7 +409,7 @@ fun DockBar(s: AppState) {
                 Row(Modifier.clip(RoundedCornerShape(15.dp)).background(bg).focusProperties { canFocus = false }
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { s.goDest(id) }
                     .padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    val fg = if (cur) c.onPrimary else c.onSurfaceVariant
+                    val fg = if (cur) c.onPrimary else cardMuted()
                     Icon(icon, null, Modifier.size(20.dp), tint = fg)
                     Spacer(Modifier.width(8.dp))
                     Text(label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = fg, maxLines = 1)

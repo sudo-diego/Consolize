@@ -49,6 +49,12 @@ object Prefs {
     fun setLiquidParams(ctx: Context, p: LiquidParams) = sp(ctx).edit().putInt("lq_blur", p.blur).putInt("lq_refr", p.refraction)
         .putInt("lq_tint", p.tint).putInt("lq_high", p.highlight).putInt("lq_rim", p.rim).apply()
 
+    fun cardTone(ctx: Context) = runCatching { CardTone.valueOf(sp(ctx).getString("card_tone", null)!!) }.getOrDefault(CardTone.NIGHT)
+    fun setCardTone(ctx: Context, v: CardTone) = sp(ctx).edit().putString("card_tone", v.name).apply()
+    fun cardCustom(ctx: Context) = sp(ctx).getLong("card_custom", 0xFF2A3B4F)
+    fun setCardCustom(ctx: Context, v: Long) = sp(ctx).edit().putLong("card_custom", v).apply()
+    fun halo(ctx: Context) = runCatching { Halo.valueOf(sp(ctx).getString("halo", null)!!) }.getOrDefault(Halo.SLOW)
+    fun setHalo(ctx: Context, v: Halo) = sp(ctx).edit().putString("halo", v.name).apply()
     /** Inicio: la RAM como usada / total (true) o libre. */
     fun homeRamUsed(ctx: Context) = sp(ctx).getBoolean("home_ram_used", true)
     fun setHomeRamUsed(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("home_ram_used", v).apply()
