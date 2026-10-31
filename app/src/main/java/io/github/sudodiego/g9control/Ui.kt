@@ -172,7 +172,7 @@ fun App(s: AppState, a: MainActivity) {
             // la derecha); al medio, los mosaicos de la sección o la página; abajo, la ayuda. Igual en horizontal y vertical.
             Column(Modifier.fillMaxSize()) {
                 // En la tarjeta de Inicio la batería ya está en el resumen: arriba solo la hora.
-                TopStatus(showBattery = !(s.inHub && s.section == Section.HOME))
+                TopStatus()
                 // La franja de Vista + Menú, solo en el inicio del G9 (en las demás páginas basta el aviso de cada una).
                 if (s.page == Page.HOME && !s.inHub) ModeStrip(s)
                 PageHost(s, a, Modifier.weight(1f))
@@ -254,14 +254,6 @@ private fun NavKey(key: String, up: Boolean) {
     }
 }
 
-fun sectionName(sec: Section) = when (sec) {
-    Section.HOME -> tr("Inicio", "Home")
-    Section.GAMES -> tr("Juegos", "Games")
-    Section.PANEL -> tr("Panel", "Panel")
-    Section.CONTROLS -> tr("Controles", "Controllers")
-    Section.SYSTEM -> tr("Sistema", "System")
-    Section.SETTINGS -> tr("Ajustes", "Settings")
-}
 
 fun sectionIcon(sec: Section) = when (sec) {
     Section.HOME -> Icons.Outlined.Home
@@ -331,7 +323,9 @@ private fun SideItem(item: NavItem, sel: Boolean, compact: Boolean, focus: Focus
 /** Con la barra compacta no se ven los nombres: el de la página va arriba del contenido. */
 @Composable
 private fun PageTitle(s: AppState, section: Section, sub: String?) {
-    val title = listOfNotNull(sectionName(section), sub, s.detail.takeIf { !s.inHub }).joinToString(" · ")
+    // Abierto desde el dock (Biblioteca, Panel, algo fijado): su nombre del dock; desde una lista: el tema y lo abierto.
+    val head = if (s.rootPage) dockItems(s).firstOrNull { it.first == s.dest }?.second ?: sub else sectionName(section)
+    val title = listOfNotNull(head, sub.takeIf { it != head }, s.detail.takeIf { !s.inHub }).joinToString(" · ")
     Text(title, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
 }
 /** Pestañas horizontales, como en una consola: LB/RB a los lados para cambiar. */
@@ -521,6 +515,7 @@ private fun HintBar(s: AppState) {
             Page.VIBRATION -> { { SaveStatus(s.vibrationDirty, s.appliedVibration != null && s.connected, modifier = Modifier) } }
             else -> null
         }
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
         if (save != null) { Box(glass.padding(horizontal = 14.dp, vertical = 6.dp)) { save() }; Spacer(Modifier.width(12.dp)) }
         Box(Modifier.weight(1f)) {
             if (shown && s.status.isNotEmpty()) Text(
@@ -528,13 +523,16 @@ private fun HintBar(s: AppState) {
                 color = if (problem) c.error else c.onSurface
             )
         }
+        }
+        Spacer(Modifier.width(12.dp))
+        DockBar(s)
+        Spacer(Modifier.width(12.dp))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
         if (s.anyPad || s.padMode != null || s.connected) {
             val wide = LocalWide.current
             val hints = if (s.capturing) listOf("B" to tr("Mantén 1 s para salir", "Hold 1 s to exit"))
             else if (s.editingMacro != null) listOf("A" to tr("Elegir", "Select"), "B" to tr("Cerrar macro", "Close macro"))
             else listOfNotNull("A" to tr("Elegir", "Select"),
-                // Cambiar de categoría (LB/RB; LT/RT también, salvo donde prueban los gatillos).
-                (if (s.page in TRIGGER_PAGES && !s.inHub) "LB RB" else "LB RB · LT RT") to tr("Categoría", "Category"),
                 "B" to if (s.bReady) tr("Suelta para salir", "Release to exit") else if (!s.atTop) tr("Volver", "Back") else tr("Mantén 2 s para salir", "Hold 2 s to exit"))
             Row(glass.padding(start = 6.dp, end = 16.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 hints.forEachIndexed { i, (k, v) ->
@@ -542,9 +540,10 @@ private fun HintBar(s: AppState) {
                     // El aro de B es la cuenta atrás de mantener (salir de la app, de la prueba); cerrar la macro es un toque.
                     if (k == "B" && s.editingMacro == null && s.atTop) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
                     Spacer(Modifier.width(6.dp))
-                    Text(v, fontSize = 13.sp, color = c.onSurface)
+                    Text(v, fontSize = 13.sp, color = c.onSurface, maxLines = 1)
                 }
             }
+        }
         }
     }
 }
@@ -564,17 +563,18 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     AnimatedContent(
         // Lo que se ve, completo: al volver con B, lo que se va sigue mostrando lo suyo mientras se desvanece (antes
         // leía el estado nuevo y por un instante salía otra parte de la página).
-        targetState = Screen(s.section, if (s.inHub) null else s.page, s.sub, s.only),
+        targetState = Screen(s.dest, s.section, if (s.inHub) null else s.page, s.sub, s.only),
         transitionSpec = {
-            val from = Section.entries.indexOf(initialState.section); val to = Section.entries.indexOf(targetState.section)
-            // Entre categorías, la tarjeta se desliza hacia el lado al que se va; entrar o volver, fundido.
-            val move = if (from == to || initialState.page != null || targetState.page != null) null else if (to > from) 1 else -1
+            val ids = dockItems(s).map { it.first }
+            val from = ids.indexOf(initialState.dest); val to = ids.indexOf(targetState.dest)
+            // Entre destinos del dock, lo de adentro se desliza hacia el lado al que se va; entrar o volver, fundido.
+            val move = if (from == to || from < 0 || to < 0) null else if (to > from) 1 else -1
             val enter = if (move == null) fadeIn(tween(160)) else slideInHorizontally(tween(220)) { it / 6 * move } + fadeIn(tween(220))
             val exit = if (move == null) fadeOut(tween(120)) else slideOutHorizontally(tween(220)) { -it / 6 * move } + fadeOut(tween(160))
             (enter togetherWith exit).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() })
         },
         label = "page"
-    ) { (section, pageOrHub, sub, only) ->
+    ) { (_, section, pageOrHub, sub, only) ->
         val page = pageOrHub ?: s.page
         val scroll = rememberScrollState()
         // Al abrir un menú, el foco entra a su primera opción (si no, se perdía y saltaba a la barra lateral).
@@ -1295,4 +1295,4 @@ private fun CustomColorDialog(start: Accent, onDismiss: () -> Unit, onDone: (Acc
 }
 
 /** Lo que muestra el centro: la tarjeta de [section] (page null) o una de sus líneas abierta. */
-private data class Screen(val section: Section, val page: Page?, val sub: String?, val only: Set<String>?)
+private data class Screen(val dest: String, val section: Section, val page: Page?, val sub: String?, val only: Set<String>?)

@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
         state.openOnConnect = Prefs.openOnConnect(this)
         state.centered = Prefs.centered(this)
         state.profiles = Profiles.load(this)
+        state.loadPins(this)
         SkinState.skin = Prefs.skin(this)
         ThemeState.load(this)
         // Ventana siempre translúcida, con un fondo que reemplaza los píxeles (VeilDrawable): así el fondo de pantalla
@@ -315,9 +316,8 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2, KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1 -> {
                 val trigger = e.keyCode == KeyEvent.KEYCODE_BUTTON_L2 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
                 if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0 && !(trigger && s.page in TRIGGER_PAGES && !s.inHub)) {
-                    val all = Section.entries
                     val next = e.keyCode == KeyEvent.KEYCODE_BUTTON_R1 || e.keyCode == KeyEvent.KEYCODE_BUTTON_R2
-                    all.getOrNull(all.indexOf(s.section) + if (next) 1 else -1)?.let { s.goTo(it); UiSounds.play(this, UiSounds.Kind.TAB) }
+                    if (s.stepDest(if (next) 1 else -1)) UiSounds.play(this, UiSounds.Kind.TAB)
                 }
                 return true
             }
@@ -1108,7 +1108,7 @@ class AppState {
     val allPages get() = Section.entries.flatMap { sec -> pages(sec).map { sec to it } }
 
     /** Va a una pestaña, con su sección. */
-    fun open(p: Page) { Section.entries.firstOrNull { p in it.pages }?.let { section = it }; page = p; inHub = false; sub = null; entryLabel = null }
+    fun open(p: Page) { Section.entries.firstOrNull { p in it.pages }?.let { section = it }; page = p; inHub = false; sub = null; entryLabel = null; rootPage = false }
 
     /** Cambia de sección: a sus mosaicos o, si tiene una sola página, a ella. */
     fun goTo(sec: Section) {
@@ -1144,7 +1144,10 @@ class AppState {
      */
     var inHub by mutableStateOf(true)
     /** Abrir una línea de la tarjeta: la página y, si es una parte, el título de esa parte. */
-    fun enter(p: Page, parts: Set<String>?, label: String) { page = p; only = parts; sub = label; entryLabel = label; inHub = false }
+    fun enter(p: Page, parts: Set<String>?, label: String) {
+        Section.entries.firstOrNull { p in it.pages }?.let { section = it }
+        page = p; only = parts; sub = label; entryLabel = label; inHub = false; rootPage = false
+    }
     /** Las partes de la página que se ven (títulos de sus secciones); null = toda. */
     var only by mutableStateOf<Set<String>?>(null)
     /** La línea que se abrió (para devolverle el foco al volver). */
@@ -1155,10 +1158,58 @@ class AppState {
     var closeDetail: (() -> Unit)? = null
     fun back(): Boolean = when {
         detail != null -> { closeDetail?.invoke(); detail = null; true }
+        // Lo abierto como raíz de un destino del dock (Biblioteca, Panel, algo fijado): B vuelve a Inicio.
+        !inHub && rootPage -> { goDest(Dest.HOME); true }
         !inHub -> { lastSub = entryLabel; sub = null; only = null; inHub = true; true }
+        dest != Dest.HOME -> { goDest(Dest.HOME); true }
         else -> false
     }
-    val atTop get() = inHub
+    /** En Inicio, sin nada abierto: ahí mantener B sale de la app. */
+    val atTop get() = inHub && dest == Dest.HOME
+
+    /** El destino del dock en que se está ([Dest] o el id de una entrada fijada). */
+    var dest by mutableStateOf(Dest.HOME)
+    /** Lo abierto es la raíz de su destino (no se llegó desde una lista): B vuelve a Inicio. */
+    var rootPage by mutableStateOf(false)
+    /** Lo de en medio del dock (hasta 4) y lo fijado en Inicio (Accesos), por id. */
+    var dockMid by mutableStateOf(listOf(Dest.LIBRARY, Dest.PANEL, Dest.CONTROL))
+    var homePins by mutableStateOf(listOf("guide", "combos", "hz", "captures"))
+    fun loadPins(ctx: android.content.Context) {
+        dockMid = Prefs.dockMid(ctx) ?: dockMid
+        homePins = Prefs.homePins(ctx) ?: homePins
+    }
+    fun toggleDockPin(ctx: android.content.Context, id: String) {
+        dockMid = if (id in dockMid) dockMid - id else (dockMid + id).takeLast(4)
+        Prefs.setDockMid(ctx, dockMid)
+    }
+    fun toggleHomePin(ctx: android.content.Context, id: String) {
+        homePins = if (id in homePins) homePins - id else (homePins + id).takeLast(8)
+        Prefs.setHomePins(ctx, homePins)
+    }
+
+    /** Va a un destino del dock: su raíz (Inicio, Control, Más) o la página que abre (Biblioteca, Panel, algo fijado). */
+    fun goDest(id: String) {
+        detail = null; closeDetail = null; lastSub = null; sub = null; only = null; entryLabel = null; rootPage = false
+        dest = id
+        when (id) {
+            Dest.HOME -> { section = Section.HOME; page = Page.TABLET_HOME; inHub = true }
+            Dest.CONTROL -> { section = Section.CONTROLS; inHub = true }
+            Dest.MORE -> { section = Section.SETTINGS; inHub = true }
+            Dest.LIBRARY -> { section = Section.GAMES; page = Page.GAMES; inHub = false; rootPage = true }
+            Dest.PANEL -> { section = Section.PANEL; page = Page.PANEL; inHub = false; rootPage = true }
+            else -> {
+                val e = allEntries(this).firstOrNull { it.id == id } ?: return goDest(Dest.HOME)
+                Section.entries.firstOrNull { e.page in it.pages }?.let { section = it }
+                page = e.page; only = e.parts?.invoke(); sub = e.label(); inHub = false; rootPage = true
+            }
+        }
+    }
+    /** LB/RB: el destino anterior o siguiente del dock (sin dar la vuelta). */
+    fun stepDest(d: Int): Boolean {
+        val ids = dockItems(this).map { it.first }
+        val next = ids.getOrNull(ids.indexOf(dest) + d) ?: return false
+        goDest(next); return true
+    }
     /** Hay algún control conectado (de cualquier marca): la barra de abajo muestra cómo navegar con él. */
     var anyPad by mutableStateOf(false)
     var deviceText by mutableStateOf("")
