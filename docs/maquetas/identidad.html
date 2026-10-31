@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Consolize · identidad</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#06080f;color:#fff;font:15px/1.4 "Inter","Roboto",system-ui,sans-serif}
+.top{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:12px;color:#9aa6bf;font-size:13px;align-items:center}
+.top button{background:#151e31;color:#fff;border:0;border-radius:999px;padding:7px 14px;font:inherit;cursor:pointer}
+.top button.on{background:#fff;color:#000;font-weight:600}
+.tab{width:min(1200px,96vw);aspect-ratio:16/10;margin:0 auto 14px;border-radius:22px;overflow:hidden;position:relative;box-shadow:0 0 0 10px #000;
+  background:var(--bg);color:var(--ink);transition:background .3s,color .3s}
+.note{max-width:1200px;margin:0 auto 30px;color:#9aa6bf;padding:0 20px;font-size:14px}
+.note b{color:#fff}
+/* Identidades */
+.papel{--bg:#F3EFE6;--ink:#1B1B1F;--mut:#6E6A62;--card:#FFFFFF;--card2:#FBF8F2;--acc:#E4572E;--onacc:#fff;--line:#00000012;--glyph:#1B1B1F;--sh:0 2px 0 #0000000a,0 10px 24px #0000000f}
+.noche{--bg:#0A0D16;--ink:#EEF2FA;--mut:#8A93A8;--card:#141A28;--card2:#10151F;--acc:#3FD0FF;--onacc:#03202B;--line:#ffffff10;--glyph:#EEF2FA;--sh:0 0 0 1px #ffffff0d inset}
+.consola{--bg:repeating-linear-gradient(180deg,#EEF2F6 0 3px,#E6EBF1 3px 6px);--ink:#2B3340;--mut:#7A8596;--card:#FFFFFF;--card2:#F6F9FC;--acc:#1FA0F0;--onacc:#fff;--line:#00000010;--glyph:#2B3340;--sh:0 3px 0 #c9d3df,0 8px 18px #2b334014}
+.bar{position:absolute;top:22px;left:34px;right:34px;display:flex;justify-content:flex-end;gap:16px;color:var(--mut);font-size:13px;align-items:center}
+.area{position:absolute;top:56px;bottom:92px;left:40px;right:40px;display:flex;flex-direction:column;justify-content:center}
+.ic{width:24px;height:24px;fill:currentColor}
+/* Marca: una franja del acento a la izquierda del título de cada página (la firma de la app) */
+.title{display:flex;align-items:center;gap:12px;font-size:30px;font-weight:700;letter-spacing:-.5px;margin-bottom:22px}
+.title:before{content:"";width:8px;height:30px;border-radius:4px;background:var(--acc)}
+/* Inicio */
+.hero{display:flex;align-items:center;gap:40px}
+.pct{font-size:64px;font-weight:700;letter-spacing:-2px;line-height:1}
+.sub{color:var(--mut);margin-top:4px}
+.stats{display:flex;gap:26px;margin-left:auto}
+.st{display:flex;align-items:center;gap:8px}.st .ic{fill:var(--acc);width:22px;height:22px}
+.st b{display:block;font-size:18px}.st span{display:block;font-size:11px;color:var(--mut)}
+.circles{display:flex;gap:26px;margin-top:40px}
+.cb{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;font-size:13px}
+.cb .c{width:78px;height:78px;border-radius:50%;background:var(--card);box-shadow:var(--sh);display:grid;place-items:center;color:var(--ink)}
+.cb .c.on{background:var(--acc);color:var(--onacc)}
+.cb .c .ic{width:32px;height:32px}
+.cb small{color:var(--mut);font-size:11px;margin-top:-6px}
+.cb .c.on + span + small{color:var(--acc)}
+.apps{display:flex;gap:26px;margin-top:30px}
+.ap{display:flex;flex-direction:column;align-items:center;gap:8px;width:96px;font-size:13px;text-align:center}
+.ap .s{width:84px;height:84px;border-radius:24px;background:var(--card);box-shadow:var(--sh);display:grid;place-items:center}
+.ap .s .ic{width:38px;height:38px}
+.f{outline:3px solid var(--acc);outline-offset:4px}
+/* Botón guía */
+.guide{display:grid;grid-template-columns:380px 1fr;gap:40px;align-items:center}
+.pad svg{width:100%}
+.acts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.act{background:var(--card);box-shadow:var(--sh);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.act .how{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:13px}
+.dots{display:flex;gap:4px}.dots i{width:10px;height:10px;border-radius:50%;background:var(--mut)}
+.dots i.hold{width:34px;border-radius:5px}
+.act .what{display:flex;align-items:center;gap:12px;font-size:17px;font-weight:600}
+.act .what .bdg{width:48px;height:48px;border-radius:14px;background:var(--acc);color:var(--onacc);display:grid;place-items:center}
+.combos{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.cmb{display:flex;align-items:center;gap:8px;background:var(--card);box-shadow:var(--sh);border-radius:16px;padding:10px 14px}
+.key{min-width:30px;height:30px;padding:0 8px;border-radius:8px;border:2px solid var(--ink);display:grid;place-items:center;font-size:12px;font-weight:700}
+.key.g{border-radius:50%;border-color:var(--acc);color:var(--acc)}
+.cmb .ic{width:22px;height:22px;fill:var(--acc)}
+.plus{color:var(--mut);font-weight:700}
+.off{opacity:.35}
+/* Dock */
+.dock{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:4px;padding:6px;border-radius:22px;background:var(--card);box-shadow:var(--sh)}
+.dk{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:16px;color:var(--mut);font-weight:600}
+.dk .ic{width:20px;height:20px}
+.dk.cur{background:var(--acc);color:var(--onacc)}
+</style></head><body>
+<div class="top"><span>Identidad:</span><button data-i="papel" class="on">Papel</button><button data-i="noche">Medianoche</button><button data-i="consola">Consola</button>
+<span style="margin-left:14px">Pantalla:</span><button data-s="home" class="on">Inicio</button><button data-s="guide">Botón guía</button></div>
+<div class="tab papel" id="tab"></div>
+<div class="note" id="note"></div>
+<script>
+const I={"home": "<path d=\"m12 5.69 5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z\"/>", "sports_esports": "<path d=\"m21.58 16.09-1.09-7.66A3.996 3.996 0 0 0 16.53 5H7.47C5.48 5 3.79 6.46 3.51 8.43l-1.09 7.66a2.545 2.545 0 0 0 4.32 2.16L9 16h6l2.25 2.25c.48.48 1.13.75 1.8.75 1.56 0 2.75-1.37 2.53-2.91zm-2.1.72a.54.54 0 0 1-.42.19c-.15 0-.29-.06-.39-.16L15.83 14H8.17l-2.84 2.84c-.1.1-.24.16-.39.16a.54.54 0 0 1-.42-.19.52.52 0 0 1-.13-.44l1.09-7.66C5.63 7.74 6.48 7 7.47 7h9.06c.99 0 1.84.74 1.98 1.72l1.09 7.66c.03.2-.05.34-.12.43z\"/><path d=\"M9 8H8v2H6v1h2v2h1v-2h2v-1H9z\"/><circle cx=\"17\" cy=\"12\" r=\"1\"/><circle cx=\"15\" cy=\"9\" r=\"1\"/>", "dashboard": "<path d=\"M19 5v2h-4V5h4M9 5v6H5V5h4m10 8v6h-4v-6h4M9 17v2H5v-2h4M21 3h-8v6h8V3zM11 3H3v10h8V3zm10 8h-8v10h8V11zm-10 4H3v6h8v-6z\"/>", "videogame_asset": "<path d=\"M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h18v8zM6 15h2v-2h2v-2H8V9H6v2H4v2h2z\"/><circle cx=\"14.5\" cy=\"13.5\" r=\"1.5\"/><circle cx=\"18.5\" cy=\"10.5\" r=\"1.5\"/>", "more_horiz": "<path d=\"M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z\"/>", "power": "<path d=\"M16 9v4.66l-3.5 3.51V19h-1v-1.83L8 13.65V9h8m0-6h-2v4h-4V3H8v4h-.01C6.9 6.99 6 7.89 6 8.98v5.52L9.5 18v3h5v-3l3.5-3.51V9c0-1.1-.9-2-2-2V3z\"/>", "speed": "<path d=\"m20.38 8.57-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44z\"/><path d=\"M10.59 15.41a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z\"/>", "query_stats": "<path d=\"M19.88 18.47c.44-.7.7-1.51.7-2.39 0-2.49-2.01-4.5-4.5-4.5s-4.5 2.01-4.5 4.5 2.01 4.5 4.49 4.5c.88 0 1.7-.26 2.39-.7L21.58 23 23 21.58l-3.12-3.11zm-3.8.11a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5zm-.36-8.5c-.74.02-1.45.18-2.1.45l-.55-.83-3.8 6.18-3.01-3.52-3.63 5.81L1 17l5-8 3 3.5L13 6l2.72 4.08zm2.59.5c-.64-.28-1.33-.45-2.05-.49L21.38 2 23 3.18l-4.69 7.4z\"/>", "aspect_ratio": "<path d=\"M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z\"/>", "brightness_medium": "<path d=\"M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69zm-2 5.79V18h-3.52L12 20.48 9.52 18H6v-3.52L3.52 12 6 9.52V6h3.52L12 3.52 14.48 6H18v3.52L20.48 12 18 14.48zM12 6v12c3.31 0 6-2.69 6-6s-2.69-6-6-6z\"/>", "volume_up": "<path d=\"M3 9v6h4l5 5V4L7 9H3zm7-.17v6.34L7.83 13H5v-2h2.83L10 8.83zM16.5 12A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77 0-4.28-2.99-7.86-7-8.77z\"/>", "memory": "<path d=\"M15 9H9v6h6V9zm-2 4h-2v-2h2v2zm8-2V9h-2V7c0-1.1-.9-2-2-2h-2V3h-2v2h-2V3H9v2H7c-1.1 0-2 .9-2 2v2H3v2h2v2H3v2h2v2c0 1.1.9 2 2 2h2v2h2v-2h2v2h2v-2h2c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2zm-4 6H7V7h10v10z\"/>", "bolt": "<path d=\"M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z\"/>", "thermostat": "<path d=\"M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-8c0-.55.45-1 1-1s1 .45 1 1h-1v1h1v2h-1v1h1v2h-2V5z\"/>", "display_settings": "<path d=\"M20 3H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h4v2h8v-2h4c1.1 0 2-.9 2-2V5a2 2 0 0 0-2-2zm0 14H4V5h16v12z\"/><path d=\"M6 8.25h8v1.5H6zm10.5 1.5H18v-1.5h-1.5V7H15v4h1.5zm-6.5 2.5h8v1.5h-8zM7.5 15H9v-4H7.5v1.25H6v1.5h1.5z\"/>", "gamepad": "<path d=\"M13 4v2.67l-1 1-1-1V4h2m7 7v2h-2.67l-1-1 1-1H20M6.67 11l1 1-1 1H4v-2h2.67M12 16.33l1 1V20h-2v-2.67l1-1M15 2H9v5.5l3 3 3-3V2zm7 7h-5.5l-3 3 3 3H22V9zM7.5 9H2v6h5.5l3-3-3-3zm4.5 4.5-3 3V22h6v-5.5l-3-3z\"/>", "screenshot": "<path d=\"M17 1.01 7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 21H7v-1h10v1zm0-3H7V6h10v12zm0-14H7V3h10v1zM9.5 8.5H12V7H8v4h1.5V8.5zM12 17h4v-4h-1.5v2.5H12V17z\"/>", "add": "<path d=\"M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z\"/>", "arrow_back": "<path d=\"M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z\"/>", "layers": "<path d=\"m11.99 18.54-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16zm0-11.47L17.74 9 12 13.47 6.26 9 12 4.53z\"/>", "bedtime": "<path d=\"M9.27 4.49c-1.63 7.54 3.75 12.41 7.66 13.8A7.993 7.993 0 0 1 12 20c-4.41 0-8-3.59-8-8 0-3.45 2.2-6.4 5.27-7.51m2.72-2.48C6.4 2.01 2 6.54 2 12c0 5.52 4.48 10 10 10 3.71 0 6.93-2.02 8.66-5.02-7.51-.25-12.09-8.43-8.32-14.97h-.35z\"/>", "videocam": "<path d=\"M15 8v8H5V8h10m1-2H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4V7c0-.55-.45-1-1-1z\"/>", "history": "<path d=\"M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8z\"/>", "touch_app": "<path d=\"m18.19 12.44-3.24-1.62c1.29-1 2.12-2.56 2.12-4.32 0-3.03-2.47-5.5-5.5-5.5s-5.5 2.47-5.5 5.5c0 2.13 1.22 3.98 3 4.89v3.26c-2.15-.46-2.02-.44-2.26-.44-.53 0-1.03.21-1.41.59L4 16.22l5.09 5.09c.43.44 1.03.69 1.65.69h6.3c.98 0 1.81-.7 1.97-1.67l.8-4.71c.22-1.3-.43-2.58-1.62-3.18zm-.35 2.85-.8 4.71h-6.3c-.09 0-.17-.04-.24-.1l-3.68-3.68 4.25.89V6.5c0-.28.22-.5.5-.5s.5.22.5.5v6h1.76l3.46 1.73c.4.2.62.63.55 1.06zM8.07 6.5c0-1.93 1.57-3.5 3.5-3.5s3.5 1.57 3.5 3.5c0 .95-.38 1.81-1 2.44V6.5a2.5 2.5 0 0 0-5 0v2.44c-.62-.63-1-1.49-1-2.44z\"/>", "notifications": "<path d=\"M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z\"/>"};
+
+const ic=k=>`<svg class="ic" viewBox="0 0 24 24">${I[k]}</svg>`;
+const NOTES={
+ papel:'<b>Papel</b>: fondo crema liso, tinta casi negra y un solo color fuerte (naranja tomate) para lo encendido y lo elegido. Tarjetas blancas con una sombra corta abajo, como papel sobre una mesa. Sobria pero cálida; la firma es la franja naranja junto a cada título.',
+ noche:'<b>Medianoche</b>: fondo casi negro liso (sin transparencias), tarjetas un tono más claro con un borde finísimo y un celeste eléctrico. Lo más "consola de PC" (Steam Big Picture), pero con la misma firma.',
+ consola:'<b>Consola</b>: gris claro con rayitas horizontales finas, tarjetas blancas "abultadas" (sombra sólida abajo, como un botón) y celeste. La que más recuerda a la Wii y la 3DS sin copiarlas.'};
+const pad=()=>`<svg viewBox="0 10 320 190" fill="none" stroke="var(--glyph)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity=".85">
+ <path d="M84 46 C120 38 200 38 236 46 C262 52 276 66 286 96 C298 134 302 166 284 176 C268 185 252 176 240 158 C232 146 224 140 210 140 L110 140 C96 140 88 146 80 158 C68 176 52 185 36 176 C18 166 22 134 34 96 C44 66 58 52 84 46Z"/>
+ <path d="M60 51 C68 36 84 29 102 27 C113 26 121 28 127 32 M260 51 C252 36 236 29 218 27 C207 26 199 28 193 32" stroke-width="5" opacity=".45"/>
+ <circle cx="104" cy="90" r="17"/><circle cx="104" cy="90" r="7"/><circle cx="196" cy="118" r="17"/><circle cx="196" cy="118" r="7"/>
+ <path d="M128 112v18M119 121h18"/><circle cx="230" cy="74" r="6"/><circle cx="246" cy="90" r="6"/><circle cx="214" cy="90" r="6"/><circle cx="230" cy="106" r="6"/>
+ <circle cx="160" cy="62" r="13" stroke="var(--acc)" stroke-width="3"/><circle cx="160" cy="62" r="22" stroke="var(--acc)" stroke-width="1.5" opacity=".4"/></svg>`;
+const home=()=>`<div class="hero"><div><div class="pct">76 %</div><div class="sub">Cargando · llena en 40 min</div></div>
+ <div class="stats">${[['memory','6,8 / 12 GB','RAM'],['bolt','+18,4 W',''],['speed','2,7 GHz','CPU'],['thermostat','31 °C','Batería'],['display_settings','120 Hz','Pantalla']].map(([i,v,l])=>`<div class="st">${ic(i)}<div><b>${v}</b>${l?`<span>${l}</span>`:''}</div></div>`).join('')}</div></div>
+ <div class="circles">${[['power','Bypass','Auto',1],['query_stats','Monitor','Barra',0],['aspect_ratio','16:9','',0],['speed','Rendimiento','Equilibrado',0]].map(([i,n,st,on],k)=>`<div class="cb"><div class="c ${on?'on':''} ${k==0?'f':''}">${ic(i)}</div><span>${n}</span><small>${st||'&nbsp;'}</small></div>`).join('')}</div>
+ <div class="apps">${[['home','Botón guía'],['gamepad','Combinaciones'],['display_settings','Hz en juegos'],['screenshot','Capturas'],['add','']].map(([i,n])=>`<div class="ap"><div class="s">${ic(i)}</div><span>${n}</span></div>`).join('')}</div>`;
+const guide=()=>`<div class="title">Botón guía</div><div class="guide"><div class="pad">${pad()}</div><div>
+ <div class="acts">${[['','Tocar','arrow_back','Atrás'],['2','Dos veces','layers','Recientes'],['h','Mantener','dashboard','Panel']].map(([d,n,i,w],k)=>`<div class="act ${k==0?'f':''}"><div class="how"><span class="dots">${d==='2'?'<i></i><i></i>':d==='h'?'<i class="hold"></i>':'<i></i>'}</span>${n}</div><div class="what"><span class="bdg">${ic(i)}</span>${w}</div></div>`).join('')}</div>
+ <div class="combos">${[['RB','screenshot'],['LB','arrow_back'],['LT','videocam'],['RT','history'],['5 s','bedtime']].map(([k,i],j)=>`<div class="cmb ${j==3?'off':''}"><span class="key g">⌂</span><span class="plus">+</span><span class="key">${k}</span>${ic(i)}</div>`).join('')}</div>
+ </div></div>`;
+let I_=('papel'),S='home';
+function render(){const t=document.getElementById('tab');t.className='tab '+I_;
+ t.innerHTML=`<div class="bar">76 % · 18:42</div><div class="area">${S==='home'?home():guide()}</div>
+ <div class="dock">${[['home','Inicio'],['sports_esports','Biblioteca'],['dashboard','Panel'],['videogame_asset','Control'],['more_horiz','Más']].map(([i,n],k)=>`<div class="dk ${(S==='home'?k==0:k==3)?'cur':''}">${ic(i)}${n}</div>`).join('')}</div>`;
+ document.getElementById('note').innerHTML=NOTES[I_]+(S==='guide'?'<br><br><b>Botón guía, visual</b>: el control dibujado con la guía resaltada; tocar, dos veces y mantener como tres tarjetas (puntos que dicen cómo se aprieta, y un ícono de lo que hace). Las combinaciones son botones dibujados + un ícono, sin frases; las apagadas, tenues. Elegir una tarjeta abre la lista de acciones con íconos.':'');}
+document.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{I_=b.dataset.i;document.querySelectorAll('[data-i]').forEach(x=>x.classList.toggle('on',x===b));render();});
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{S=b.dataset.s;document.querySelectorAll('[data-s]').forEach(x=>x.classList.toggle('on',x===b));render();});
+render();
+</script></body></html>
