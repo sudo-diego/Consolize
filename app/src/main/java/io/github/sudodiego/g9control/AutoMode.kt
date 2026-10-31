@@ -1443,7 +1443,7 @@ class AutoModeService : AccessibilityService() {
 
     private var shizukuTries = 0
     /**
-     * Shizuku no arrancó solo (su inicio al encender falla a veces: ver CONTEXTO) y algo elegido lo necesita: avisar.
+     * Shizuku no arrancó solo (su inicio al encender falla a veces) y algo elegido lo necesita: avisar.
      * Si a los 10 s no está, otra vez a los 30 s antes de avisar: a veces arranca un poco después.
      */
     private val shizukuCheck: Runnable = Runnable {

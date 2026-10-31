@@ -92,7 +92,7 @@ Most things need nothing extra.
 ./gradlew assembleRelease
 ```
 
-Without a `keystore.properties` file the release is signed with the debug key. Protocol notes and everything that was tested are in [CONTEXTO.md](CONTEXTO.md) (in Spanish).
+Without a `keystore.properties` file the release is signed with the debug key.
 
 ## License
 

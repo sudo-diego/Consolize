@@ -13,7 +13,7 @@ object Gcm {
     const val HOME_KEY: Int = 0xC2 // HID 450 ("Home") según KeyCodeUtil
 
     // Modos que acepta el G9: 1 Android, 6 DS5 (VID 054C, PID 0CE6), 8 y 12 X-Input ("Microsoft X-Box 360 pad").
-    // Los demás de la tabla oficial (5, 7, 9, 10, 11) los rechaza. Ver CONTEXTO.md.
+    // Los demás de la tabla oficial (5, 7, 9, 10, 11) los rechaza.
     const val MODE_XINPUT = 8
     const val MODE_DS5 = 6
 

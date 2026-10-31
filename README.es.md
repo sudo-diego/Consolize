@@ -30,7 +30,7 @@ Tiene tres secciones (LT / RT cambian de sección, LB / RB de pestaña):
 
 ### Panel de juego
 
-Mantén el botón guía (o L3 + R3, o el botón de accesibilidad) en cualquier app: un panel como los ajustes rápidos de Android sobre el juego, sin quitarle el foco. Mini monitor (RAM libre, W, CPU, temperatura de la batería), brillo y volumen, captura, grabar y Shadow Rec, Game Assistant, modo de rendimiento, Hz para esta app, bloquear gestos, apps recientes para volver a ellas (como un juego en suspensión; Y dos veces la cierra; ← → pasan a las siguientes), 16:9, WiFi y Bluetooth, mouse virtual, Atrás / Inicio / Recientes y el modo del G9. Se mueve con el stick o la cruceta, A elige y B cierra. Fondo: transparente, degradado o tu propia imagen o GIF, también translúcidos; en claro u oscuro. Dos estilos: **al centro** o **lateral** (como el acceso rápido del Steam Deck, con tu imagen o GIF de cabecera que se funde con el panel). Color de acento a elección, también para los avisos. Sonidos de navegación opcionales (no cortan la música de Cocoon) y música ambiental propia en la app. También se abre dentro de la app.
+Mantén el botón guía (o L3 + R3, o el botón de accesibilidad) en cualquier app: un panel como los ajustes rápidos de Android sobre el juego, sin quitarle el foco. Mini monitor (RAM libre, W, CPU, temperatura de la batería), brillo y volumen, captura, grabar y Shadow Rec, Game Assistant, modo de rendimiento, Hz para esta app, bloquear gestos, apps recientes para volver a ellas (como un juego en suspensión; Y dos veces la cierra; ← → pasan a las siguientes), 16:9, WiFi y Bluetooth, mouse virtual, Atrás / Inicio / Recientes y el modo del G9. Se mueve con el stick o la cruceta, A elige y B cierra. Fondo: transparente, degradado o tu propia imagen o GIF, también translúcidos; en claro u oscuro. Dos estilos: **al centro** o **lateral** (como el acceso rápido del Steam Deck, con tu imagen o GIF de cabecera que se funde con el panel). Color de acento a elección, también para los avisos. Sonidos de navegación opcionales (no cortan la música que esté sonando) y música ambiental propia en la app. También se abre dentro de la app.
 
 ### G9
 
@@ -92,7 +92,7 @@ Casi todo funciona sin nada más.
 ./gradlew assembleRelease
 ```
 
-Sin un archivo `keystore.properties` la release se firma con la clave de depuración. Las notas del protocolo y todo lo probado están en [CONTEXTO.md](CONTEXTO.md).
+Sin un archivo `keystore.properties` la release se firma con la clave de depuración.
 
 ## Licencia
 

@@ -212,7 +212,7 @@ object AutoRules {
      * Qué hace tocar la guía en una app: Atrás (lo normal), nada, o pasarla al juego (la app no la toma: el emulador
      * recibe la guía real del G9 y la puede asignar; mantener tampoco abre el panel, se usa L3 + R3). Enviar botones
      * desde la app no sirve: Android 15 los marca como de un dispositivo "Virtual" y RetroArch no los toma como del
-     * jugador 1 (probado el 12 oct 2026; ver CONTEXTO).
+     * jugador 1 (probado el 12 oct 2026).
      */
     enum class GuideTap { BACK, PASS, NOTHING;
         val label get() = when (this) {
