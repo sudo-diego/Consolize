@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.ui.graphics.luminance
+
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -96,6 +98,10 @@ enum class CardTone { NIGHT, GRAPHITE, BLACK, ACCENT, LIGHT, CUSTOM;
         NIGHT -> tr("Azul noche", "Night blue"); GRAPHITE -> tr("Grafito", "Graphite"); BLACK -> tr("Negro", "Black")
         ACCENT -> tr("Del acento", "From accent"); LIGHT -> tr("Claro", "Light"); CUSTOM -> tr("Propio", "Custom")
     }
+}
+/** Texto y dibujos directo sobre el fondo (la batería grande, el control, los títulos): según el fondo, claros u oscuros. */
+enum class BackdropText { AUTO, LIGHT, DARK;
+    val label get() = when (this) { AUTO -> tr("Según el fondo", "Match background"); LIGHT -> tr("Claros", "Light"); DARK -> tr("Oscuros", "Dark") }
 }
 /** Halo del foco: el borde de lo elegido con un brillo del color de acento que sube y baja, o sin él. */
 enum class Halo { OFF, SLOW, FAST;
@@ -202,6 +208,7 @@ object ThemeState {
     var cardTone by androidx.compose.runtime.mutableStateOf(CardTone.NIGHT)
     var cardCustom by androidx.compose.runtime.mutableLongStateOf(0xFF2A3B4F)
     var halo by androidx.compose.runtime.mutableStateOf(Halo.SLOW)
+    var backdropText by androidx.compose.runtime.mutableStateOf(BackdropText.AUTO)
     /** Orden de las secciones del panel (barras, juego, recientes…) y de los mosaicos dentro de cada una. */
     internal var panelSections by androidx.compose.runtime.mutableStateOf(PANEL_SECTIONS)
     internal var panelTileOrder by androidx.compose.runtime.mutableStateOf(PanelTile.entries.toList())
@@ -241,7 +248,7 @@ object ThemeState {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
         backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); liquidParams = Prefs.liquidParams(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
-        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
+        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); backdropText = Prefs.backdropText(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.
         panelUri?.takeIf { panelBackground == PanelBackground.IMAGE }?.let { ImageCache.preload(ctx, "panel", it) }
     }
@@ -259,6 +266,32 @@ fun isDarkTheme() = when (ThemeState.theme) {
     AppTheme.DARK -> true
 }
 
+/**
+ * El color de las tarjetas (Apariencia → Tarjetas) en todo el tema: las superficies (tarjetas, hojas, diálogos, menús,
+ * el dock) salen de ese color, y el texto y los íconos encima se ponen claros u oscuros según qué tan claro sea. El fondo
+ * de la app no cambia. Con "Azul noche" queda el tema de siempre.
+ */
+private fun withCards(s: ColorScheme): ColorScheme {
+    val base = when (ThemeState.cardTone) {
+        CardTone.NIGHT -> return s
+        CardTone.GRAPHITE -> Color(0xFF2A2C31)
+        CardTone.BLACK -> Color(0xFF0D0D10)
+        CardTone.ACCENT -> androidx.compose.ui.graphics.lerp(s.primary, Color(0xFF141A2C), 0.78f)
+        CardTone.LIGHT -> Color(0xFFF2F5FA)
+        CardTone.CUSTOM -> Color(ThemeState.cardCustom)
+    }
+    val light = base.luminance() > 0.5f
+    val on = if (light) Color(0xFF14203A) else Color.White
+    fun shade(k: Float) = if (light) androidx.compose.ui.graphics.lerp(base, Color.Black, k) else androidx.compose.ui.graphics.lerp(base, Color.White, k)
+    fun deep(k: Float) = if (light) androidx.compose.ui.graphics.lerp(base, Color.White, k) else androidx.compose.ui.graphics.lerp(base, Color.Black, k)
+    return s.copy(
+        surfaceContainerLowest = deep(0.3f), surfaceContainerLow = deep(0.15f), surfaceContainer = deep(0.06f),
+        surfaceContainerHigh = base, surfaceContainerHighest = shade(0.07f), surfaceVariant = shade(0.07f),
+        surface = deep(0.1f), onSurface = on, onSurfaceVariant = on.copy(alpha = 0.66f),
+        outline = on.copy(alpha = 0.3f), outlineVariant = on.copy(alpha = 0.15f),
+    )
+}
+
 @Composable
 fun G9Theme(content: @Composable () -> Unit) {
     val dark = isDarkTheme()
@@ -274,7 +307,7 @@ fun G9Theme(content: @Composable () -> Unit) {
         )
     }
     MaterialTheme(
-        colorScheme = scheme,
+        colorScheme = withCards(scheme),
         shapes = Shapes(
             small = RoundedCornerShape(10.dp),
             medium = RoundedCornerShape(16.dp),

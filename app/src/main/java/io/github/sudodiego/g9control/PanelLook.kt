@@ -656,19 +656,24 @@ internal fun StatChip(icon: ImageVector, value: String, label: String, modifier:
 
 /** Ícono de batería como el de la barra de Android: se llena con el nivel; rayo si carga, enchufe si está enchufada sin cargar (límite, bypass). */
 @Composable
-internal fun BatteryGlyph(level: Int, charging: Boolean, bypass: Boolean, held: Boolean = false) {
+internal fun BatteryGlyph(level: Int, charging: Boolean, bypass: Boolean, held: Boolean = false,
+    /** En la app (fuera del panel): el color del contorno y del relleno, y el acento de la app. */
+    ink: Color? = null, accent: Color? = null) {
     val low = level <= 15 && !charging && !bypass
+    val muted = ink?.copy(alpha = 0.7f) ?: PANEL_MUTED
+    val fill = ink ?: PANEL_FG
+    val on = accent ?: TILE_ON
     androidx.compose.foundation.Canvas(Modifier.size(width = 26.dp, height = 13.dp)) {
         val stroke = 1.5.dp.toPx()
         val nub = 2.5.dp.toPx()
         val body = androidx.compose.ui.geometry.Size(size.width - nub, size.height)
         val r = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())
-        drawRoundRect(PANEL_MUTED, size = body, cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
-        drawRoundRect(PANEL_MUTED, topLeft = androidx.compose.ui.geometry.Offset(body.width, size.height * 0.3f),
+        drawRoundRect(muted, size = body, cornerRadius = r, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+        drawRoundRect(muted, topLeft = androidx.compose.ui.geometry.Offset(body.width, size.height * 0.3f),
             size = androidx.compose.ui.geometry.Size(nub, size.height * 0.4f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx()))
         val pad = stroke + 1.dp.toPx()
         val inner = androidx.compose.ui.geometry.Size((body.width - 2 * pad) * level.coerceIn(0, 100) / 100f, body.height - 2 * pad)
-        drawRoundRect(if (low) Color(0xFFFF6B6B) else if (charging || bypass) TILE_ON else PANEL_FG,
+        drawRoundRect(if (low) Color(0xFFFF6B6B) else if (charging || bypass) on else fill,
             topLeft = androidx.compose.ui.geometry.Offset(pad, pad), size = inner, cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx()))
         if (charging) {
             // Rayo al centro, con borde oscuro para que se vea sobre el relleno.

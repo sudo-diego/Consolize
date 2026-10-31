@@ -261,7 +261,8 @@ fun GlassSurface(shape: androidx.compose.ui.graphics.Shape, modifier: Modifier =
                 Color.White.copy(alpha = (if (dark) 0.36f else 0.9f) * rim + 0.04f),
                 Color.White.copy(alpha = (if (dark) 0.08f else 0.3f) * rim))), shape))
         }
-        Box { content() }
+        // Lo de adentro con el color del texto de las tarjetas (con tarjetas claras, oscuro aunque la app sea oscura).
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides c.onSurface) { Box { content() } }
     }
 }
 

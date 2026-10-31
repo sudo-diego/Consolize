@@ -671,12 +671,15 @@ class AutoModeService : AccessibilityService() {
             }
         }
         if (volumeSwap(event)) return true
+        // Soltar un botón de las combinaciones se anota siempre, antes de lo que puede tragarse la tecla (capturando o con
+        // un aviso): si no, quedaba "apretado" para siempre y con R3 + A cada A sacaba una captura.
+        if (event.action == KeyEvent.ACTION_UP && AutoRules.PadKey.of(k) != null && chords(event)) return true
         // Imagen congelada (cambiando el rendimiento): moverse sin ver a dónde, no. Los sticks los toma su ventana.
         if (panel.busy && (KeyEvent.isGamepadButton(k) || event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
                 event.isFromSource(InputDevice.SOURCE_DPAD))) return true
         if (panel.alertOpen && (KeyEvent.isGamepadButton(k) || event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
                 event.isFromSource(InputDevice.SOURCE_DPAD))) { panel.alertKey(event); return true }
-        if (chords(event)) return true
+        if (event.action != KeyEvent.ACTION_UP && chords(event)) return true
         if (legionChord(event)) return true
         if (panel.isOpen && panel.onKey(event)) return true
         if (legionKey(event)) return true
@@ -1270,8 +1273,9 @@ class AutoModeService : AccessibilityService() {
         panel.capture()
     }
 
-    /** Botones de los atajos de dos botones apretados ahora mismo. */
+    /** Botones de los atajos de dos botones apretados ahora mismo, con cuándo se apretaron. */
     private val padDown = mutableSetOf<Int>()
+    private val padDownAt = mutableMapOf<Int, Long>()
     /** Botones que se quedó un atajo al bajar: su soltar tampoco llega al juego. */
     private val chordTaken = mutableSetOf<Int>()
     /** Panel (al tocar) apretado y todavía sin decidir si es toque (panel) o mantener (captura). */
@@ -1305,7 +1309,10 @@ class AutoModeService : AccessibilityService() {
         when (e.action) {
             KeyEvent.ACTION_DOWN -> {
                 if (e.repeatCount > 0) return k in chordTaken
-                padDown += k
+                val now = android.os.SystemClock.uptimeMillis()
+                // Seguro: un botón "apretado" hace más de 3 s sin soltarse se da por suelto (por si su soltar no llegó).
+                padDown.removeAll { (now - (padDownAt[it] ?: 0L)) > 3000 && it != k }
+                padDown += k; padDownAt[k] = now
                 if (padDown.size < 2 || guide.isGuiding) return false
                 // La app se mira solo si los botones coinciden con un atajo (leer la ventana al frente cuesta).
                 val app by lazy(LazyThreadSafetyMode.NONE) { currentApp() }

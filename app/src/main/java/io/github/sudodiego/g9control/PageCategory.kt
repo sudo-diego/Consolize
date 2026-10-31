@@ -35,6 +35,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
@@ -190,9 +191,9 @@ private fun ControlHub(s: AppState) {
             else PadLineArt(Modifier.width(320.dp).graphicsLayer { alpha = if (pad == null) 0.35f else 1f })
             Spacer(Modifier.height(14.dp))
             Text(when { g9 -> "Legion G9"; pad != null -> pad.name; else -> tr("Sin control", "No controller") },
-                fontSize = 28.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (info.isNotEmpty()) Text(info.joinToString("  ·  "), fontSize = 15.sp, color = c.onSurfaceVariant)
-            else if (pad == null) Text(tr("Conecta uno para probarlo", "Connect one to test it"), fontSize = 15.sp, color = c.onSurfaceVariant)
+                fontSize = 28.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = backdropOn())
+            if (info.isNotEmpty()) Text(info.joinToString("  ·  "), fontSize = 15.sp, color = backdropMuted())
+            else if (pad == null) Text(tr("Conecta uno para probarlo", "Connect one to test it"), fontSize = 15.sp, color = backdropMuted())
         }
         Spacer(Modifier.width(40.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -209,8 +210,8 @@ private fun ControlHub(s: AppState) {
 /** Un control dibujado en líneas finas (para cualquier control que no sea el G9); el botón guía, del color de acento. */
 @Composable
 fun PadLineArt(modifier: Modifier) {
-    val line = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-    val bumper = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    val line = backdropOn().copy(alpha = 0.75f)
+    val bumper = backdropOn().copy(alpha = 0.45f)
     val accent = MaterialTheme.colorScheme.primary
     val paths = remember {
         fun p(d: String) = androidx.compose.ui.graphics.vector.PathParser().parsePathString(d).toPath()
@@ -236,96 +237,111 @@ fun PadLineArt(modifier: Modifier) {
 }
 
 /**
- * Más, como la configuración de una consola: arriba los cuatro temas grandes (su nombre y lo que tienen, sin íconos) y
- * abajo solo las opciones del elegido. Moverse entre los temas cambia lo de abajo; A entra a las opciones y B vuelve al
+ * Más, como la configuración de una consola: los cuatro temas grandes (su nombre y lo que tienen). A abre el tema en un
+ * menú encima (con un fundido y un leve crecimiento), con sus opciones como mosaicos; B lo cierra y el foco vuelve al
  * tema. En una opción, Y la fija en Inicio y X en el dock.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun MoreHub(s: AppState) {
-    val c = MaterialTheme.colorScheme
     val groups = moreGroups(s)
-    var cat by remember { mutableIntStateOf(s.moreCat.coerceIn(0, groups.size - 1)) }
-    LaunchedEffect(cat) { s.moreCat = cat }
     val catFocus = remember { List(groups.size) { FocusRequester() } }
     val firstOption = remember { FocusRequester() }
-    // B en una opción vuelve a su tema (B lo maneja la actividad: se le avisa mientras el foco está en las opciones).
-    var inOptions by remember { mutableStateOf(false) }
-    DisposableEffect(inOptions) {
-        s.backOverride = if (inOptions && s.inHub) ({ runCatching { catFocus[cat].requestFocus() }; true }) else null
+    // El tema abierto (null = ninguno). Se recuerda al volver de una opción, así el menú sigue abierto.
+    var open by remember { mutableStateOf(s.moreOpen) }
+    LaunchedEffect(open) { s.moreOpen = open; if (open != null) { kotlinx.coroutines.delay(60); runCatching { firstOption.requestFocus() } } }
+    DisposableEffect(open) {
+        s.backOverride = if (open != null) ({ val k = open!!; open = null; s.moreOpen = null; runCatching { catFocus[k].requestFocus() }; true }) else null
         onDispose { s.backOverride = null }
     }
-    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Al llegar a Más, el foco entra directo al último tema elegido (antes pasaba por el primero y se notaba un salto).
+        Row(Modifier.widthIn(max = 1200.dp).fillMaxWidth()
+            .focusProperties { enter = { catFocus[s.moreCat.coerceIn(0, groups.size - 1)] } }.focusGroup(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             groups.forEachIndexed { i, (name, items) ->
                 val src = remember { MutableInteractionSource() }
                 val focused by src.collectIsFocusedAsState()
-                LaunchedEffect(focused) { if (focused) cat = i }
+                LaunchedEffect(focused) { if (focused) s.moreCat = i }
                 Surface(
-                    onClick = { cat = i; runCatching { firstOption.requestFocus() } }, interactionSource = src,
+                    onClick = { open = i }, interactionSource = src,
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
-                    modifier = Modifier.weight(1f).height(140.dp).focusRequester(catFocus[i]).focusHalo(focused, RoundedCornerShape(24.dp)).graphicsLayer {
-                        val k = if (focused) 1.04f else 1f; scaleX = k; scaleY = k
-                        alpha = if (i == cat) 1f else 0.75f
-                    }
+                    modifier = Modifier.weight(1f).height(170.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
+                        .graphicsLayer { val k = if (focused) 1.04f else 1f; scaleX = k; scaleY = k }.focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
-                        if (i == cat) Box(Modifier.width(28.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.primary))
+                        if (focused) Box(Modifier.width(28.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
                         Spacer(Modifier.weight(1f))
-                        Text(name, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                        Text(name, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
                         Text(items.joinToString(" · ") { it.label() }, fontSize = 12.sp, lineHeight = 17.sp, color = cardMuted(),
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            maxLines = 3, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
         }
-        Spacer(Modifier.height(22.dp))
-        // B en una opción vuelve a su tema.
-        Box(Modifier.onFocusChanged { inOptions = it.hasFocus }) {
-            androidx.compose.animation.AnimatedContent(cat, transitionSpec = {
-                (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) +
-                    androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(200)) { -it / 12 }) togetherWith
-                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120))
-            }, label = "more") { k ->
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    groups[k].second.chunked(4).forEachIndexed { r, row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            row.forEachIndexed { j, e -> EntryTile(s, e, Modifier.weight(1f).then(if (r == 0 && j == 0) Modifier.focusRequester(firstOption) else Modifier), pins = true) }
-                            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+        // El menú del tema, encima: un velo sobre lo de atrás y la tarjeta con sus opciones.
+        androidx.compose.animation.AnimatedVisibility(open != null, Modifier.matchParentSize(),
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)),
+            exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140))) {
+            Box(Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)).background(Color.Black.copy(alpha = 0.35f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { s.backOverride?.invoke() },
+                contentAlignment = Alignment.Center) {
+                val k = open ?: s.moreCat
+                val (name, items) = groups[k.coerceIn(0, groups.size - 1)]
+                Surface(shape = RoundedCornerShape(28.dp), color = cardBase(), contentColor = cardOn(), shadowElevation = 16.dp,
+                    modifier = Modifier.widthIn(max = 900.dp).fillMaxWidth(0.8f)
+                        .animateEnterExit(enter = androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(200), initialScale = 0.94f),
+                            exit = androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(140), targetScale = 0.96f))
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }) {
+                    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(name, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        items.chunked(2).forEachIndexed { r, row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEachIndexed { j, e -> EntryTile(s, e, Modifier.weight(1f).then(if (r == 0 && j == 0) Modifier.focusRequester(firstOption) else Modifier), pins = true) }
+                                if (row.size < 2) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                            PadBadge("Y", round = true); Spacer(Modifier.width(6.dp))
+                            Text(tr("Fijar en Inicio", "Pin to Home"), fontSize = 13.sp, color = cardMuted())
+                            Spacer(Modifier.width(18.dp))
+                            PadBadge("X", round = true); Spacer(Modifier.width(6.dp))
+                            Text(tr("Fijar en el dock", "Pin to dock"), fontSize = 13.sp, color = cardMuted())
+                            Spacer(Modifier.width(18.dp))
+                            PadBadge("B", round = true); Spacer(Modifier.width(6.dp))
+                            Text(tr("Cerrar", "Close"), fontSize = 13.sp, color = cardMuted())
                         }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            PadBadge("Y", round = true); Spacer(Modifier.width(6.dp))
-            Text(tr("Fijar en Inicio", "Pin to Home"), fontSize = 13.sp, color = c.onSurfaceVariant)
-            Spacer(Modifier.width(18.dp))
-            PadBadge("X", round = true); Spacer(Modifier.width(6.dp))
-            Text(tr("Fijar en el dock", "Pin to dock"), fontSize = 13.sp, color = c.onSurfaceVariant)
-        }
     }
 }
 
-/** El color base de las tarjetas, según lo elegido en Apariencia (aparte del acento). */
+/**
+ * Texto y dibujos directo sobre el fondo de la app (no sobre una tarjeta): con imagen o fondo de pantalla, claros (se
+ * leen sobre cualquier foto); con degradado o liso, los del tema. Se puede fijar en Apariencia.
+ */
 @Composable
-fun cardBase(): Color {
-    val c = MaterialTheme.colorScheme
-    return when (ThemeState.cardTone) {
-        CardTone.NIGHT -> c.surfaceContainerHigh
-        CardTone.GRAPHITE -> Color(0xFF2A2C31)
-        CardTone.BLACK -> Color(0xFF0D0D10)
-        CardTone.ACCENT -> androidx.compose.ui.graphics.lerp(c.primary, Color(0xFF141A2C), 0.78f)
-        CardTone.LIGHT -> Color(0xFFF2F5FA)
-        CardTone.CUSTOM -> Color(ThemeState.cardCustom)
-    }
+fun backdropOn(): Color = when (ThemeState.backdropText) {
+    BackdropText.LIGHT -> Color.White
+    BackdropText.DARK -> Color(0xFF14203A)
+    BackdropText.AUTO -> if (ThemeState.background == AppBackground.IMAGE || ThemeState.background == AppBackground.WALLPAPER) Color.White
+        else MaterialTheme.colorScheme.onBackground
 }
+@Composable
+fun backdropMuted(): Color = backdropOn().copy(alpha = 0.72f)
+
+/** El color base de las tarjetas: la superficie del tema, que ya lleva lo elegido en Apariencia → Tarjetas. */
+@Composable
+fun cardBase(): Color = MaterialTheme.colorScheme.surfaceContainerHigh
 /** El color de las tarjetas (mosaicos, temas, datos, dock): un poco translúcido sobre el fondo. */
 @Composable
 fun cardColor(): Color = cardBase().copy(alpha = if (ThemeState.glass) 0.88f else 1f)
 /** Texto e íconos sobre las tarjetas: oscuros si la tarjeta es clara. */
 @Composable
-fun cardOn(): Color = if (cardBase().luminance() > 0.5f) Color(0xFF14203A) else Color.White
+fun cardOn(): Color = MaterialTheme.colorScheme.onSurface
 @Composable
 fun cardMuted(): Color = cardOn().copy(alpha = 0.66f)
 
@@ -369,8 +385,8 @@ fun EntryTile(s: AppState, e: Entry, modifier: Modifier, pins: Boolean = false) 
     Surface(
         onClick = { s.enter(e.page, e.parts?.invoke(), label) }, interactionSource = src,
         shape = RoundedCornerShape(18.dp), color = cardColor(), contentColor = cardOn(),
-        modifier = modifier.height(72.dp).focusRequester(focus).focusHalo(focused, RoundedCornerShape(18.dp))
-            .graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }
+        modifier = modifier.height(72.dp).focusRequester(focus)
+            .graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }.focusHalo(focused, RoundedCornerShape(18.dp))
             .then(if (pins) Modifier.onPreviewKeyEvent { k ->
                 if (k.type != KeyEventType.KeyUp) return@onPreviewKeyEvent k.key == Key.ButtonY || k.key == Key.ButtonX
                 when (k.key) {
@@ -443,8 +459,9 @@ fun TopStatus(showBattery: Boolean = true) {
     val time = remember(tick) { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
     Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 28.dp, top = 14.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
         // Con el mismo ícono de batería que el panel y el inicio.
-        if (showBattery && level != null) { BatteryGlyph(level, charging = charging && !bypass, bypass = bypass, held = plugged && !charging && !bypass); Spacer(Modifier.width(8.dp)) }
+        if (showBattery && level != null) { BatteryGlyph(level, charging = charging && !bypass, bypass = bypass, held = plugged && !charging && !bypass,
+            ink = backdropOn(), accent = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp)) }
         Text(listOfNotNull(level?.takeIf { showBattery }?.let { "$it %" }, time).joinToString("   "), fontSize = 22.sp, fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            color = backdropMuted())
     }
 }

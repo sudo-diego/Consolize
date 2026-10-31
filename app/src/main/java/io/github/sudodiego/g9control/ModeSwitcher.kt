@@ -53,6 +53,8 @@ object Prefs {
     fun setCardTone(ctx: Context, v: CardTone) = sp(ctx).edit().putString("card_tone", v.name).apply()
     fun cardCustom(ctx: Context) = sp(ctx).getLong("card_custom", 0xFF2A3B4F)
     fun setCardCustom(ctx: Context, v: Long) = sp(ctx).edit().putLong("card_custom", v).apply()
+    fun backdropText(ctx: Context) = runCatching { BackdropText.valueOf(sp(ctx).getString("backdrop_text", null)!!) }.getOrDefault(BackdropText.AUTO)
+    fun setBackdropText(ctx: Context, v: BackdropText) = sp(ctx).edit().putString("backdrop_text", v.name).apply()
     fun halo(ctx: Context) = runCatching { Halo.valueOf(sp(ctx).getString("halo", null)!!) }.getOrDefault(Halo.SLOW)
     fun setHalo(ctx: Context, v: Halo) = sp(ctx).edit().putString("halo", v.name).apply()
     /** Inicio: la RAM como usada / total (true) o libre. */

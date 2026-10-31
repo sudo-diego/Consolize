@@ -1160,6 +1160,8 @@ class AppState {
     var backOverride: (() -> Boolean)? = null
     /** El tema elegido en Más (se recuerda al volver de una opción). */
     var moreCat by mutableStateOf(0)
+    /** El tema abierto en Más (su menú encima); null = ninguno. Sigue abierto al volver de una opción. */
+    var moreOpen by mutableStateOf<Int?>(null)
     fun back(): Boolean = when {
         backOverride?.invoke() == true -> true
         detail != null -> { closeDetail?.invoke(); detail = null; true }
@@ -1195,6 +1197,7 @@ class AppState {
     /** Va a un destino del dock: su raíz (Inicio, Control, Más) o la página que abre (Biblioteca, Panel, algo fijado). */
     fun goDest(id: String) {
         detail = null; closeDetail = null; lastSub = null; sub = null; only = null; entryLabel = null; rootPage = false
+        if (id != dest) moreOpen = null
         dest = id
         when (id) {
             Dest.HOME -> { section = Section.HOME; page = Page.TABLET_HOME; inHub = true }

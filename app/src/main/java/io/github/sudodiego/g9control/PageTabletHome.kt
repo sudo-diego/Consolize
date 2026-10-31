@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Speed
@@ -193,8 +194,12 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
 private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, state: String, on: Boolean, modifier: Modifier,
     enabled: Boolean = true, onClick: () -> Unit) {
     val c = MaterialTheme.colorScheme
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
     Surface(
-        onClick = onClick, enabled = enabled, modifier = modifier.alpha(if (enabled) 1f else 0.5f), shape = MaterialTheme.shapes.large,
+        onClick = onClick, enabled = enabled, interactionSource = src, shape = RoundedCornerShape(18.dp),
+        modifier = modifier.alpha(if (enabled) 1f else 0.5f).graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }
+            .focusHalo(focused, RoundedCornerShape(18.dp)),
         color = cardColor(), contentColor = cardOn()
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -395,12 +400,12 @@ private fun HomeHero(a: MainActivity) {
     val hz = remember(tick) { RefreshRate.current(a) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(width = 64.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.graphicsLayer { scaleX = 2.3f; scaleY = 2.3f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held) }
+            Box(Modifier.graphicsLayer { scaleX = 2.3f; scaleY = 2.3f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held, ink = backdropOn(), accent = c.primary) }
         }
         Spacer(Modifier.width(18.dp))
         Column {
-            Text("${b.level} %", fontSize = 52.sp, fontWeight = FontWeight.SemiBold, lineHeight = 54.sp)
-            Text(sub, fontSize = 15.sp, color = c.onSurfaceVariant, maxLines = 1)
+            Text("${b.level} %", fontSize = 52.sp, fontWeight = FontWeight.SemiBold, lineHeight = 54.sp, color = backdropOn())
+            Text(sub, fontSize = 15.sp, color = backdropMuted(), maxLines = 1)
         }
         Spacer(Modifier.width(36.dp))
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -443,24 +448,32 @@ private fun HomeAccess(s: AppState) {
     val entries = allEntries(s).associateBy { it.id }
     val pins = s.homePins.mapNotNull { entries[it] }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(tr("ACCESOS", "SHORTCUTS"), fontSize = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = c.onSurfaceVariant)
+        Text(tr("ACCESOS", "SHORTCUTS"), fontSize = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = backdropMuted())
         (pins.map { it as Entry? } + null).chunked(5).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { e ->
                     if (e != null) EntryTile(s, e, Modifier.weight(1f))
-                    else Surface(onClick = { s.goDest(Dest.MORE) }, shape = RoundedCornerShape(18.dp), color = androidx.compose.ui.graphics.Color.Transparent,
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, c.onSurface.copy(alpha = 0.15f)), modifier = Modifier.weight(1f).height(72.dp)) {
-                        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(c.onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Outlined.Edit, null, Modifier.size(22.dp))
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Text(tr("Editar", "Edit"), fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
+                    else EditTile(Modifier.weight(1f)) { s.goDest(Dest.MORE) }
                 }
                 repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
             }
+        }
+    }
+}
+
+/** "Editar" de los Accesos: un mosaico más (con el color de las tarjetas y el halo), que lleva a Más. */
+@Composable
+private fun EditTile(modifier: Modifier, onClick: () -> Unit) {
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    Surface(onClick = onClick, interactionSource = src, shape = RoundedCornerShape(18.dp), color = cardColor(), contentColor = cardOn(),
+        modifier = modifier.height(72.dp).graphicsLayer { val k = if (focused) 1.03f else 1f; scaleX = k; scaleY = k }.focusHalo(focused, RoundedCornerShape(18.dp))) {
+        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(cardOn().copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Edit, null, Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(tr("Editar", "Edit"), fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
