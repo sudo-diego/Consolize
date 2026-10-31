@@ -476,10 +476,7 @@ internal fun PanelLookPanel(a: MainActivity) {
             Prefs.setPanelStatItems(a, ThemeState.panelStatItems)
         }
     }
-    // Como los ajustes rápidos de Android: qué mosaicos salen y en qué orden, y el orden de las secciones.
-    Panel(tr("Orden y mosaicos", "Order and tiles")) {
-        PanelArrange(a)
-    }
+
     Panel(tr("Diseño", "Layout")) {
         ChoiceRow(tr("Estilo", "Style"), PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
         // Las columnas son de la tarjeta al centro (la lateral tiene 2); el tamaño vale para las dos.

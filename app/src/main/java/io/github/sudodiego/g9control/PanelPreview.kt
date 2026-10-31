@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.animation.togetherWith
+
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.requiredWidth
@@ -94,13 +96,26 @@ fun PanelPage(s: AppState, a: MainActivity) {
 
 @Composable
 private fun PanelPreviewCard(a: MainActivity) {
-    Panel(tr("Vista previa", "Preview"), trailing = {
-        // De fondo, el degradado o una imagen propia (una captura de un juego, por ejemplo).
-        androidx.compose.material3.TextButton(onClick = {
-            if (ThemeState.previewUri == null) a.pickPreviewImage() else { ThemeState.previewUri = null; Prefs.setPreviewUri(a, null) }
-        }) { Text(if (ThemeState.previewUri == null) tr("Usar una imagen", "Use an image") else tr("Quitar imagen", "Remove image")) }
+    // Editar los mosaicos ahí mismo: la vista previa se cambia por el editor (mover arrastrando, ocultar con el ojo).
+    var editing by remember { mutableStateOf(false) }
+    Panel(if (editing) tr("Editar mosaicos", "Edit tiles") else tr("Vista previa", "Preview"), trailing = {
+        Row {
+            androidx.compose.material3.TextButton(onClick = { editing = !editing }) {
+                Text(if (editing) tr("Listo", "Done") else tr("Editar mosaicos", "Edit tiles"))
+            }
+            // De fondo, el degradado o una imagen propia (una captura de un juego, por ejemplo).
+            if (!editing) androidx.compose.material3.TextButton(onClick = {
+                if (ThemeState.previewUri == null) a.pickPreviewImage() else { ThemeState.previewUri = null; Prefs.setPreviewUri(a, null) }
+            }) { Text(if (ThemeState.previewUri == null) tr("Usar una imagen", "Use an image") else tr("Quitar imagen", "Remove image")) }
+        }
     }) {
-        PanelPreview()
+        androidx.compose.animation.AnimatedContent(editing, transitionSpec = {
+            (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) +
+                androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(220), initialScale = 0.96f)) togetherWith
+                androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140))
+        }, label = "editar") { ed ->
+            if (ed) PanelEditor { editing = false } else Column { PanelPreview() }
+        }
         // Aviso discreto: en ese modo el juego no se pausa, solo se congela la imagen.
         if (ThemeState.freezesGame) Text(
             tr("El juego no se pausa: se congela la imagen y sigue corriendo detrás.", "The game doesn't pause: the picture freezes and it keeps running behind."),
