@@ -62,7 +62,7 @@ fun entriesFor(s: AppState, sec: Section): List<Entry> = when (sec) {
     )
     Section.CONTROLS -> listOf(
         Entry({ tr("Botón guía", "Guide button") }, Page.CONTROLS) { setOf(tr("Botón guía", "Guide button")) },
-        Entry({ tr("Sin botón guía", "Without a guide button") }, Page.CONTROLS) { setOf(tr("Sin botón guía", "Without a guide button")) },
+        Entry({ tr("Combinaciones", "Button combos") }, Page.CONTROLS) { setOf(tr("Combinaciones", "Button combos")) },
         Entry({ tr("Botones de volumen", "Volume buttons") }, Page.CONTROLS) { setOf(tr("Botones de volumen", "Volume buttons")) },
         Entry({ tr("Probar control", "Test controller") }, Page.TEST),
     ) + if (!s.g9Known) emptyList() else listOf(

@@ -464,13 +464,10 @@ internal fun PanelLookPanel(a: MainActivity) {
             ThemeState.panelStatItems = if (on) ThemeState.panelStatItems + st else ThemeState.panelStatItems - st
             Prefs.setPanelStatItems(a, ThemeState.panelStatItems)
         }
-        PanelTile.entries.groupBy { it.group }.forEach { (g, tiles) ->
-            Text(PanelTile.groupLabel(g), fontSize = 14.sp)
-            MultiChips(tiles.map { it to it.label }, tiles.filter { it !in ThemeState.panelHidden }.toSet()) { t, on ->
-                ThemeState.panelHidden = if (on) ThemeState.panelHidden - t else ThemeState.panelHidden + t
-                Prefs.setPanelHidden(a, ThemeState.panelHidden)
-            }
-        }
+    }
+    // Como los ajustes rápidos de Android: qué mosaicos salen y en qué orden, y el orden de las secciones.
+    Panel(tr("Orden y mosaicos", "Order and tiles")) {
+        PanelArrange(a)
     }
     Panel(tr("Diseño", "Layout")) {
         Text(tr("Estilo", "Style"), fontSize = 14.sp)
@@ -735,4 +732,74 @@ internal fun LiquidSliders(a: MainActivity) {
     SliderRow(tr("Brillo arriba", "Top highlight"), p.highlight, 0..100) { set(p.copy(highlight = it)) }
     SliderRow(tr("Fuerza del borde", "Rim strength"), p.rim, 0..100) { set(p.copy(rim = it)) }
     TextButton(onClick = { set(LiquidParams()) }) { Text(tr("Valores de siempre", "Defaults")) }
+}
+
+/**
+ * Orden del panel: cada sección (Brillo y volumen, Juego, Recientes, Pantalla y conexión, Android) se sube o baja con
+ * sus flechas, y dentro de ella cada mosaico se muestra u oculta (tocando su nombre) y se sube o baja. Todo con el
+ * control: las flechas y las filas toman el foco.
+ */
+@Composable
+private fun PanelArrange(a: MainActivity) {
+    val c = MaterialTheme.colorScheme
+    val sections = ThemeState.panelSections
+    fun moveSection(i: Int, d: Int) {
+        val j = i + d
+        if (j !in sections.indices) return
+        val next = sections.toMutableList().apply { add(j, removeAt(i)) }
+        ThemeState.panelSections = next; Prefs.setPanelSections(a, next)
+    }
+    fun moveTile(t: PanelTile, d: Int) {
+        val order = ThemeState.panelTileOrder
+        val same = order.filter { it.section == t.section }
+        val k = same.indexOf(t) + d
+        if (k !in same.indices) return
+        val other = same[k]
+        val next = order.toMutableList()
+        val i = next.indexOf(t); val j = next.indexOf(other)
+        next[i] = other; next[j] = t
+        ThemeState.panelTileOrder = next; Prefs.setPanelTileOrder(a, next)
+    }
+    // Las filas juntas (el panel separa 12 dp cada cosa: con 30 mosaicos quedaba larguísimo).
+    Column { sections.forEachIndexed { i, sec ->
+        if (i > 0) HorizontalDivider(Modifier.padding(vertical = 4.dp), color = c.outlineVariant.copy(alpha = 0.5f))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(sec.label, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = c.primary)
+            MoveButtons(i > 0, i < sections.size - 1, tr("sección", "section")) { moveSection(i, it) }
+        }
+        val tiles = ThemeState.panelTileOrder.filter { it.section == sec }
+        tiles.forEachIndexed { k, t ->
+            val shown = t !in ThemeState.panelHidden
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).clip(MaterialTheme.shapes.small).clickable {
+                    ThemeState.panelHidden = if (shown) ThemeState.panelHidden + t else ThemeState.panelHidden - t
+                    Prefs.setPanelHidden(a, ThemeState.panelHidden)
+                }.padding(vertical = 4.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        Checkbox(shown, null)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(t.label, fontSize = 14.sp, color = if (shown) c.onSurface else c.onSurfaceVariant)
+                }
+                // Una sección de un solo mosaico (Recientes) no tiene orden.
+                if (tiles.size > 1) MoveButtons(k > 0, k < tiles.size - 1, t.label) { moveTile(t, it) }
+            }
+        }
+    } }
+    TextButton(onClick = {
+        ThemeState.panelSections = PANEL_SECTIONS; Prefs.setPanelSections(a, PANEL_SECTIONS)
+        ThemeState.panelTileOrder = PanelTile.entries.toList(); Prefs.setPanelTileOrder(a, PanelTile.entries.toList())
+        ThemeState.panelHidden = emptySet(); Prefs.setPanelHidden(a, emptySet())
+    }) { Text(tr("Volver al orden de siempre", "Reset to the default order")) }
+}
+
+/** Subir y bajar (−1 / +1). */
+@Composable
+private fun MoveButtons(up: Boolean, down: Boolean, what: String, onMove: (Int) -> Unit) {
+    IconButton(onClick = { onMove(-1) }, enabled = up, modifier = Modifier.size(36.dp)) {
+        Icon(Icons.Filled.KeyboardArrowUp, tr("Subir $what", "Move $what up"))
+    }
+    IconButton(onClick = { onMove(1) }, enabled = down, modifier = Modifier.size(36.dp)) {
+        Icon(Icons.Filled.KeyboardArrowDown, tr("Bajar $what", "Move $what down"))
+    }
 }

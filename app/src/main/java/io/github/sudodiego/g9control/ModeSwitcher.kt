@@ -28,6 +28,19 @@ object Prefs {
     /** Mosaicos ocultos del panel y datos del mini monitor (por su clave). */
     internal fun panelHidden(ctx: Context): Set<PanelTile> = sp(ctx).getString("panel_hidden", "")!!.split(',').mapNotNull { runCatching { PanelTile.valueOf(it) }.getOrNull() }.toSet()
     internal fun setPanelHidden(ctx: Context, v: Set<PanelTile>) = sp(ctx).edit().putString("panel_hidden", v.joinToString(",") { it.name }).apply()
+    /** Orden de las secciones del panel; las que falten (agregadas después) van al final en su orden de siempre. */
+    internal fun panelSections(ctx: Context): List<PanelRow> {
+        val saved = sp(ctx).getString("panel_sections", "")!!.split(',').mapNotNull { runCatching { PanelRow.valueOf(it) }.getOrNull() }
+            .filter { it in PANEL_SECTIONS }.distinct()
+        return saved + PANEL_SECTIONS.filter { it !in saved }
+    }
+    internal fun setPanelSections(ctx: Context, v: List<PanelRow>) = sp(ctx).edit().putString("panel_sections", v.joinToString(",") { it.name }).apply()
+    /** Orden de los mosaicos; los nuevos (de una versión posterior) van al final. */
+    internal fun panelTileOrder(ctx: Context): List<PanelTile> {
+        val saved = sp(ctx).getString("panel_tile_order", "")!!.split(',').mapNotNull { runCatching { PanelTile.valueOf(it) }.getOrNull() }.distinct()
+        return saved + PanelTile.entries.filter { it !in saved }
+    }
+    internal fun setPanelTileOrder(ctx: Context, v: List<PanelTile>) = sp(ctx).edit().putString("panel_tile_order", v.joinToString(",") { it.name }).apply()
     internal fun panelStatItems(ctx: Context): Set<PanelStat> = sp(ctx).getString("panel_stat_items", null)?.split(',')?.mapNotNull { runCatching { PanelStat.valueOf(it) }.getOrNull() }?.toSet() ?: PanelStat.DEFAULT
     internal fun setPanelStatItems(ctx: Context, v: Set<PanelStat>) = sp(ctx).edit().putString("panel_stat_items", v.joinToString(",") { it.name }).apply()
     fun panelLiquid(ctx: Context) = sp(ctx).getBoolean("panel_liquid", false)

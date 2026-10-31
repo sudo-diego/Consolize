@@ -121,7 +121,8 @@ fun PanelPreview() {
     ui.stats = ThemeState.panelStats
     // Sin lo que se ocultó (Panel → Qué se muestra), como en el panel de verdad.
     val all = remember { ui.items }
-    ui.items = all.filter { it.tile == null || it.tile !in ThemeState.panelHidden }
+    // Y en el orden elegido (Panel → Orden y mosaicos).
+    ui.items = arrangePanel(all.filter { it.tile == null || it.tile !in ThemeState.panelHidden })
     ui.sel = ui.sel.coerceAtMost((ui.items.size - 1).coerceAtLeast(0))
     BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         // Siempre una pantalla horizontal (los juegos se juegan así): en vertical, con la forma de la pantalla, quedaba

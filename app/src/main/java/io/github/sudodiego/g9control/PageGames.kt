@@ -85,6 +85,7 @@ private fun loadGames(ctx: Context): List<GameEntry> {
             when {
                 k.startsWith("hz_") && k != "hz_games" -> add(k.removePrefix("hz_"))
                 k.startsWith("guide_tap_app_") -> add(k.removePrefix("guide_tap_app_"))
+                k.startsWith("chord_") && k.endsWith("_apps") -> sp.getString(k, null)?.split(',')?.filter { it.isNotBlank() }?.let { addAll(it) }
             }
         }
         addAll(AutoRules.rules(ctx).keys)
@@ -167,6 +168,13 @@ private fun GameDetail(s: AppState, a: MainActivity, g: GameEntry) {
             if (tap == AutoRules.GuideTap.PASS) {
                 var byGame by remember { mutableStateOf(AutoRules.shotByGame(a, g.pkg)) }
                 SwitchRow(tr("Guía + RB: captura del juego", "Guide + RB: game's screenshot"), byGame) { byGame = it; AutoRules.setShotByGame(a, g.pkg, it) }
+            }
+
+            // Combinaciones de dos botones (Controles → Combinaciones) en esta app: así cada una se elige donde funciona.
+            AutoRules.Chord.entries.filter { AutoRules.chordOn(a, it) }.forEach { c ->
+                var here by remember { mutableStateOf(AutoRules.chordActive(a, c, g.pkg)) }
+                val (k1, k2) = AutoRules.chordKeys(a, c)
+                SwitchRow("${k1.label} + ${k2.label}: ${c.short}", here) { here = it; AutoRules.setChordHere(a, c, g.pkg, it) }
             }
 
             // Modo del G9 al abrirlo: solo si hay (o hubo) un G9.

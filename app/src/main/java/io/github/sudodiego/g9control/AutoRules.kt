@@ -147,15 +147,90 @@ object AutoRules {
     fun showLabel(ctx: Context) = sp(ctx).getBoolean("show_label", true)
     fun setShowLabel(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("show_label", v).apply()
 
-    /** L3 + R3 abre el panel de juego (captura, Game Assistant, modo del control). */
-    fun gamePanel(ctx: Context) = sp(ctx).getBoolean("game_panel", true)
-    fun setGamePanel(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("game_panel", v).apply()
-    /** L3 + R3 solo transmitiendo (Artemis, Moonlight: ahí la guía es del PC); en lo demás, la guía. */
-    fun chordOnlyStreaming(ctx: Context) = sp(ctx).getBoolean("chord_streaming_only", false)
-    fun setChordOnlyStreaming(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("chord_streaming_only", v).apply()
-    /** Transmitiendo, Start + Select = Atrás de Android (abre el menú de Artemis o Moonlight sin tocar la pantalla). */
-    fun streamBack(ctx: Context) = sp(ctx).getBoolean("stream_back", true)
-    fun setStreamBack(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("stream_back", v).apply()
+    /** Botones que se pueden juntar en los atajos de dos botones (L3 + R3, R3 + A…). La clave se guarda. */
+    enum class PadKey(val code: Int, val label: String) {
+        L3(KeyEvent.KEYCODE_BUTTON_THUMBL, "L3"), R3(KeyEvent.KEYCODE_BUTTON_THUMBR, "R3"),
+        LB(KeyEvent.KEYCODE_BUTTON_L1, "LB"), RB(KeyEvent.KEYCODE_BUTTON_R1, "RB"),
+        SELECT(KeyEvent.KEYCODE_BUTTON_SELECT, "Select"), START(KeyEvent.KEYCODE_BUTTON_START, "Start"),
+        A(KeyEvent.KEYCODE_BUTTON_A, "A"), B(KeyEvent.KEYCODE_BUTTON_B, "B"), X(KeyEvent.KEYCODE_BUTTON_X, "X"), Y(KeyEvent.KEYCODE_BUTTON_Y, "Y");
+        companion object { fun of(code: Int) = entries.firstOrNull { it.code == code } }
+    }
+
+    /**
+     * Atajos de dos botones, para controles sin botón guía (o con una guía que no llega, como en un GameSir que solo
+     * la usa para remapear): abrir el panel, sacar una captura, Atrás de Android. Cada uno con sus dos botones y en qué
+     * apps funciona ([Where]: todas, solo las elegidas o todas menos las elegidas; las apps se eligen aquí o en la ficha
+     * de cada juego de la biblioteca).
+     */
+    enum class Chord(val id: String, val defA: PadKey, val defB: PadKey) {
+        PANEL("panel", PadKey.L3, PadKey.R3), SHOT("shot", PadKey.R3, PadKey.A), BACK("back", PadKey.START, PadKey.SELECT);
+        val label get() = when (this) {
+            PANEL -> tr("Panel de juego", "Game panel"); SHOT -> tr("Captura", "Screenshot"); BACK -> tr("Atrás (menú de la app de transmisión)", "Back (streaming app menu)")
+        }
+        val short get() = when (this) { PANEL -> tr("Panel", "Panel"); SHOT -> tr("Captura", "Screenshot"); BACK -> tr("Atrás", "Back") }
+    }
+    enum class Where { ALL, ONLY, EXCEPT;
+        val label get() = when (this) { ALL -> tr("Todas las apps", "All apps"); ONLY -> tr("Solo en las elegidas", "Only in chosen apps"); EXCEPT -> tr("Todas menos las elegidas", "All but chosen apps") }
+    }
+    /**
+     * Cómo se activa el del panel: tocar (el segundo botón no llega al juego; mantenerlos 0,5 s saca la captura) o
+     * mantener 0,6 s (los dos llegan al juego: L3 + R3 sigue sirviendo en juegos que lo usan, como Skyward Sword).
+     */
+    enum class Press { TAP, HOLD;
+        val label get() = when (this) { TAP -> tr("Tocar", "Tap"); HOLD -> tr("Mantener", "Hold") }
+    }
+
+    fun chordOn(ctx: Context, c: Chord) = when (c) {
+        // Las claves de antes (L3 + R3 y Start + Select), para no perder lo que ya estaba elegido.
+        Chord.PANEL -> sp(ctx).getBoolean("game_panel", true)
+        Chord.BACK -> sp(ctx).getBoolean("stream_back", true)
+        Chord.SHOT -> sp(ctx).getBoolean("chord_shot_on", false)
+    }
+    fun setChordOn(ctx: Context, c: Chord, v: Boolean) = sp(ctx).edit().putBoolean(when (c) {
+        Chord.PANEL -> "game_panel"; Chord.BACK -> "stream_back"; Chord.SHOT -> "chord_shot_on" }, v).apply()
+    fun chordKeys(ctx: Context, c: Chord): Pair<PadKey, PadKey> {
+        val p = sp(ctx)
+        val a = runCatching { PadKey.valueOf(p.getString("chord_${c.id}_a", null)!!) }.getOrDefault(c.defA)
+        val b = runCatching { PadKey.valueOf(p.getString("chord_${c.id}_b", null)!!) }.getOrDefault(c.defB)
+        return if (a == b) c.defA to c.defB else a to b
+    }
+    fun setChordKeys(ctx: Context, c: Chord, a: PadKey, b: PadKey) =
+        sp(ctx).edit().putString("chord_${c.id}_a", a.name).putString("chord_${c.id}_b", b.name).apply()
+    fun chordPress(ctx: Context) = runCatching { Press.valueOf(sp(ctx).getString("chord_panel_press", null)!!) }.getOrDefault(Press.TAP)
+    fun setChordPress(ctx: Context, v: Press) = sp(ctx).edit().putString("chord_panel_press", v.name).apply()
+
+    /** Dónde funciona. Antes: L3 + R3 "solo transmitiendo" (= solo en las apps de transmisión); Start + Select, solo ahí. */
+    fun chordWhere(ctx: Context, c: Chord): Where = runCatching { Where.valueOf(sp(ctx).getString("chord_${c.id}_where", null)!!) }
+        .getOrElse {
+            when (c) {
+                Chord.PANEL -> if (sp(ctx).getBoolean("chord_streaming_only", false)) Where.ONLY else Where.ALL
+                Chord.BACK -> Where.ONLY
+                Chord.SHOT -> Where.ALL
+            }
+        }
+    fun setChordWhere(ctx: Context, c: Chord, v: Where) = sp(ctx).edit().putString("chord_${c.id}_where", v.name).apply()
+    fun chordApps(ctx: Context, c: Chord): Set<String> = sp(ctx).getString("chord_${c.id}_apps", null)
+        ?.split(',')?.filter { it.isNotBlank() }?.toSet()
+        ?: if (c == Chord.SHOT) emptySet() else STREAMING
+    fun setChordApps(ctx: Context, c: Chord, v: Set<String>) = sp(ctx).edit().putString("chord_${c.id}_apps", v.sorted().joinToString(",")).apply()
+
+    /** Funciona en esta app (encendido y según dónde). */
+    fun chordActive(ctx: Context, c: Chord, pkg: String?): Boolean {
+        if (!chordOn(ctx, c)) return false
+        val inList = pkg != null && pkg in chordApps(ctx, c)
+        return when (chordWhere(ctx, c)) { Where.ALL -> true; Where.ONLY -> inList; Where.EXCEPT -> !inList }
+    }
+    /** Desde la ficha de un juego: que funcione o no en esa app (ajusta la lista y, si hace falta, el "dónde"). */
+    fun setChordHere(ctx: Context, c: Chord, pkg: String, on: Boolean) {
+        if (chordActive(ctx, c, pkg) == on) return
+        val apps = chordApps(ctx, c)
+        when (chordWhere(ctx, c)) {
+            Where.ALL -> { setChordWhere(ctx, c, Where.EXCEPT); setChordApps(ctx, c, setOf(pkg)) }
+            Where.EXCEPT -> setChordApps(ctx, c, if (on) apps - pkg else apps + pkg)
+            Where.ONLY -> setChordApps(ctx, c, if (on) apps + pkg else apps - pkg)
+        }
+    }
+
 
     /** En DS5, M dos veces (llega como un toque del touchpad) saca la captura limpia del panel de juego. */
     fun touchpadShot(ctx: Context) = sp(ctx).getBoolean("touchpad_shot", true)
@@ -208,6 +283,31 @@ object AutoRules {
     /** Cada atajo del botón guía, por separado (con el botón guía activado). */
     enum class Guide(val key: String) { TAP_BACK("guide_tap_back"), HOLD_PANEL("guide_hold_panel"), RB_SHOT("guide_rb_shot"), LB_BACK("guide_lb_back"), HOLD_LOCK("guide_hold_lock"), LT_REC("guide_lt_rec"), RT_SHADOW("guide_rt_shadow") }
 
+    /** Qué puede hacer el botón guía al tocarlo, tocarlo dos veces o mantenerlo. La clave se guarda. */
+    enum class GuideAction { NONE, BACK, HOME, RECENTS, PANEL, SHOT, NOTIFICATIONS, QUICK_SETTINGS;
+        val label get() = when (this) {
+            NONE -> tr("Nada", "Nothing"); BACK -> tr("Atrás", "Back"); HOME -> tr("Inicio", "Home"); RECENTS -> tr("Recientes", "Recents")
+            PANEL -> tr("Panel de juego", "Game panel"); SHOT -> tr("Captura", "Screenshot")
+            NOTIFICATIONS -> tr("Notificaciones", "Notifications"); QUICK_SETTINGS -> tr("Ajustes rápidos", "Quick settings")
+        }
+    }
+    enum class GuidePress { TAP, DOUBLE, HOLD;
+        val label get() = when (this) { TAP -> tr("Tocar", "Tap"); DOUBLE -> tr("Tocar dos veces", "Double tap"); HOLD -> tr("Mantener", "Hold") }
+    }
+    /**
+     * Por defecto tocar = Atrás, dos veces = nada (así tocar no espera a ver si viene otro) y mantener = panel. Si antes
+     * se había apagado "Tocar: Atrás" o "Mantener: panel", queda en Nada.
+     */
+    fun guideAction(ctx: Context, p: GuidePress): GuideAction = runCatching { GuideAction.valueOf(sp(ctx).getString("guide_action_${p.name.lowercase()}", null)!!) }
+        .getOrElse {
+            when (p) {
+                GuidePress.TAP -> if (guide(ctx, Guide.TAP_BACK)) GuideAction.BACK else GuideAction.NONE
+                GuidePress.HOLD -> if (guide(ctx, Guide.HOLD_PANEL)) GuideAction.PANEL else GuideAction.NONE
+                GuidePress.DOUBLE -> GuideAction.NONE
+            }
+        }
+    fun setGuideAction(ctx: Context, p: GuidePress, v: GuideAction) = sp(ctx).edit().putString("guide_action_${p.name.lowercase()}", v.name).apply()
+
     /**
      * Qué hace tocar la guía en una app: Atrás (lo normal), nada, o pasarla al juego (la app no la toma: el emulador
      * recibe la guía real del G9 y la puede asignar; mantener tampoco abre el panel, se usa L3 + R3). Enviar botones
@@ -216,7 +316,7 @@ object AutoRules {
      */
     enum class GuideTap { BACK, PASS, NOTHING;
         val label get() = when (this) {
-            BACK -> tr("Atrás", "Back"); PASS -> tr("Pasar al juego", "Pass to the game"); NOTHING -> tr("Nada", "Nothing")
+            BACK -> tr("Como siempre", "As usual"); PASS -> tr("Pasar al juego", "Pass to the game"); NOTHING -> tr("Nada", "Nothing")
         }
     }
     /** RetroArch: pasar la guía al juego (se asigna en RetroArch al menú o a salir). */

@@ -676,8 +676,7 @@ class AutoModeService : AccessibilityService() {
                 event.isFromSource(InputDevice.SOURCE_DPAD))) return true
         if (panel.alertOpen && (KeyEvent.isGamepadButton(k) || event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
                 event.isFromSource(InputDevice.SOURCE_DPAD))) { panel.alertKey(event); return true }
-        if (streamBackChord(event)) return true
-        if (panelChord(event)) return true
+        if (chords(event)) return true
         if (legionChord(event)) return true
         if (panel.isOpen && panel.onKey(event)) return true
         if (legionKey(event)) return true
@@ -761,12 +760,34 @@ class AutoModeService : AccessibilityService() {
      * "Pasar al juego": la guía le llega al emulador, pero mantenerla sola 0,5 s igual abre el panel (el mismo gesto en
      * todas partes). En RetroArch la guía sola no hace nada si es la "tecla para activar teclas rápidas".
      */
-    private val passHold = Runnable { Log.i(TAG, "guía mantenida (pasada al juego): panel"); panel.show() }
+    private val passHold = Runnable { Log.i(TAG, "guía mantenida (pasada al juego)"); runGuideAction(AutoRules.guideAction(this, AutoRules.GuidePress.HOLD)) }
 
     private val legionHold = Runnable {
         if (!legionPending) return@Runnable
         legionPending = false
-        panel.show()
+        doubleTap = false
+        runGuideAction(AutoRules.guideAction(this, AutoRules.GuidePress.HOLD))
+    }
+
+    /** Un toque de la guía esperando a ver si viene el segundo (solo si "Tocar dos veces" hace algo). */
+    private var tapWaiting = false
+    /** Esta pulsación es la segunda de un doble toque. */
+    private var doubleTap = false
+    private val singleTap = Runnable { tapWaiting = false; guideTap() }
+
+    /** Lo elegido para tocar, tocar dos veces o mantener la guía (Controles → Botón guía). */
+    private fun runGuideAction(a: AutoRules.GuideAction) {
+        Log.i(TAG, "guía: $a")
+        when (a) {
+            AutoRules.GuideAction.NONE -> {}
+            AutoRules.GuideAction.BACK -> performGlobalAction(GLOBAL_ACTION_BACK)
+            AutoRules.GuideAction.HOME -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_HOME) }
+            AutoRules.GuideAction.RECENTS -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_RECENTS) }
+            AutoRules.GuideAction.NOTIFICATIONS -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS) }
+            AutoRules.GuideAction.QUICK_SETTINGS -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS) }
+            AutoRules.GuideAction.PANEL -> panel.show()
+            AutoRules.GuideAction.SHOT -> { panel.hide(); panel.capture() }
+        }
     }
 
     /**
@@ -844,8 +865,9 @@ class AutoModeService : AccessibilityService() {
 
     private fun forgetPad(id: Int) {
         // L3 + R3 y Start + Select: con un stick o Start apretado al cortarse, al volver bastaba el otro para el atajo.
-        sticksDown.clear(); chordPending = false; chordKey = -1; main.removeCallbacks(chordHold)
-        menuDown.clear(); menuChordKey = -1
+        padDown.clear(); chordTaken.clear(); chordPending = false; holdKeys = null
+        main.removeCallbacks(chordHold); main.removeCallbacks(chordHoldOpen)
+        tapWaiting = false; doubleTap = false; main.removeCallbacks(singleTap)
         if (id != guideDevice) return
         if (guideLive || legionOwned || legionChording) Log.i(TAG, "control de la guía desconectado con la guía apretada: se suelta")
         guideLive = false; guideDownAt = 0
@@ -1039,14 +1061,17 @@ class AutoModeService : AccessibilityService() {
     /** Se cruzó un umbral con la pantalla apagada o bloqueada: se avisa al desbloquear (si sigue baja y sin cargador). */
     private var lowPending = false
 
-    /** Tocar la guía en esta app: Atrás o nada (con "Pasar al juego" la guía le llega al juego; mantener sigue abriendo el panel). */
+    /**
+     * Tocar la guía en esta app: lo elegido para tocar (Atrás por defecto) o nada (con "Pasar al juego" la guía le llega
+     * al juego; mantener sigue abriendo el panel).
+     */
     private fun guideTap() {
         // En la propia app tocarla no hace nada (Atrás de Android la cerraría; ahí B es volver): solo mantener abre el panel.
         if (appInFront) return
         val app = currentApp()
         if (AutoRules.guideTap(this, app) != AutoRules.GuideTap.BACK) return
-        Log.i(TAG, "guía en $app: Atrás")
-        if (AutoRules.guide(this, AutoRules.Guide.TAP_BACK)) performGlobalAction(GLOBAL_ACTION_BACK)
+        Log.i(TAG, "guía tocada en $app")
+        runGuideAction(AutoRules.guideAction(this, AutoRules.GuidePress.TAP))
     }
 
     private fun legionKey(e: KeyEvent): Boolean {
@@ -1066,11 +1091,14 @@ class AutoModeService : AccessibilityService() {
                 val pass = AutoRules.guideTap(this, currentApp()) == AutoRules.GuideTap.PASS
                 legionOwned = usable && !pass
                 main.removeCallbacks(passHold)
-                if (usable && pass && AutoRules.guide(this, AutoRules.Guide.HOLD_PANEL)) main.postDelayed(passHold, 500)
+                val holdOn = AutoRules.guideAction(this, AutoRules.GuidePress.HOLD) != AutoRules.GuideAction.NONE
+                if (usable && pass && holdOn) main.postDelayed(passHold, 500)
                 Log.i(TAG, "guía apretada: dispositivo ${e.deviceId} (${e.device?.name}), en $lastPackage")
                 if (legionOwned) {
+                    // Segundo toque a tiempo: es un doble toque (el primero ya no hace lo de tocar).
+                    if (tapWaiting) { main.removeCallbacks(singleTap); tapWaiting = false; doubleTap = true }
                     legionPending = true
-                    if (AutoRules.guide(this, AutoRules.Guide.HOLD_PANEL)) main.postDelayed(legionHold, 500)
+                    if (holdOn) main.postDelayed(legionHold, 500)
                     // Sin temporizador de 5 s: a veces el soltar no llega y bloqueaba sin que el G9 se apagara. Se bloquea
                     // solo cuando el G9 se apaga de verdad (se desconecta tras mantener la guía; ver lockIfGuidePoweredOff).
                 }
@@ -1084,7 +1112,13 @@ class AutoModeService : AccessibilityService() {
                 legionOwned = false
                 if (legionPending) {
                     legionPending = false; main.removeCallbacks(legionHold)
-                    guideTap()
+                    val double = AutoRules.guideAction(this, AutoRules.GuidePress.DOUBLE)
+                    when {
+                        doubleTap -> { doubleTap = false; runGuideAction(double) }
+                        // Con algo para dos toques, tocar espera un momento por si viene el segundo.
+                        double != AutoRules.GuideAction.NONE -> { tapWaiting = true; main.postDelayed(singleTap, DOUBLE_TAP_MS) }
+                        else -> guideTap()
+                    }
                 }
                 return true
             }
@@ -1236,77 +1270,78 @@ class AutoModeService : AccessibilityService() {
         panel.capture()
     }
 
-    /** L3 y R3 apretados ahora mismo. */
-    private val sticksDown = mutableSetOf<Int>()
-    /** El stick que completó L3 + R3: ni su presión ni su soltar llegan al juego. */
-    private var chordKey = -1
-    /** L3 + R3 apretados y todavía sin decidir si es toque (panel) o mantener (captura). */
+    /** Botones de los atajos de dos botones apretados ahora mismo. */
+    private val padDown = mutableSetOf<Int>()
+    /** Botones que se quedó un atajo al bajar: su soltar tampoco llega al juego. */
+    private val chordTaken = mutableSetOf<Int>()
+    /** Panel (al tocar) apretado y todavía sin decidir si es toque (panel) o mantener (captura). */
     private var chordPending = false
 
-    /** L3 + R3 mantenidos medio segundo: captura directa, sin abrir el panel. */
+    /** Panel al tocar, mantenido medio segundo: captura directa, sin abrir el panel. */
     private val chordHold = Runnable {
         if (!chordPending) return@Runnable
         chordPending = false
-        Log.d(TAG, "L3 + R3 mantenidos: captura")
+        Log.d(TAG, "atajo del panel mantenido: captura")
         panel.hide()
         panel.capture()
     }
-
-    /**
-     * L3 + R3: tocarlos abre o cierra el panel de juego; mantenerlos 0,5 s saca la captura directamente.
-     * El primero de los dos llega al juego como siempre (no se sabe todavía si viene el otro); el segundo
-     * se lo queda el panel. No funciona mientras está la guía.
-     */
-    private fun panelChord(e: KeyEvent): Boolean {
-        val k = e.keyCode
-        if (k != KeyEvent.KEYCODE_BUTTON_THUMBL && k != KeyEvent.KEYCODE_BUTTON_THUMBR) return false
-        when (e.action) {
-            KeyEvent.ACTION_DOWN -> {
-                if (e.repeatCount > 0) return k == chordKey
-                sticksDown += k
-                if (sticksDown.size == 2 && AutoRules.gamePanel(this) && (streaming || !AutoRules.chordOnlyStreaming(this)) && !guide.isGuiding) {
-                    chordKey = k
-                    chordPending = true
-                    main.postDelayed(chordHold, 500)
-                    return true
-                }
-            }
-            KeyEvent.ACTION_UP -> {
-                sticksDown -= k
-                // Se soltó antes del medio segundo: era un toque.
-                if (chordPending) { chordPending = false; main.removeCallbacks(chordHold); panel.toggle() }
-                if (k == chordKey) { chordKey = -1; return true }
-            }
-        }
-        return false
+    /** Panel al mantener: los dos botones siguen apretados. */
+    private var holdKeys: Pair<Int, Int>? = null
+    private val chordHoldOpen = Runnable {
+        val (a, b) = holdKeys ?: return@Runnable
+        holdKeys = null
+        if (a in padDown && b in padDown) { Log.d(TAG, "atajo del panel mantenido: panel"); panel.toggle() }
     }
 
-    /** Start o Select apretados transmitiendo (para Start + Select = Atrás). */
-    private val menuDown = mutableSetOf<Int>()
-    /** El segundo de Start + Select (se lo quedó Atrás): su soltar tampoco va al PC. */
-    private var menuChordKey = -1
-
     /**
-     * Transmitiendo (la guía es del PC): Start + Select = Atrás, que abre el menú de Artemis o Moonlight. El primero de
-     * los dos llega al PC (no se sabe todavía si viene el otro); el segundo no. Como L3 + R3.
+     * Atajos de dos botones ([AutoRules.Chord]: panel, captura, Atrás), cada uno con sus botones y sus apps. El primero de
+     * los dos llega al juego como siempre (no se sabe todavía si viene el otro); el segundo se lo queda el atajo. El del
+     * panel "al mantener" no se queda ninguno: los dos llegan al juego y el panel se abre si siguen apretados 0,6 s (así
+     * L3 + R3 sigue sirviendo en los juegos que lo usan). No funcionan mientras está la guía.
      */
-    private fun streamBackChord(e: KeyEvent): Boolean {
+    private fun chords(e: KeyEvent): Boolean {
         val k = e.keyCode
-        if (k != KeyEvent.KEYCODE_BUTTON_START && k != KeyEvent.KEYCODE_BUTTON_SELECT) return false
+        if (AutoRules.PadKey.of(k) == null) return false
         when (e.action) {
             KeyEvent.ACTION_DOWN -> {
-                if (e.repeatCount > 0) return k == menuChordKey
-                menuDown += k
-                if (menuDown.size == 2 && streaming && AutoRules.streamBack(this) && !guide.isGuiding) {
-                    menuChordKey = k
-                    Log.d(TAG, "Start + Select transmitiendo: Atrás (menú de la app de transmisión)")
-                    performGlobalAction(GLOBAL_ACTION_BACK)
+                if (e.repeatCount > 0) return k in chordTaken
+                padDown += k
+                if (padDown.size < 2 || guide.isGuiding) return false
+                // La app se mira solo si los botones coinciden con un atajo (leer la ventana al frente cuesta).
+                val app by lazy(LazyThreadSafetyMode.NONE) { currentApp() }
+                for (c in AutoRules.Chord.entries) {
+                    val (a, b) = AutoRules.chordKeys(this, c)
+                    if (k != a.code && k != b.code) continue
+                    if ((if (k == a.code) b.code else a.code) !in padDown) continue
+                    if (!AutoRules.chordActive(this, c, app)) continue
+                    // Con el panel abierto, A y Start son del panel: ahí solo el del panel (para cerrarlo).
+                    if (c != AutoRules.Chord.PANEL && panel.isOpen) continue
+                    // Atrás en Moonlight y Artemis: solo transmitiendo (en su lista de PCs, Atrás saldría de la app).
+                    if (c == AutoRules.Chord.BACK && app?.startsWith("com.limelight") == true && !streaming) continue
+                    Log.d(TAG, "atajo ${a.label} + ${b.label}: $c en $app")
+                    when (c) {
+                        AutoRules.Chord.PANEL -> if (AutoRules.chordPress(this) == AutoRules.Press.HOLD && !panel.isOpen) {
+                            holdKeys = a.code to b.code
+                            main.removeCallbacks(chordHoldOpen)
+                            main.postDelayed(chordHoldOpen, 600)
+                            return false
+                        } else {
+                            chordPending = true
+                            main.postDelayed(chordHold, 500)
+                        }
+                        AutoRules.Chord.SHOT -> { panel.capture() }
+                        AutoRules.Chord.BACK -> performGlobalAction(GLOBAL_ACTION_BACK)
+                    }
+                    chordTaken += k
                     return true
                 }
             }
             KeyEvent.ACTION_UP -> {
-                menuDown -= k
-                if (k == menuChordKey) { menuChordKey = -1; return true }
+                padDown -= k
+                holdKeys?.let { if (k == it.first || k == it.second) { holdKeys = null; main.removeCallbacks(chordHoldOpen) } }
+                // Se soltó antes del medio segundo: era un toque.
+                if (chordPending) { chordPending = false; main.removeCallbacks(chordHold); panel.toggle() }
+                return chordTaken.remove(k)
             }
         }
         return false
@@ -1462,6 +1497,8 @@ class AutoModeService : AccessibilityService() {
         internal const val TAG = "G9Auto"
         /** Código crudo del botón de captura de algunos controles (sin nombre en Linux ni en Android). */
         private const val SHOT_SCAN = 0x13f
+        /** Espera por un segundo toque de la guía (solo si "Tocar dos veces" hace algo). */
+        private const val DOUBLE_TAP_MS = 280L
         /** El servicio corriendo (null si está apagado): la app lo usa para abrir el panel. */
         @Volatile var active: AutoModeService? = null
         const val ACTION_TEST_GUIDE_TAP = "io.github.sudodiego.g9control.TEST_GUIDE_TAP"

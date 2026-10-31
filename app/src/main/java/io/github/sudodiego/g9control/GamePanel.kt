@@ -207,8 +207,8 @@ class GamePanel(private val svc: AutoModeService) {
         navX = null
         ui.page = { if (pageRecents(it)) poke() }
         ui.items = items()
-        // Empieza en el primer mosaico (Captura), no en las barras.
-        ui.sel = ui.items.indexOfFirst { it.section == PanelRow.GAME }.coerceAtLeast(0)
+        // Empieza arriba de todo (el brillo, si las barras van primero): así la tarjeta no se abre ya desplazada.
+        ui.sel = firstSel()
         header()
         if (view == null) { create(); UiSounds.play(svc, UiSounds.Kind.OPEN, panel = true) }
         svc.setPanelSticks(true)
@@ -339,10 +339,13 @@ class GamePanel(private val svc: AutoModeService) {
         inPerfMenu = false
         ui.items = items()
         ui.sel = ui.items.indexOfFirst { it.icon == subFrom }.takeIf { it >= 0 }
-            ?: ui.items.indexOfFirst { it.section == PanelRow.GAME }.coerceAtLeast(0)
+            ?: firstSel()
         header()
         poke()
     }
+
+    /** El primer ítem de la primera fila, en el orden elegido (Panel → Orden). */
+    private fun firstSel() = panelRows(ui.items).firstOrNull()?.firstOrNull() ?: 0
 
     /** El mosaico desde el que se abrió el submenú (para volver a él). */
     private var subFrom: ImageVector = Icons.Outlined.Speed
@@ -623,11 +626,19 @@ class GamePanel(private val svc: AutoModeService) {
         // Solo el atajo; la explicación (la guía va al PC) está en Controles.
         val ds5 = ModeSwitcher.detect() == PadMode.DS5
         // Lo que cambia transmitiendo (la guía es del PC): cómo abrir el panel, el menú de la app y las capturas.
-        val chord = AutoRules.gamePanel(svc)
+        val app = svc.foregroundApp
+        fun keys(c: AutoRules.Chord) = AutoRules.chordKeys(svc, c).let { "${it.first.label} + ${it.second.label}" }
+        val panelOn = AutoRules.chordActive(svc, AutoRules.Chord.PANEL, app)
+        val tapPanel = panelOn && AutoRules.chordPress(svc) == AutoRules.Press.TAP
         val lines = listOfNotNull(
-            if (chord) tr("Panel: L3 + R3", "Panel: L3 + R3") else null,
-            if (AutoRules.streamBack(svc)) tr("Menú: Start + Select", "Menu: Start + Select") else null,
-            tr("Capturas: ", "Screenshots: ") + if (ds5) tr("M dos veces", "M twice") else tr("mantener L3 + R3", "hold L3 + R3")
+            if (panelOn) tr("Panel: ", "Panel: ") + keys(AutoRules.Chord.PANEL) else null,
+            if (AutoRules.chordActive(svc, AutoRules.Chord.BACK, app)) tr("Menú: ", "Menu: ") + keys(AutoRules.Chord.BACK) else null,
+            when {
+                AutoRules.chordActive(svc, AutoRules.Chord.SHOT, app) -> tr("Capturas: ", "Screenshots: ") + keys(AutoRules.Chord.SHOT)
+                ds5 -> tr("Capturas: M dos veces", "Screenshots: M twice")
+                tapPanel -> tr("Capturas: mantener ", "Screenshots: hold ") + keys(AutoRules.Chord.PANEL)
+                else -> null
+            }
         )
         flash.show(flash.appIcon(svc.foregroundApp), tr("Transmitiendo", "Streaming"), lines.joinToString(" · "), 5000)
     }
@@ -858,7 +869,9 @@ class GamePanel(private val svc: AutoModeService) {
     private fun MutableList<PanelItem>.addTile(t: PanelTile, i: PanelItem) { if (t !in ThemeState.panelHidden) add(i) }
 
     /** Acciones según lo que hay ahora: el panel de ZUI solo en modo juego, los modos según el actual. */
-    private fun items(): List<PanelItem> = buildList {
+    private fun items(): List<PanelItem> = arrangePanel(buildItems())
+
+    private fun buildItems(): List<PanelItem> = buildList {
         // Apps usadas hace poco (sin la de ahora): volver a ellas como a un juego en suspensión.
         // Y (o mantener con el dedo) dos veces la cierra: la primera la marca, la segunda confirma.
         // Sin RAOfflineProxy ni Shizuku: son servicios que tienen que quedar abiertos (cerrarlos rompe los logros o

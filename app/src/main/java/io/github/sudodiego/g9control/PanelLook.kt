@@ -166,9 +166,34 @@ internal enum class PanelTile(val group: Int) {
         BACK -> tr("Atrás", "Back"); HOME -> tr("Inicio", "Home"); RECENTS_KEY -> tr("Recientes", "Recents"); QUICK_SETTINGS -> tr("Ajustes rápidos", "Quick settings")
         SLEEP -> tr("Bloquear", "Sleep"); SETTINGS -> tr("Ajustes", "Settings"); G9_MODE -> tr("Modo del G9", "G9 mode"); APP -> "Consolize"
     }
+    /** La sección del panel en que sale. */
+    val section: PanelRow get() = when {
+        this == BRIGHTNESS || this == VOLUME -> PanelRow.SLIDER
+        this == RECENTS -> PanelRow.RECENT
+        group == 1 -> PanelRow.GAME
+        group == 2 -> PanelRow.SCREEN
+        else -> PanelRow.SYSTEM
+    }
     companion object {
         fun groupLabel(g: Int) = when (g) { 0 -> tr("Arriba", "Top"); 1 -> tr("Juego", "Game"); 2 -> tr("Pantalla y conexión", "Screen and connection"); else -> tr("Sistema", "System") }
     }
+}
+
+/** Las secciones que se pueden ordenar (Panel → Orden), en su orden de siempre. */
+internal val PANEL_SECTIONS = listOf(PanelRow.SLIDER, PanelRow.GAME, PanelRow.RECENT, PanelRow.SCREEN, PanelRow.SYSTEM)
+internal val PanelRow.label get() = when (this) {
+    PanelRow.SLIDER -> tr("Brillo y volumen", "Brightness and volume"); PanelRow.GAME -> tr("Juego", "Game")
+    PanelRow.RECENT -> tr("Recientes", "Recent"); PanelRow.SCREEN -> tr("Pantalla y conexión", "Screen and connection")
+    PanelRow.SYSTEM -> "Android"; PanelRow.MENU -> ""
+}
+
+/**
+ * Los ítems en el orden elegido para los mosaicos (Panel → Orden). Los que no se pueden ocultar (como "Activar Shizuku")
+ * van primero en su sección. Sin cambiar el orden de lo que es del mismo mosaico (las dos piezas del brillo, las recientes).
+ */
+internal fun arrangePanel(items: List<PanelItem>): List<PanelItem> {
+    val order = ThemeState.panelTileOrder
+    return items.sortedBy { it.tile?.let { t -> order.indexOf(t) } ?: -1 }
 }
 
 /** Datos del mini monitor (se eligen cuáles; la clave se guarda). */
@@ -194,13 +219,17 @@ internal fun panelRows(items: List<PanelItem>): List<List<Int>> {
         // Submenús de pocas opciones (rendimiento, proporción, modo lectura): al centro todas en una fila; en el
         // lateral, angosto, una debajo de otra (repartidas de a 2 quedaba una sola abajo). Con más, como siempre.
         by[PanelRow.MENU]?.let { if (it.size <= 4) { if (ThemeState.panelSide) addAll(it.chunked(1)) else add(it) } else addAll(even(it)) }
-        // Lateral (2 columnas): brillo y volumen uno debajo del otro, cada uno con su botón.
-        by[PanelRow.SLIDER]?.let { if (ThemeState.panelSide) addAll(it.chunked(2)) else add(it) }
-        by[PanelRow.GAME]?.let { addAll(even(it)) }
-        // Recientes en una sola fila (las que quepan; las demás se ven pasando de página con ← → o deslizando).
-        by[PanelRow.RECENT]?.let { add(it.take(COLUMNS)) }
-        by[PanelRow.SCREEN]?.let { addAll(even(it)) }
-        by[PanelRow.SYSTEM]?.let { addAll(even(it)) }
+        // Las secciones en el orden elegido (Panel → Orden).
+        ThemeState.panelSections.forEach { sec ->
+            val list = by[sec] ?: return@forEach
+            when (sec) {
+                // Lateral (2 columnas): brillo y volumen uno debajo del otro, cada uno con su botón.
+                PanelRow.SLIDER -> if (ThemeState.panelSide) addAll(list.chunked(2)) else add(list)
+                // Recientes en una sola fila (las que quepan; las demás se ven pasando de página con ← → o deslizando).
+                PanelRow.RECENT -> add(list.take(COLUMNS))
+                else -> addAll(even(list))
+            }
+        }
     }
 }
 

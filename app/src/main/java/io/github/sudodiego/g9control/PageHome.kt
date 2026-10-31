@@ -111,7 +111,7 @@ private fun ModeTile(
 @Composable
 fun ServiceWarning(s: AppState, a: MainActivity) {
     var on by remember { mutableStateOf(AutoRules.warnService(a)) }
-    val used = (s.autoEnabled && s.autoRules.isNotEmpty()) || AutoRules.gamePanel(a) || AutoRules.legionKeys(a) || AutoRules.swapVolume(a) ||
+    val used = (s.autoEnabled && s.autoRules.isNotEmpty()) || AutoRules.Chord.entries.any { AutoRules.chordOn(a, it) } || AutoRules.legionKeys(a) || AutoRules.swapVolume(a) ||
         AutoRules.smartBypass(a) || Monitor.all169(a) || Monitor.screen(a) != Monitor.Screen.NORMAL
     if (!on || s.autoServiceOn || !used) return
     WarningStrip(

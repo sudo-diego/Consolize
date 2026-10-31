@@ -236,16 +236,25 @@ private fun ConnectedPads(s: AppState) {
 private fun ShortcutsHelp(s: AppState, a: MainActivity) {
     val guide = AutoRules.legionKeys(a)
     fun on(g: AutoRules.Guide) = guide && AutoRules.guide(a, g)
-    val chord = AutoRules.gamePanel(a)
-    // Solo los atajos principales que están encendidos, con los botones dibujados (como en Controles → Atajos) y lo que
+    // Solo los atajos principales que están encendidos, con los botones dibujados (como en Controles) y lo que
     // hacen al lado. Antes eran párrafos con todos juntos y no se entendía.
     val g = tr("Guía", "Guide")
+    fun action(p: AutoRules.GuidePress) = AutoRules.guideAction(a, p).takeIf { guide && it != AutoRules.GuideAction.NONE }
+    val combos = AutoRules.Chord.entries.filter { AutoRules.chordOn(a, it) }.map { c ->
+        val (k1, k2) = AutoRules.chordKeys(a, c)
+        val where = when (AutoRules.chordWhere(a, c)) {
+            AutoRules.Where.ALL -> null
+            AutoRules.Where.ONLY -> tr("En algunas apps", "In some apps")
+            AutoRules.Where.EXCEPT -> tr("Menos en algunas apps", "Except some apps")
+        }
+        Triple(listOf(k1.label, k2.label), where, c.label)
+    }
     val rows = listOfNotNull(
-        if (on(AutoRules.Guide.HOLD_PANEL)) Triple(listOf(g), tr("Mantener", "Hold"), tr("Panel de juego", "Game panel")) else null,
+        action(AutoRules.GuidePress.HOLD)?.let { Triple(listOf(g), tr("Mantener", "Hold"), it.label) },
         if (on(AutoRules.Guide.RB_SHOT)) Triple(listOf(g, "RB"), null, tr("Captura", "Screenshot")) else null,
-        if (on(AutoRules.Guide.TAP_BACK)) Triple(listOf(g), tr("Tocar", "Tap"), tr("Atrás", "Back")) else null,
-        if (chord) Triple(listOf("L3", "R3"), if (AutoRules.chordOnlyStreaming(a)) tr("Transmitiendo", "While streaming") else null, tr("Panel de juego", "Game panel")) else null,
-    )
+        action(AutoRules.GuidePress.TAP)?.let { Triple(listOf(g), tr("Tocar", "Tap"), it.label) },
+        action(AutoRules.GuidePress.DOUBLE)?.let { Triple(listOf(g), tr("Tocar dos veces", "Double tap"), it.label) },
+    ) + combos
     // Una tarjeta: qué control está conectado y, debajo, sus atajos (separadas, la de controles quedaba casi vacía).
     Panel(tr("Controles", "Controllers"), trailing = { TextButton(onClick = { s.open(Page.CONTROLS) }) { Text(tr("Cambiar atajos", "Change shortcuts")) } }) {
         ConnectedPads(s)
