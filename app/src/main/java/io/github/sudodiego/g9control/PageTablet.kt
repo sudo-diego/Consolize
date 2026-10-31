@@ -268,8 +268,7 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
             // además, el servicio de accesibilidad (que los vigila).
             Gate(ready && s.autoServiceOn) {
                 // Límite propio: al llegar, bypass (la batería deja de cargar). El de ZUI corta siempre en 80 %.
-                Text(tr("Límite de carga", "Charge limit"), fontSize = 14.sp)
-                ChoiceChips(listOf(0 to tr("Apagado", "Off")) + ZuiBattery.LIMITS.map { it to "$it %" }, own) { lv ->
+                ChoiceRow(tr("Límite de carga", "Charge limit"), listOf(0 to tr("Apagado", "Off")) + ZuiBattery.LIMITS.map { it to "$it %" }, own) { lv ->
                     own = lv; ZuiBattery.setOwnLimit(a, lv.takeIf { it > 0 })
                 }
                 // Sin explicar el de ZUI: las opciones dicen solas dónde corta. Solo el aviso si el del sistema no deja llegar.
@@ -297,8 +296,7 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                     if (it && Aspect.canWrite(a)) runCatching { Settings.Global.putInt(a.contentResolver, "intelligent_bypass_charging_value", 0) }
                 }
                 if (smart) {
-                    Text(tr("Cuándo", "When"), fontSize = 14.sp)
-                    ChoiceChips(listOf(true to tr("En juegos", "In games"), false to tr("Siempre", "Always")), games) { games = it; AutoRules.setSmartBypassGames(a, it) }
+                    ChoiceRow(tr("Cuándo", "When"), listOf(true to tr("En juegos", "In games"), false to tr("Siempre", "Always")), games) { games = it; AutoRules.setSmartBypassGames(a, it) }
                     // Libre, pero se pega en 20, 40, 60 y 80 (los de antes). Por qué esos: ver el texto de abajo.
                     SliderRow(tr("Batería desde", "Battery from"), level, 10..90, "$level %", snaps = listOf(20, 40, 60, 80)) {
                         level = it; AutoRules.setSmartBypassLevel(a, it)
@@ -309,8 +307,7 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                         temp = if (it <= 30) 0 else it; AutoRules.setSmartBypassTemp(a, temp)
                     }
                     if (temp > 0) {
-                        Text(tr("Se activa con", "Turns on with"), fontSize = 14.sp)
-                        ChoiceChips(listOf(false to tr("Las dos", "Both"), true to tr("Cualquiera", "Either")), any) { any = it; AutoRules.setSmartBypassAny(a, it) }
+                        ChoiceRow(tr("Se activa con", "Turns on with"), listOf(false to tr("Las dos", "Both"), true to tr("Cualquiera", "Either")), any) { any = it; AutoRules.setSmartBypassAny(a, it) }
                     }
                 }
             }
@@ -351,8 +348,7 @@ private fun MonitorPanel(s: AppState, a: MainActivity) {
                     tr("16:9 en cualquier monitor", "16:9 on any monitor"), all169, null
                 ) { all169 = it; Monitor.setAll169(a, it) }
             }
-            Text(tr("Esta pantalla, con el monitor", "This screen, with the monitor"), fontSize = 14.sp)
-            ChoiceChips(
+            ChoiceRow(tr("Esta pantalla, con el monitor", "This screen, with the monitor"), 
                 listOf(Monitor.Screen.NORMAL to tr("Normal", "Normal"), Monitor.Screen.DIM to tr("Oscura", "Dim"),
                     Monitor.Screen.NO_LIGHT to tr("Sin luz", "No light"), Monitor.Screen.OFF to tr("Apagada", "Off")), screen
             ) { screen = it; Monitor.setScreen(a, it) }

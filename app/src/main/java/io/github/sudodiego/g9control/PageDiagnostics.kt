@@ -43,16 +43,14 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
             Panel(tr("Apariencia", "Appearance")) {
               CompositionLocalProvider(LocalOnlyPanels provides null, LocalAccordion provides acc) {
                 Panel(tr("Tema y color", "Theme and color")) {
-                    Text(tr("Tema", "Theme"), fontSize = 14.sp)
-                    ChoiceChips(AppTheme.entries.map { it to it.label }, ThemeState.theme) {
+                    ChoiceRow(tr("Tema", "Theme"), AppTheme.entries.map { it to it.label }, ThemeState.theme) {
                         ThemeState.theme = it; Prefs.setTheme(a, it)
                     }
                     Text(tr("Color", "Color"), fontSize = 14.sp)
                     AccentPicker(ThemeState.appAccent) { ThemeState.appAccent = it; Prefs.setAccent(a, "app", it) }
                     // Las tarjetas (mosaicos, temas, datos y dock), aparte del acento; "Propio" abre la rueda de colores.
-                    Text(tr("Tarjetas", "Cards"), fontSize = 14.sp)
                     var wheel by remember { mutableStateOf(false) }
-                    ChoiceChips(CardTone.entries.map { it to (if (it == CardTone.CUSTOM) tr("Propio…", "Custom…") else it.label) }, ThemeState.cardTone) {
+                    ChoiceRow(tr("Tarjetas", "Cards"), CardTone.entries.map { it to (if (it == CardTone.CUSTOM) tr("Propio…", "Custom…") else it.label) }, ThemeState.cardTone) {
                         if (it == CardTone.CUSTOM) wheel = true else { ThemeState.cardTone = it; Prefs.setCardTone(a, it) }
                     }
                     if (wheel) ColorWheelDialog(tr("Color de las tarjetas", "Card color"), ThemeState.cardCustom, { wheel = false },
@@ -65,8 +63,7 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                         ThemeState.backdropText = it; Prefs.setBackdropText(a, it)
                     }
                     // El foco: el borde y, si se quiere, un halo del color de acento que sube y baja.
-                    Text(tr("Halo del foco", "Focus halo"), fontSize = 14.sp)
-                    ChoiceChips(Halo.entries.map { it to it.label }, ThemeState.halo) { ThemeState.halo = it; Prefs.setHalo(a, it) }
+                    ChoiceRow(tr("Halo del foco", "Focus halo"), Halo.entries.map { it to it.label }, ThemeState.halo) { ThemeState.halo = it; Prefs.setHalo(a, it) }
                     Text(tr("Superficies", "Surfaces"), fontSize = 14.sp)
                     // Con el fondo de pantalla de Android no hay vidrio líquido (no se puede capturar lo de detrás de la ventana).
                     ChoiceChips(Surfaces.entries.filter { it != Surfaces.LIQUID || ThemeState.background != AppBackground.WALLPAPER }.map { it to it.label }, ThemeState.surfaces) { ThemeState.surfaces = it; Prefs.setSurfaces(a, it) }
@@ -104,11 +101,9 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
         second = {
             PermissionsPanel(s, a)
             Panel(tr("General", "General")) {
-                Text(tr("Idioma", "Language"), fontSize = 14.sp)
-                ChoiceChips(AppLang.entries.map { it to it.label }, Lang.choice) { Lang.set(a, it) }
+                ChoiceRow(tr("Idioma", "Language"), AppLang.entries.map { it to it.label }, Lang.choice) { Lang.set(a, it) }
                 SoundSettings(a)
-                Text(tr("Animación de los avisos", "Notice animation"), fontSize = 14.sp)
-                ChoiceChips(NoticeAnim.entries.map { it to it.label }, anim) { anim = it; AutoRules.setNoticeAnim(a, it); AutoRules.setShotAnim(a, it) }
+                ChoiceRow(tr("Animación de los avisos", "Notice animation"), NoticeAnim.entries.map { it to it.label }, anim) { anim = it; AutoRules.setNoticeAnim(a, it); AutoRules.setShotAnim(a, it) }
                 // Respaldo de todo (perfiles del G9 incluidos): para reinstalar o cambiar de tablet sin perder nada.
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedButton(onClick = { a.saveBackup() }) { Text(tr("Guardar respaldo", "Save backup")) }
@@ -148,12 +143,10 @@ fun G9PrefsPage(s: AppState, a: MainActivity) {
         first = {
             CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
                 Panel(tr("Control G9", "G9 controller")) {
-                    Text(tr("Estilo del dibujo", "Drawing style"), fontSize = 14.sp)
-                    ChoiceChips(ControllerSkin.entries.map { it to it.label }, SkinState.skin) {
+                    ChoiceRow(tr("Estilo del dibujo", "Drawing style"), ControllerSkin.entries.map { it to it.label }, SkinState.skin) {
                         SkinState.skin = it; Prefs.setSkin(a, it)
                     }
-                    Text(tr("Dibujo del control", "Controller drawing"), fontSize = 14.sp)
-                    ChoiceChips(listOf(false to tr("A la izquierda", "On the left"), true to tr("Al centro", "Centered")), s.centered) {
+                    ChoiceRow(tr("Dibujo del control", "Controller drawing"), listOf(false to tr("A la izquierda", "On the left"), true to tr("Al centro", "Centered")), s.centered) {
                         s.centered = it; Prefs.setCentered(a, it)
                     }
                     SwitchRow(tr("Abrir la app al conectar el G9", "Open the app when the G9 is connected"), s.openOnConnect) {
@@ -342,8 +335,7 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
             NoticeBox(tr("Aviso", "Notice"), tr("Miniatura en la esquina", "Thumbnail in the corner"),
                 if (s.autoServiceOn) { { AutoRules.preview(a, "shot") } } else null,
                 side = { PosGrid(shotPos) { shotPos = it; AutoRules.setShotPos(a, it) } }) {
-                Text(tr("Sonido", "Sound"), fontSize = 14.sp)
-                ChoiceChips(ShotSound.entries.map { it to it.label }, shotSound) { shotSound = it; AutoRules.setShotSound(a, it) }
+                ChoiceRow(tr("Sonido", "Sound"), ShotSound.entries.map { it to it.label }, shotSound) { shotSound = it; AutoRules.setShotSound(a, it) }
             }
             SwitchRow(tr("Aviso con cualquier captura", "Notice for any screenshot"), s.anyShot,
                 tr("También las de Android · pide el permiso de fotos", "Android's too · asks for the photos permission")) { a.setAnyShot(it) }
@@ -362,8 +354,7 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
         Panel(tr("Monitor de rendimiento", "Performance monitor"), trailing = { Switch(perfHud, { perfHud = it; AutoRules.setPerfHud(a, it) }, enabled = LocalGateOk.current) }) {
             NoticeBox(tr("Datos", "Data"), tr("FPS, CPU, GPU y batería", "FPS, CPU, GPU and battery"), null,
                 side = { PosGrid(perfPos) { perfPos = it; AutoRules.setPerfPos(a, it) } }) {
-                Text(tr("Estilo", "Style"), fontSize = 14.sp)
-                ChoiceChips(listOf(false to tr("Barra", "Bar"), true to tr("Columna", "Column")), perfList) {
+                ChoiceRow(tr("Estilo", "Style"), listOf(false to tr("Barra", "Bar"), true to tr("Columna", "Column")), perfList) {
                     perfList = it; AutoRules.setPerfList(a, it)
                 }
                 Text(tr("Qué muestra", "What it shows"), fontSize = 14.sp)
@@ -490,18 +481,15 @@ internal fun PanelLookPanel(a: MainActivity) {
         PanelArrange(a)
     }
     Panel(tr("Diseño", "Layout")) {
-        Text(tr("Estilo", "Style"), fontSize = 14.sp)
-        ChoiceChips(PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
+        ChoiceRow(tr("Estilo", "Style"), PanelStyle.entries.map { it to it.label }, ThemeState.panelStyle) { ThemeState.panelStyle = it; Prefs.setPanelStyle(a, it) }
         // Las columnas son de la tarjeta al centro (la lateral tiene 2); el tamaño vale para las dos.
         if (!ThemeState.panelSide) {
-            Text(tr("Columnas", "Columns"), fontSize = 14.sp)
-            ChoiceChips(PanelShape.choices.map { it to it.label }, if (ThemeState.panelShape == PanelShape.R4_3) PanelShape.AUTO else ThemeState.panelShape) {
+            ChoiceRow(tr("Columnas", "Columns"), PanelShape.choices.map { it to it.label }, if (ThemeState.panelShape == PanelShape.R4_3) PanelShape.AUTO else ThemeState.panelShape) {
                 ThemeState.panelShape = it; Prefs.setPanelShape(a, it)
             }
         }
         SliderRow(tr("Tamaño (%)", "Size (%)"), ThemeState.panelScale, 60..120) { ThemeState.panelScale = it; Prefs.setPanelScale(a, it) }
-        Text(tr("Mosaicos", "Tiles"), fontSize = 14.sp)
-        ChoiceChips(listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
+        ChoiceRow(tr("Mosaicos", "Tiles"), listOf(false to tr("Nuevos", "New"), true to tr("Clásicos", "Classic")), ThemeState.panelClassic) {
             ThemeState.panelClassic = it; Prefs.setPanelClassic(a, it)
         }
     }
@@ -523,8 +511,7 @@ internal fun PanelLookPanel(a: MainActivity) {
                 ImageButtons(a) { a.pickPanelBackground() }
                 // Lateral: la imagen de cabecera o de fondo.
                 if (ThemeState.panelSide) {
-                    Text(tr("Imagen en", "Image as"), fontSize = 14.sp)
-                    ChoiceChips(listOf(true to tr("Cabecera", "Header"), false to tr("Fondo", "Background")), ThemeState.panelHeader) {
+                    ChoiceRow(tr("Imagen en", "Image as"), listOf(true to tr("Cabecera", "Header"), false to tr("Fondo", "Background")), ThemeState.panelHeader) {
                         ThemeState.panelHeader = it; Prefs.setPanelHeader(a, it)
                     }
                     if (ThemeState.panelHeader) {
@@ -538,11 +525,9 @@ internal fun PanelLookPanel(a: MainActivity) {
                     }
                 }
                 // Cómo se acomoda (como los fondos de Windows) y, al rellenar, qué parte queda a la vista.
-                Text(tr("Ajuste", "Fit"), fontSize = 14.sp)
-                ChoiceChips(ImageFit.entries.map { it to it.label }, ThemeState.panelFit) { ThemeState.panelFit = it; Prefs.setPanelFit(a, it) }
+                ChoiceRow(tr("Ajuste", "Fit"), ImageFit.entries.map { it to it.label }, ThemeState.panelFit) { ThemeState.panelFit = it; Prefs.setPanelFit(a, it) }
                 if (ThemeState.panelFit == ImageFit.FILL) {
-                    Text(tr("Encuadre", "Position"), fontSize = 14.sp)
-                    ChoiceChips(listOf(0f to tr("Arriba", "Top"), 0.5f to tr("Centro", "Center"), 1f to tr("Abajo", "Bottom")), ThemeState.panelFocus) {
+                    ChoiceRow(tr("Encuadre", "Position"), listOf(0f to tr("Arriba", "Top"), 0.5f to tr("Centro", "Center"), 1f to tr("Abajo", "Bottom")), ThemeState.panelFocus) {
                         ThemeState.panelFocus = it; Prefs.setPanelFocus(a, it)
                     }
                 }
@@ -565,8 +550,7 @@ internal fun PanelLookPanel(a: MainActivity) {
             if (ThemeState.panelLiquid) LiquidSliders(a)
         }    // Tema y color valen también para los avisos y las guías (lo que se dibuja sobre el juego).
     Panel(tr("Colores", "Colors"), tr("También en avisos y guías", "Also in notices and guides")) {
-        Text(tr("Tema", "Theme"), fontSize = 14.sp)
-        ChoiceChips(PanelTone.entries.map { it to it.label }, ThemeState.panelTone) { ThemeState.panelTone = it; Prefs.setPanelTone(a, it) }
+        ChoiceRow(tr("Tema", "Theme"), PanelTone.entries.map { it to it.label }, ThemeState.panelTone) { ThemeState.panelTone = it; Prefs.setPanelTone(a, it) }
         Text(tr("Color", "Color"), fontSize = 14.sp)
         AccentPicker(ThemeState.panelAccent) { ThemeState.panelAccent = it; Prefs.setAccent(a, "panel", it) }
     }
@@ -631,8 +615,7 @@ private fun lockOf(block: Boolean, sticks: Boolean) = if (!block) 0 else if (!st
 /** Qué bloquea un aviso mientras está en pantalla, en una sola elección. */
 @Composable
 private fun LockChips(level: Int, onPick: (Int) -> Unit) {
-    Text(tr("Mientras está en pantalla, bloquear", "While on screen, block"), fontSize = 14.sp)
-    ChoiceChips(listOf(0 to tr("Nada", "Nothing"), 1 to tr("Botones", "Buttons"), 2 to tr("Todo", "Everything")), level, onPick)
+    ChoiceRow(tr("Mientras está en pantalla, bloquear", "While on screen, block"), listOf(0 to tr("Nada", "Nothing"), 1 to tr("Botones", "Buttons"), 2 to tr("Todo", "Everything")), level, onPick)
     when (level) {
         1 -> Hint(tr("Sticks y gatillos siguen llegando al juego.", "Sticks and triggers still reach the game."))
         2 -> Hint(tr("También sticks y gatillos. La app puede pausarse.", "Also sticks and triggers. The app may pause."))
