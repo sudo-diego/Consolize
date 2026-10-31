@@ -126,7 +126,13 @@ private fun ChordEditor(a: MainActivity, c: AutoRules.Chord) {
     ).joinToString(" · ").ifEmpty { null }
     ShortcutRow(listOf(keys.first.label, keys.second.label), how, c.label, on) { on = it; AutoRules.setChordOn(a, c, it) }
     if (!on || !LocalEditable.current) return
+    // Los mismos dos botones que otro atajo encendido: gana el que va antes (Panel, Captura, Atrás). Se avisa.
+    val clash = AutoRules.Chord.entries.firstOrNull { o ->
+        o != c && AutoRules.chordOn(a, o) && AutoRules.chordKeys(a, o).let { setOf(it.first, it.second) } == setOf(keys.first, keys.second)
+    }
     Column(Modifier.padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (clash != null) Text(tr("Los mismos botones que ${clash.short}: cambia uno de los dos.", "Same buttons as ${clash.short}: change one of them."),
+            fontSize = 13.sp, color = col.error)
         TextButton(onClick = { editKeys = !editKeys }, contentPadding = PaddingValues(horizontal = 4.dp)) {
             Text(if (editKeys) tr("Listo", "Done") else tr("Cambiar botones", "Change buttons"))
         }
