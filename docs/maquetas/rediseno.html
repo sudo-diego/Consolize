@@ -26,7 +26,7 @@
   .lbl{color:var(--mut);font-size:12px;letter-spacing:.08em;margin:0 0 12px;text-transform:uppercase;font-weight:600}
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
   .t{height:80px;border-radius:18px;background:var(--tile);display:flex;align-items:center;gap:12px;padding:0 12px;cursor:pointer;
-     box-shadow:0 1px 0 #ffffff14 inset;transition:transform .12s;position:relative}
+     box-shadow:0 6px 18px #0005;transition:transform .12s;position:relative}
   .t .b{width:40px;height:40px;border-radius:12px;background:#ffffff21;display:grid;place-items:center;flex:none}
   .t .b svg{width:22px;height:22px;fill:#ffffffd9}
   .t.act .b{background:var(--acc)} .t.act .b svg{fill:var(--on-acc)} .t.act .s{color:var(--acc)}
@@ -112,8 +112,6 @@
   .tab.img:before{content:"";position:absolute;inset:0;background:
      repeating-linear-gradient(115deg,#ffffff07 0 2px,transparent 2px 22px),linear-gradient(180deg,#0a0f1f55,#0a0f1fcc)}
   .tab.img .t,.tab.img .chip,.tab.img .grp{background:linear-gradient(180deg,#25304bdd,#1a2338dd);backdrop-filter:blur(18px)}
-  .t:after{content:"";position:absolute;left:10px;right:10px;top:1px;height:40%;border-radius:16px 16px 40% 40%;
-     background:linear-gradient(180deg,#ffffff1a,transparent);pointer-events:none}
   .t .b{background:linear-gradient(160deg,#ffffff33,#ffffff12)}
   .t.gm .b{background:linear-gradient(160deg,#ff9f43,#ee5a24)} .t.ctl .b{background:linear-gradient(160deg,#4cd97b,#1e9e5a)}
   .t.tb .b{background:linear-gradient(160deg,#4fb3ff,#2d6cdf)} .t.st .b{background:linear-gradient(160deg,#a0a8b8,#5f6878)}
@@ -146,6 +144,21 @@
   .art .sub{color:var(--mut);font-size:15px;margin-top:4px;display:flex;gap:8px;align-items:center;justify-content:center}
   .dotsep{color:var(--dim)}
   .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+
+  .cats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .cat{height:150px;border-radius:24px;background:linear-gradient(180deg,#25304bdd,#1a2338dd);backdrop-filter:blur(18px);box-shadow:0 6px 18px #0005;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;cursor:pointer;opacity:.75;
+       transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .2s}
+  .cat.sel{opacity:1}
+  .cat.f{transform:translateY(-4px) scale(1.04)}
+  .cat .ci{width:64px;height:64px;border-radius:50%;display:grid;place-items:center}
+  .cat .ci svg{width:34px;height:34px;fill:#fff}
+  .cat.gm .ci{background:linear-gradient(160deg,#ff9f43,#ee5a24)} .cat.ctl .ci{background:linear-gradient(160deg,#4cd97b,#1e9e5a)}
+  .cat.tb .ci{background:linear-gradient(160deg,#4fb3ff,#2d6cdf)} .cat.st .ci{background:linear-gradient(160deg,#a0a8b8,#5f6878)}
+  .cat .cn{font-size:18px;font-weight:600}
+  .subs{margin-top:22px;min-height:130px}
+  @keyframes slide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .slide{animation:slide .2s ease-out}
   .note{max-width:1200px;margin:0 auto 30px;color:var(--mut);font-size:14px;padding:0 20px}
 </style>
 </head>
@@ -199,6 +212,10 @@ const tile=(id)=>{const it=ITEM[id]||{n:PAGES[id][0],i:PAGES[id][1]};const live=
 const qt=(i,n,sub,a,c='')=>`<div class="t ${a?'act':''} ${c}" data-nav data-open="${n}"><div class="b">${svg(i)}</div><div><div class="n">${n}</div><div class="s">${sub}</div></div></div>`;
 const chip=(i,v,l,cls='',extra='')=>`<div class="chip ${cls}" ${extra}><svg viewBox="0 0 24 24">${I[i]}</svg><div><b>${v}</b>${l?`<span>${l}</span>`:''}</div></div>`;
 
+let moreCat=0;
+const subsOf=gi=>{const [n,i,items]=GROUPS[gi];return `<div class="grid4 slide">${items.map(([id,nm,ic])=>{const live=LIVE[id];
+  return `<div class="t ${GCLS[gi]}" data-nav data-open="${nm}" data-id="${id}"><div class="b">${svg(ic)}</div><div><div class="n">${nm}</div>${live?`<div class="s">${live}</div>`:''}</div><span class="tags">${pins.includes(id)?'<i>Inicio</i>':''}${dockMid.includes(id)?'<i>Dock</i>':''}</span></div>`}).join('')}</div>
+  <div class="hint"><span><b>Y</b>Fijar en Inicio</span><span><b>X</b>Fijar en el dock</span></div>`;};
 const V={
  home:()=>`<div class="hero"><div class="big">${glyph(30)}<div><div class="pct">76 %</div><div class="sub">Cargando · llena en 40 min</div></div></div>
    <div class="chips">${chip('memory',ramUsed?'6,8 / 12 GB':'5,2 GB',ramUsed?'RAM en uso':'RAM libre','','data-ram')}${chip('bolt','+18,4 W','','in')}${chip('speed','2,7 GHz','CPU')}${chip('thermostat','31 °C','Batería')}${chip('display_settings','120 Hz','Pantalla')}</div></div>
@@ -221,9 +238,8 @@ const V={
    return `<div class="padv"><div class="art">${padArt(padKind)}<div class="nm">${padKind==='none'?'Sin control':padName()}</div>
      <div class="sub">${[known.sub,known.bat?`<span class="bt">${glyph(13,false)}${known.bat}</span>`:null].filter(Boolean).join('<span class="dotsep">·</span>')||(padKind==='none'?'Conecta uno para probarlo':'&nbsp;')}</div></div>
      <div class="grid2">${all.map(([i,n,sub],k)=>qt(i,n,sub,0,k<3?'ctl':'dev')).join('')}</div></div>`},
- more:()=>`<div class="rows">${GROUPS.map(([n,i,items],gi)=>`<div class="mrow"><div class="mname">${n}</div><div class="grid4">${items.map(([id,nm,ic])=>{
-     const live=LIVE[id];return `<div class="t ${GCLS[gi]}" data-nav data-open="${nm}" data-id="${id}"><div class="b">${svg(ic)}</div><div><div class="n">${nm}</div>${live?`<div class="s">${live}</div>`:''}</div><span class="tags">${pins.includes(id)?'<i>Inicio</i>':''}${dockMid.includes(id)?'<i>Dock</i>':''}</span></div>`}).join('')}</div></div>`).join('')}
-     <div class="hint"><span><b>Y</b>Fijar en Inicio</span><span><b>X</b>Fijar en el dock</span></div></div>`,
+ more:()=>`<div class="cats">${GROUPS.map(([n,i],gi)=>`<div class="cat ${GCLS[gi]} ${gi===moreCat?'sel':''}" data-nav data-cat="${gi}"><div class="ci">${svg(i)}</div><div class="cn">${n}</div></div>`).join('')}</div>
+     <div class="subs" id="subs">${subsOf(moreCat)}</div>`,
 };
 function render(){
   const s=document.getElementById('screen');
@@ -238,13 +254,14 @@ function render(){
 }
 let cur=null;const remember={};
 let ac=null;function beep(f,d=.05,v=.05,t=0){if(!sounds)return;ac=ac||new AudioContext();const o=ac.createOscillator(),g=ac.createGain();o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(v,ac.currentTime+t);g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+t+d);o.connect(g).connect(ac.destination);o.start(ac.currentTime+t);o.stop(ac.currentTime+t+d+.02);}
-function setF(el){document.querySelectorAll('#screen .f').forEach(x=>x.classList.remove('f'));cur=el;if(!el)return;el.classList.add('f');el.dataset.key=el.dataset.id||el.dataset.open;remember[tab]=el.dataset.key;}
+function setF(el){document.querySelectorAll('#screen .f').forEach(x=>x.classList.remove('f'));cur=el;if(!el)return;el.classList.add('f');
+  if(el.dataset.cat!==undefined&&+el.dataset.cat!==moreCat){moreCat=+el.dataset.cat;document.querySelectorAll('.cat').forEach(c=>c.classList.toggle('sel',+c.dataset.cat===moreCat));document.getElementById('subs').innerHTML=subsOf(moreCat);}el.dataset.key=el.dataset.id||el.dataset.open||('cat'+el.dataset.cat);remember[tab]=el.dataset.key;}
 function move(dx,dy){if(!cur)return;const a=cur.getBoundingClientRect(),ax=a.left+a.width/2,ay=a.top+a.height/2;let best=null,bd=1e9;
   document.querySelectorAll('#screen .area [data-nav]').forEach(e=>{if(e===cur)return;const b=e.getBoundingClientRect(),bx=b.left+b.width/2,by=b.top+b.height/2;
    const px=(bx-ax)*dx+(by-ay)*dy;if(px<=4)return;const d=px+Math.abs(dx?by-ay:bx-ax)*2.2;if(d<bd){bd=d;best=e;}});if(best){setF(best);beep(880,.04,.03);}}
 function go(k){beep(740,.05,.04);tab=k;page=null;render();}
-function act(el){if(!el)return;beep(660,.06);beep(990,.08,.05,.06);if(el.dataset.go)return go(el.dataset.go);if(el.dataset.open){page=el.dataset.open;render();}}
-function back(){beep(520,.07);if(page){page=null;return render();}if(tab!=='home')go('home');}
+function act(el){if(!el)return;if(el.dataset.cat!==undefined){const f=document.querySelector('#subs [data-nav]');if(f)setF(f);return;}beep(660,.06);beep(990,.08,.05,.06);if(el.dataset.go)return go(el.dataset.go);if(el.dataset.open){page=el.dataset.open;render();}}
+function back(){if(tab==='more'&&!page&&cur&&cur.closest('#subs')){setF(document.querySelector(`[data-cat="${moreCat}"]`));return;}beep(520,.07);if(page){page=null;return render();}if(tab!=='home')go('home');}
 function pinHome(){const id=cur&&cur.dataset.id;if(!id)return;pins=pins.includes(id)?pins.filter(x=>x!==id):[...pins,id].slice(-4);render();setF(document.querySelector(`.area [data-id="${id}"]`));}
 function pinDock(){const id=cur&&cur.dataset.id;if(!id)return;dockMid=dockMid.includes(id)?dockMid.filter(x=>x!==id):[...dockMid,id].slice(-4);render();setF(document.querySelector(`.area [data-id="${id}"]`));}
 document.addEventListener('keydown',e=>{const m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
