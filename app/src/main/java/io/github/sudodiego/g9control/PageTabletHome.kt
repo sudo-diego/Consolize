@@ -18,6 +18,14 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Speed
+import androidx.compose.material.icons.outlined.Thermostat
+import androidx.compose.material.icons.outlined.DisplaySettings
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -138,6 +146,7 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
     // Cada pocos segundos, como en Batería: el bypass automático lo cambia solo (al salir de un juego quedaba "Encendido").
     LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; tick++; kotlinx.coroutines.delay(3000) } }
+    val count = (if (ready) 1 else 0) + 1 + (if (Aspect.available(a)) 1 else 0)
     Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         // Sin Shizuku el bypass no se puede cambiar: no sale (el aviso de arriba lo dice). Igual que en el panel: con algo
         // automático (bypass automático o límite propio) son tres estados, Automático → Encendido → Apagado → Automático.
@@ -172,6 +181,7 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
                 wide = Aspect.is169(a)
             }
         }
+        repeat(5 - count) { Spacer(Modifier.weight(1f)) }
     }
 }
 
@@ -185,14 +195,14 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
     val c = MaterialTheme.colorScheme
     Surface(
         onClick = onClick, enabled = enabled, modifier = modifier.alpha(if (enabled) 1f else 0.5f), shape = MaterialTheme.shapes.large,
-        color = c.surfaceContainer.copy(alpha = if (ThemeState.glass) 0.58f else 1f),
-        border = if (ThemeState.glass) androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Color.White.copy(alpha = 0.1f)) else null
+        color = cardColor()
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).background(androidx.compose.animation.animateColorAsState(if (on) c.primary else c.onSurface.copy(alpha = 0.08f), label = "badge").value,
                 RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 Icon(icon, null, Modifier.size(22.dp), tint = if (on) c.onPrimary else c.onSurface)
             }
+            Spacer(Modifier.width(12.dp))
             Column {
                 Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 Text(state, fontSize = 13.sp, color = if (on) c.primary else c.onSurfaceVariant, maxLines = 1,
@@ -346,13 +356,111 @@ private fun android.graphics.drawable.Drawable.toBitmapSafe(): android.graphics.
     return b
 }
 
-/** El resumen de Inicio, directo en su tarjeta (sin entrar a una línea): avisos, estado y accesos rápidos. */
+/**
+ * Inicio: la tablet de un vistazo (la batería grande y los datos del mini monitor del panel), lo que se cambia seguido
+ * en mosaicos y tus Accesos (lo fijado desde Más con Y). Sin saludo ni explicaciones: solo valores.
+ */
 @Composable
 fun HomeSummary(s: AppState, a: MainActivity) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         ServiceWarning(s, a)
         ShizukuWarning(a)
-        TabletNowTiles(a)
+        HomeHero(a)
         QuickTiles(s, a)
+        HomeAccess(s)
+    }
+}
+
+/** La batería grande ("Cargando · llena en 40 min") y, al lado, RAM, W, CPU, temperatura y Hz. */
+@Composable
+private fun HomeHero(a: MainActivity) {
+    val c = MaterialTheme.colorScheme
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { delay(3000); tick++ } }
+    val b = remember(tick) { batteryNow(a) } ?: return
+    val bypass = b.plugged && !b.charging && ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY
+    val held = b.plugged && !b.charging && !bypass
+    val left = remember(tick) { if (b.charging) ZuiBattery.chargeTimeLeft(a) else null }
+    val est = remember(tick) { ZuiBattery.estimatedLeft(a) }
+    val sub = when {
+        bypass -> "Bypass"
+        held -> ZuiBattery.heldLabel(a, b.level) + tr(" · Sin cargar", " · Not charging")
+        b.charging -> tr("Cargando", "Charging") + (left?.let { tr(" · llena en ", " · full in ") + ZuiBattery.formatTime(it) } ?: "")
+        else -> est?.let { tr("Quedan ", "") + ZuiBattery.formatTime(it) + tr("", " left") } ?: tr("Con batería", "On battery")
+    }
+    val ram = remember(tick) { Memory.info(a) }
+    var ramUsed by remember { mutableStateOf(Prefs.homeRamUsed(a)) }
+    val w = remember(tick) { ZuiBattery.watts(a) }
+    val cpu = remember(tick) { Stats.cpuMhz() }
+    val hz = remember(tick) { RefreshRate.current(a) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 64.dp, height = 32.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.graphicsLayer { scaleX = 2.3f; scaleY = 2.3f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held) }
+        }
+        Spacer(Modifier.width(18.dp))
+        Column {
+            Text("${b.level} %", fontSize = 52.sp, fontWeight = FontWeight.SemiBold, lineHeight = 54.sp)
+            Text(sub, fontSize = 15.sp, color = c.onSurfaceVariant, maxLines = 1)
+        }
+        Spacer(Modifier.width(36.dp))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // RAM: la usada de toda (o la libre); se cambia tocándola.
+            HomeChip(Icons.Outlined.Memory,
+                if (ramUsed) "%.1f / %.0f GB".format((ram.totalBytes - ram.freeBytes) / 1_073_741_824.0, ram.totalBytes / 1_073_741_824.0) else Memory.gb(ram.freeBytes),
+                if (ramUsed) tr("RAM en uso", "RAM in use") else tr("RAM libre", "Free RAM"), Modifier.weight(1.2f)) {
+                ramUsed = !ramUsed; Prefs.setHomeRamUsed(a, ramUsed)
+            }
+            // Lo que entra o se consume, sin etiqueta: el rayo y el color de acento si entra.
+            HomeChip(Icons.Outlined.Bolt, w?.let { (if (b.plugged) "+" else "") + "%.1f W".format(it) } ?: "—", null, Modifier.weight(1f), accent = b.plugged)
+            HomeChip(Icons.Outlined.Speed, cpu?.let { if (it >= 1000) "%.1f GHz".format(it / 1000f) else "$it MHz" } ?: "—", "CPU", Modifier.weight(1f))
+            HomeChip(Icons.Outlined.Thermostat, "%.0f °C".format(b.tempC), tr("Batería", "Battery"), Modifier.weight(1f))
+            HomeChip(Icons.Outlined.DisplaySettings, hz?.let { "$it Hz" } ?: "—", tr("Pantalla", "Screen"), Modifier.weight(1f))
+        }
+    }
+}
+
+/** Un dato de Inicio, como los del mini monitor del panel: ícono de acento, el valor y (si hace falta) qué es. */
+@Composable
+private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String?, modifier: Modifier,
+    accent: Boolean = false, onClick: (() -> Unit)? = null) {
+    val c = MaterialTheme.colorScheme
+    Row(modifier.clip(RoundedCornerShape(16.dp)).background(cardColor())
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = c.primary)
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(value, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else c.onSurface)
+            if (label != null) Text(label, fontSize = 11.sp, color = c.onSurfaceVariant, maxLines = 1)
+        }
+    }
+}
+
+/** Accesos: lo fijado desde Más (Y), en mosaicos, y "Editar" que lleva a Más. */
+@Composable
+private fun HomeAccess(s: AppState) {
+    val c = MaterialTheme.colorScheme
+    val entries = allEntries(s).associateBy { it.id }
+    val pins = s.homePins.mapNotNull { entries[it] }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(tr("ACCESOS", "SHORTCUTS"), fontSize = 12.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold, color = c.onSurfaceVariant)
+        (pins.map { it as Entry? } + null).chunked(5).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { e ->
+                    if (e != null) EntryTile(s, e, Modifier.weight(1f))
+                    else Surface(onClick = { s.goDest(Dest.MORE) }, shape = RoundedCornerShape(18.dp), color = androidx.compose.ui.graphics.Color.Transparent,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, c.onSurface.copy(alpha = 0.15f)), modifier = Modifier.weight(1f).height(72.dp)) {
+                        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(c.onSurface.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Edit, null, Modifier.size(22.dp))
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Text(tr("Editar", "Edit"), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+                repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
     }
 }

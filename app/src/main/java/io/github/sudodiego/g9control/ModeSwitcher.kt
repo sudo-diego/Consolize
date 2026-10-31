@@ -49,6 +49,9 @@ object Prefs {
     fun setLiquidParams(ctx: Context, p: LiquidParams) = sp(ctx).edit().putInt("lq_blur", p.blur).putInt("lq_refr", p.refraction)
         .putInt("lq_tint", p.tint).putInt("lq_high", p.highlight).putInt("lq_rim", p.rim).apply()
 
+    /** Inicio: la RAM como usada / total (true) o libre. */
+    fun homeRamUsed(ctx: Context) = sp(ctx).getBoolean("home_ram_used", true)
+    fun setHomeRamUsed(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("home_ram_used", v).apply()
     /** Lo de en medio del dock y lo fijado en Inicio (ids de [Entry] o de [Dest]); null = lo de siempre. */
     fun dockMid(ctx: Context): List<String>? = sp(ctx).getString("dock_mid", null)?.split(',')?.filter { it.isNotBlank() }
     fun setDockMid(ctx: Context, v: List<String>) = sp(ctx).edit().putString("dock_mid", v.joinToString(",")).apply()
