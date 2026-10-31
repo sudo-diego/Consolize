@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.focus.FocusRequester
@@ -157,16 +158,73 @@ fun CategoryHub(s: AppState) {
     }
 }
 
-/** Control: por ahora la lista de lo de los controles (la página nueva, con el dibujo, viene después). */
+/**
+ * Control: a la izquierda el dibujo del control conectado (el del G9 con sus luces; para los demás, uno en líneas), su
+ * nombre y debajo "conexión · batería" (lo que se sepa: la batería solo si Android la informa; el modo, solo del G9). A
+ * la derecha, en dos columnas, lo de los controles (y lo del G9 si la app vio uno).
+ */
 @Composable
 private fun ControlHub(s: AppState) {
+    val c = MaterialTheme.colorScheme
+    var tick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(3000); tick++ } }
+    val pad = remember(tick) {
+        android.view.InputDevice.getDeviceIds().toList().mapNotNull { android.view.InputDevice.getDevice(it) }
+            .firstOrNull { !it.isVirtual && it.isExternal && (it.sources and android.view.InputDevice.SOURCE_GAMEPAD) == android.view.InputDevice.SOURCE_GAMEPAD }
+    }
+    val g9 = pad?.name?.let { it.contains("G9", true) || it.contains("x-box 360", true) } == true || s.padMode != null
+    val battery = remember(tick, pad?.id) {
+        if (android.os.Build.VERSION.SDK_INT >= 31) pad?.batteryState?.takeIf { it.isPresent }?.capacity?.takeIf { it in 0f..1f }?.let { (it * 100).toInt() } else null
+    }
+    val info = listOfNotNull(if (g9) s.padMode?.label else null, battery?.let { "$it %" })
     val entries = entriesFor(s, Section.CONTROLS)
-    Column(Modifier.widthIn(max = 1100.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        entries.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { e -> EntryTile(s, e, Modifier.weight(1f)) }
-                if (row.size < 2) Spacer(Modifier.weight(1f))
+    Row(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.width(400.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (g9 && s.g9Known) ControllerPreview(s, Modifier.width(340.dp))
+            else PadLineArt(Modifier.width(320.dp).graphicsLayer { alpha = if (pad == null) 0.35f else 1f })
+            Spacer(Modifier.height(14.dp))
+            Text(when { g9 -> "Legion G9"; pad != null -> pad.name; else -> tr("Sin control", "No controller") },
+                fontSize = 28.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (info.isNotEmpty()) Text(info.joinToString("  ·  "), fontSize = 15.sp, color = c.onSurfaceVariant)
+            else if (pad == null) Text(tr("Conecta uno para probarlo", "Connect one to test it"), fontSize = 15.sp, color = c.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(40.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            entries.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { e -> EntryTile(s, e, Modifier.weight(1f)) }
+                    if (row.size < 2) Spacer(Modifier.weight(1f))
+                }
             }
+        }
+    }
+}
+
+/** Un control dibujado en líneas finas (para cualquier control que no sea el G9); el botón guía, del color de acento. */
+@Composable
+fun PadLineArt(modifier: Modifier) {
+    val line = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+    val bumper = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    val accent = MaterialTheme.colorScheme.primary
+    val paths = remember {
+        fun p(d: String) = androidx.compose.ui.graphics.vector.PathParser().parsePathString(d).toPath()
+        listOf(
+            p("M84 46 C120 38 200 38 236 46 C262 52 276 66 286 96 C298 134 302 166 284 176 C268 185 252 176 240 158 C232 146 224 140 210 140 L110 140 C96 140 88 146 80 158 C68 176 52 185 36 176 C18 166 22 134 34 96 C44 66 58 52 84 46Z"),
+            p("M128 112v18M119 121h18"), p("M146 84h8M166 84h8"),
+        ) to listOf(
+            p("M60 51 C68 36 84 29 102 27 C113 26 121 28 127 32"), p("M260 51 C252 36 236 29 218 27 C207 26 199 28 193 32"),
+        )
+    }
+    androidx.compose.foundation.Canvas(modifier.aspectRatio(320f / 190f)) {
+        val k = size.width / 320f
+        withTransform({ translate(0f, -10f * k); scale(k, k, androidx.compose.ui.geometry.Offset.Zero) }) {
+            val thin = androidx.compose.ui.graphics.drawscope.Stroke(2.2f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+            paths.first.forEach { drawPath(it, line, style = thin) }
+            paths.second.forEach { drawPath(it, bumper, style = androidx.compose.ui.graphics.drawscope.Stroke(5.3f, cap = androidx.compose.ui.graphics.StrokeCap.Round)) }
+            fun ring(x: Float, y: Float, r: Float, col: androidx.compose.ui.graphics.Color = line) = drawCircle(col, r, androidx.compose.ui.geometry.Offset(x, y), style = thin)
+            ring(104f, 90f, 17f); ring(104f, 90f, 7f); ring(196f, 118f, 17f); ring(196f, 118f, 7f)
+            ring(230f, 74f, 6f); ring(246f, 90f, 6f); ring(214f, 90f, 6f); ring(230f, 106f, 6f)
+            ring(160f, 62f, 8f, accent)
         }
     }
 }
