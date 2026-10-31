@@ -410,7 +410,6 @@ class AutoModeService : AccessibilityService() {
         lastUnlock = now
         if (unplugPending) main.postDelayed(unplugNotice, 600)
         Log.d(TAG, "desbloqueada")
-        raBootCheck()
         val mode = ModeSwitcher.detect()
         if (mode == PadMode.ANDROID) returnPending = false
         if (lowPending) main.postDelayed({ lastBattery?.let { checkLowBattery(it) } }, 800)
@@ -439,7 +438,7 @@ class AutoModeService : AccessibilityService() {
         // Al arrancar sin control con los gestos bloqueados (por ejemplo, el control se apagó con la tablet apagada).
         main.postDelayed({ guardGestureLock() }, 3000)
         UiSounds.preload(this)
-        raBootCheck()
+        connectedAt = android.os.SystemClock.uptimeMillis()
         ThemeState.systemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
             android.content.res.Configuration.UI_MODE_NIGHT_YES
         Lang.load(this)
@@ -547,6 +546,7 @@ class AutoModeService : AccessibilityService() {
         if (pkg == lastPackage) return
         raLastClass = cls
         raProxyHint(pkg, cls)
+        shizukuOnDemand(pkg)
         appInFront = false
         val wasHidden = hiddenForApp
         hiddenForApp = false
@@ -1434,6 +1434,10 @@ class AutoModeService : AccessibilityService() {
         // Sin logros por algo que se arregla (proxy apagado con los emuladores apuntándole, o el emulador sin sesión):
         // la alerta roja al centro, con A para arreglarlo y B para seguir. Cada vez que se entra al emulador, como
         // mucho una vez cada 3 min (una sola vez no bastaba: se gastó en una prueba y al entrar a jugar no avisó).
+        // Recién encendida (el servicio arranca con el último emulador al frente y sin red todavía): solo si de verdad se
+        // entra a jugar (la pantalla del juego, no "no se sabe"). Así no salta nada al encender la tablet.
+        val booting = android.os.SystemClock.uptimeMillis() - connectedAt < BOOT_QUIET_MS
+        if (booting && cls.isNullOrEmpty()) return
         if (RaProxy.isEmulator(pkg) && isGameScreen(cls) && AutoRules.raProxyHint(this) && RaProxy.installed(this)) scope.launch {
             val now = android.os.SystemClock.uptimeMillis()
             // La pausa de 3 min es por problema (proxy apagado / sin sesión): arreglar uno y volver no debe tapar el otro.
@@ -1452,6 +1456,8 @@ class AutoModeService : AccessibilityService() {
             }
         }
         if (RaProxy.online(this)) { raHinted.clear(); return }
+        // "Sin internet" al encender es la red que todavía no conecta: no avisar.
+        if (booting) return
         if (!RaProxy.isEmulator(pkg) || pkg in raHinted || !AutoRules.raProxyHint(this) || !RaProxy.installed(this)) return
         scope.launch {
             if (RaProxy.readActive(this@AutoModeService) != false) return@launch
@@ -1460,34 +1466,40 @@ class AutoModeService : AccessibilityService() {
         }
     }
 
+    /** Cuándo se conectó el servicio (al encender la tablet): un rato sin avisos de logros. */
+    private var connectedAt = 0L
+    private var lastShizukuHint = 0L
+    private var shizukuTries = 0
+    private var shizukuFor: String? = null
+
     /**
-     * Al desbloquear y al arrancar el servicio (tras un reinicio se conecta DESPUÉS del desbloqueo): Shizuku no arrancó
-     * solo y algo elegido lo necesita, avisar. Shizuku puede tardar en arrancar ("Start on boot"): se espera. Una vez
-     * cada 10 min como mucho. RAOfflineProxy apagado ya no se avisa aquí: solo al entrar a un emulador ([raProxyHint]),
-     * porque al encender la tablet no se sabe si se va a jugar con logros.
+     * Shizuku apagado: se avisa solo al abrir algo que lo usa ahora (un juego con Hz propios, cambio de modo o en modo
+     * juego de ZUI, o un emulador), no al encender ni al desbloquear la tablet. Shizuku puede tardar en arrancar solo
+     * ("Start on boot"): se mira otra vez a los 15 s antes de avisar. Como mucho una vez cada 10 min. Sin Shizuku
+     * instalado no se avisa nunca.
      */
-    private var lastRaBootCheck = 0L
-    private fun raBootCheck() {
+    private fun shizukuOnDemand(pkg: String) {
+        if (pkg == packageName || !Shell.wanted(this) || Shell.launchIntent(this) == null) return
+        val uses = RaProxy.isEmulator(pkg) || ZuiGame.inGame(this) || RefreshRate.forApp(this, pkg) != null ||
+            AutoRules.rules(this).containsKey(pkg)
+        if (!uses) return
         val now = android.os.SystemClock.uptimeMillis()
-        if (now - lastRaBootCheck < 10 * 60_000L && lastRaBootCheck > 0) return
-        lastRaBootCheck = now
-        main.removeCallbacks(shizukuCheck)
+        if (lastShizukuHint > 0 && now - lastShizukuHint < 10 * 60_000L) return
+        shizukuFor = pkg
         shizukuTries = 0
-        main.postDelayed(shizukuCheck, 10_000)
+        main.removeCallbacks(shizukuCheck)
+        main.postDelayed(shizukuCheck, 3_000)
     }
 
-    private var shizukuTries = 0
-    /**
-     * Shizuku no arrancó solo (su inicio al encender falla a veces) y algo elegido lo necesita: avisar.
-     * Si a los 10 s no está, otra vez a los 30 s antes de avisar: a veces arranca un poco después.
-     */
     private val shizukuCheck: Runnable = Runnable {
-        if (getSystemService(android.app.KeyguardManager::class.java).isKeyguardLocked) { lastRaBootCheck = 0; return@Runnable }
         Shell.refresh()
-        Log.d(TAG, "Shizuku al desbloquear: ${Shell.state}, hace falta ${Shell.wanted(this)} (revisión ${shizukuTries + 1})")
-        // Sin Shizuku instalado no se avisa (quien no lo usa no tiene que verlo cada vez que desbloquea).
-        if (Shell.state == Shell.State.READY || !Shell.wanted(this) || Shell.launchIntent(this) == null) return@Runnable
-        if (++shizukuTries < 2) main.postDelayed(shizukuCheck, 20_000) else panel.shizukuHint()
+        Log.d(TAG, "Shizuku para $shizukuFor: ${Shell.state} (revisión ${shizukuTries + 1})")
+        if (Shell.state == Shell.State.READY) return@Runnable
+        // Ya se salió de esa app: no avisar de algo que ya no se está usando.
+        if (lastPackage != shizukuFor) return@Runnable
+        if (++shizukuTries < 2) { main.postDelayed(shizukuCheck, 15_000); return@Runnable }
+        lastShizukuHint = android.os.SystemClock.uptimeMillis()
+        panel.shizukuHint()
     }
 
     /** Abrir el panel desde la app (botón en Juego → Panel de juego). */
@@ -1499,6 +1511,8 @@ class AutoModeService : AccessibilityService() {
         private const val SHOT_SCAN = 0x13f
         /** Espera por un segundo toque de la guía (solo si "Tocar dos veces" hace algo). */
         private const val DOUBLE_TAP_MS = 280L
+        /** Tras encender: sin avisos de logros mientras no se entre de verdad a jugar (la red todavía no conecta). */
+        private const val BOOT_QUIET_MS = 120_000L
         /** El servicio corriendo (null si está apagado): la app lo usa para abrir el panel. */
         @Volatile var active: AutoModeService? = null
         const val ACTION_TEST_GUIDE_TAP = "io.github.sudodiego.g9control.TEST_GUIDE_TAP"

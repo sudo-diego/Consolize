@@ -559,9 +559,9 @@ class GamePanel(private val svc: AutoModeService) {
     /** Jingle de carga (al enchufar). */
     fun chargeJingle() = sounds.play(R.raw.charge)
 
-    /** Shizuku no está corriendo (no arrancó al encender) y algo elegido lo necesita. */
-    fun shizukuHint() = flash.show(flash.appIcon(Shell.PACKAGE), tr("Shizuku no arrancó", "Shizuku didn't start"),
-        tr("Ábrelo y aprieta Start", "Open it and press Start"), 6000)
+    /** Shizuku no está corriendo y la app que se abrió usa algo que lo necesita (solo entonces, no al encender). */
+    fun shizukuHint() = flash.show(flash.appIcon(Shell.PACKAGE), tr("Shizuku está apagado", "Shizuku is off"),
+        tr("Esta app usa funciones que lo necesitan. Ábrelo y aprieta Start", "This app uses features that need it. Open it and press Start"), 6000)
 
     /** Emulador sin internet y RAOfflineProxy apagado: el atajo para encenderlo (el porqué está en la app). */
     fun raProxyHint() = flash.show(flash.appIcon(RaProxy.PACKAGE), tr("Sin internet", "Offline"),

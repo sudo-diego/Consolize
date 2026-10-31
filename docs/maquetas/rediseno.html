@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Consolize · maquetas del rediseño</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#0d1220; --bg2:#111827; --s1:#151e31; --s2:#1a2439; --s3:#222d47;
+    --fg:#e6ebf5; --mut:#9faac2; --dim:#6f7a93; --acc:#5cc8ff; --acc2:#8fb2ff; --warn:#ffb86b;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#06080f;color:var(--fg);font:15px/1.4 "Inter","Roboto",system-ui,sans-serif}
+  .top{display:flex;gap:10px;align-items:center;justify-content:center;padding:14px;flex-wrap:wrap;color:var(--mut);font-size:13px}
+  .top button{background:var(--s1);color:var(--fg);border:0;border-radius:999px;padding:8px 16px;font:inherit;cursor:pointer}
+  .top button.on{background:var(--acc);color:#04263a;font-weight:600}
+  .keys{width:100%;text-align:center}
+  kbd{background:var(--s2);border-radius:5px;padding:1px 6px;font:12px ui-monospace,monospace;color:var(--fg)}
+  /* La tablet, en horizontal */
+  .tab{width:min(1200px,96vw);aspect-ratio:16/10;margin:0 auto 18px;border-radius:22px;overflow:hidden;position:relative;
+       background:radial-gradient(120% 90% at 85% -10%,#1d2c55 0%,transparent 55%),radial-gradient(90% 70% at -10% 110%,#13314a 0%,transparent 60%),var(--bg);
+       box-shadow:0 0 0 10px #000,0 30px 80px #0008}
+  .screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:28px 34px 0}
+  .bar{display:flex;align-items:center;gap:18px;color:var(--mut);font-size:13px;height:20px}
+  .bar .sp{flex:1}
+  .bat{display:inline-flex;align-items:center;gap:6px}
+  .bat i{display:inline-block;width:24px;height:12px;border:1.5px solid var(--mut);border-radius:3px;position:relative}
+  .bat i:after{content:"";position:absolute;left:1px;top:1px;bottom:1px;width:72%;background:var(--acc);border-radius:1px}
+  h1{font-size:34px;font-weight:650;letter-spacing:-.5px;margin:22px 0 4px}
+  .lead{color:var(--mut);font-size:16px;margin:0}
+  .lead b{color:var(--fg);font-weight:600}
+  .lbl{color:var(--mut);font-size:12px;letter-spacing:.06em;margin:26px 0 10px;text-transform:uppercase}
+  /* Piezas con relieve: tono más claro arriba y sombra suave; sin bordes ni líneas */
+  .card{background:linear-gradient(180deg,var(--s2),var(--s1));border-radius:var(--r);box-shadow:0 1px 0 #ffffff0d inset,0 8px 24px #0006;
+        transition:transform .14s ease,box-shadow .14s ease,background .14s;outline:none;cursor:pointer;position:relative}
+  .card.f{transform:translateY(-3px) scale(1.03);background:linear-gradient(180deg,#2a3858,#1d2842);
+        box-shadow:0 0 0 2px var(--acc),0 14px 34px #0009}
+  .row{display:flex;gap:14px}
+  .tile{width:172px;height:104px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between}
+  .tile .t{font-weight:600;font-size:15px}
+  .tile .s{color:var(--mut);font-size:13px}
+  .ic{width:22px;height:22px;stroke:var(--acc);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .game{width:150px;height:150px;border-radius:18px;display:flex;align-items:flex-end;padding:12px;font-weight:600;font-size:14px;text-shadow:0 1px 6px #000a}
+  .add{background:transparent;box-shadow:inset 0 0 0 1.5px #ffffff22;color:var(--mut);justify-content:center;align-items:center}
+  .hint{position:absolute;left:0;right:0;bottom:0;display:flex;gap:22px;justify-content:flex-end;padding:0 34px 16px;color:var(--dim);font-size:13px}
+  .hint b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--s3);color:var(--fg);font-size:11px;margin-right:6px}
+  /* Variante A: dock abajo */
+  .dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:6px;padding:8px;border-radius:22px;
+        background:#0b1120cc;backdrop-filter:blur(14px);box-shadow:0 10px 30px #0008,0 1px 0 #ffffff12 inset}
+  .dk{display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:15px;color:var(--mut);font-weight:550;cursor:pointer;transition:.14s}
+  .dk.cur{color:var(--fg);background:var(--s3)}
+  .dk.f{color:#04263a;background:var(--acc)}
+  .dk.f .ic{stroke:#04263a}
+  /* Más: lista agrupada, sin líneas, con espacio entre grupos */
+  .more{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 40px;margin-top:20px}
+  .grp h3{margin:0 0 6px;font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .it{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:12px;cursor:pointer;transition:.12s}
+  .it.f{background:var(--s3);box-shadow:0 0 0 2px var(--acc)}
+  .it .pin{margin-left:auto;font-size:11px;color:var(--acc)}
+  /* Variante B: estante */
+  .shelf{display:flex;gap:16px;align-items:flex-end;margin-top:26px}
+  .shelf .game{width:170px;height:170px}
+  .shelf .game.big{width:260px;height:260px;font-size:18px}
+  .layers{display:flex;gap:26px;margin-top:6px;font-size:15px}
+  .layers span{color:var(--dim);padding-bottom:4px}
+  .layers span.cur{color:var(--fg);font-weight:600;box-shadow:0 2px 0 var(--acc)}
+  .chips{display:flex;gap:10px;flex-wrap:wrap}
+  .chip{padding:10px 16px;border-radius:12px;display:flex;align-items:center;gap:10px;font-weight:550}
+  /* Variante C: índice tipográfico */
+  .idx{display:grid;grid-template-columns:330px 1fr;gap:40px;flex:1;margin-top:18px}
+  .big{font-size:40px;font-weight:650;letter-spacing:-.8px;color:var(--dim);padding:4px 0;cursor:pointer;transition:.15s;outline:none}
+  .big.cur{color:var(--fg)}
+  .big.f{color:var(--acc)}
+  .big small{display:block;font-size:14px;font-weight:450;letter-spacing:0;color:var(--mut);margin-top:-2px;height:0;overflow:hidden;transition:.15s}
+  .big.cur small{height:22px}
+  .panelc{padding:22px 24px;display:flex;flex-direction:column;gap:6px;align-self:start}
+  .detail{flex:1;display:grid;place-items:center;color:var(--mut);text-align:center}
+  .detail h2{color:var(--fg);font-size:28px;margin:0 0 6px}
+  .note{max-width:1200px;margin:0 auto 30px;color:var(--mut);font-size:14px;padding:0 20px}
+  .note h4{color:var(--fg);margin:0 0 4px}
+</style>
+</head>
+<body>
+<div class="top">
+  <button data-v="A" class="on">A · Dock abajo</button>
+  <button data-v="B">B · Estante</button>
+  <button data-v="C">C · Índice</button>
+  <div class="keys">Control con el teclado: <kbd>←↑→↓</kbd> moverse · <kbd>Enter</kbd> A · <kbd>Esc</kbd> B · <kbd>Y</kbd> fijar o quitar de Inicio · <kbd>Q</kbd>/<kbd>E</kbd> LB/RB · también con el mouse</div>
+</div>
+<div class="tab"><div class="screen" id="screen"></div></div>
+<div class="note" id="note"></div>
+
+<script>
+// Íconos de trazo simple (sin emojis)
+const P={
+ panel:'<rect x="3" y="4" width="18" height="14" rx="3"/><path d="M7 9h4M7 13h7"/>',
+ guide:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+ bat:'<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10v4M7 10v4M11 10v4"/>',
+ screen:'<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+ games:'<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
+ home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
+ more:'<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+ combo:'<circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/>',
+ shot:'<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/>',
+ hz:'<path d="M3 12h3l3-7 4 14 3-7h5"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>'
+};
+const ic=k=>`<svg class="ic" viewBox="0 0 24 24">${P[k]||P.more}</svg>`;
+
+// Todo lo de la app, agrupado (nada se borra: lo que no está fijado vive en Más)
+const ALL=[
+ ['Juegos',[['lib','Biblioteca','games'],['hz','Hz en juegos','hz'],['ga','Game Assistant','panel'],['ach','Logros sin internet','games']]],
+ ['Panel',[['panel','Panel de juego','panel'],['caps','Capturas y monitor','shot']]],
+ ['Controles',[['guide','Botón guía','guide'],['combo','Combinaciones','combo'],['vol','Botones de volumen','combo'],['test','Probar control','guide']]],
+ ['Sistema',[['bat','Batería','bat'],['batn','Avisos de batería','bat'],['use','Uso','hz'],['scr','Pantalla','screen']]],
+ ['Ajustes',[['look','Apariencia','screen'],['gen','General','more'],['perm','Permisos','more']]],
+];
+const ITEM={};ALL.forEach(([g,l])=>l.forEach(([id,n,i])=>ITEM[id]={n,i,g}));
+const SUB={panel:'Mantener la guía',guide:'Tocar: Atrás',bat:'76 % · llena en 40 min',scr:'120 Hz',combo:'L3 + R3 · R3 + A',hz:'Juegos a 120 Hz',caps:'Arriba a la izquierda',lib:'14 juegos',use:'Hoy 2 h 10 min',test:'GameSir G8+'};
+let pins=['panel','guide','bat','scr'];
+const GAMES=[['Skyward Sword HD','#3d6b4f','#183526'],['Hades','#7a3a2a','#2b130e'],['Celeste','#6a4c8f','#241a36'],['Hollow Knight','#38506e','#141d2b'],['Balatro','#8a3346','#2e0f18']];
+const gameTile=(g,cls='')=>`<div class="card game ${cls}" data-nav data-open="Jugar ${g[0]}" style="background:linear-gradient(160deg,${g[1]},${g[2]})">${g[0]}</div>`;
+
+let V='A', tabA='home', layerB=0, catC=0, page=null;
+
+const bar=()=>`<div class="bar"><span>Consolize</span><span class="sp"></span><span>GameSir G8+</span><span class="bat"><i></i>76 %</span><span>18:42</span></div>`;
+const hint=(y)=>`<div class="hint"><span><b>A</b>Abrir</span>${y?`<span><b>Y</b>${y}</span>`:''}<span><b>B</b>Volver</span></div>`;
+const pinTiles=()=>pins.map(id=>`<div class="card tile" data-nav data-open="${ITEM[id].n}" data-id="${id}">${ic(ITEM[id].i)}<div><div class="t">${ITEM[id].n}</div><div class="s">${SUB[id]||ITEM[id].g}</div></div></div>`).join('')
+  + `<div class="card tile add" data-nav data-go="more">${ic('plus')}<div class="s">Elegir accesos</div></div>`;
+const moreList=()=>`<div class="more">${ALL.map(([g,l])=>`<div class="grp"><h3>${g}</h3>${l.map(([id,n,i])=>`<div class="it" data-nav data-open="${n}" data-id="${id}">${ic(i)}<span>${n}</span>${pins.includes(id)?'<span class="pin">En Inicio</span>':''}</div>`).join('')}</div>`).join('')}</div>`;
+
+function render(){
+  const s=document.getElementById('screen');
+  if(page){ s.innerHTML=bar()+`<div class="detail"><div><h2>${page}</h2>Aquí va la página tal como está hoy, con sus opciones en acordeón.<br>B vuelve a donde estabas, con el foco en la misma pieza.</div></div>`+hint(); return focusFirst(); }
+  let h=bar();
+  if(V==='A'){
+    if(tabA==='home') h+=`<h1>Buenas tardes</h1><p class="lead">Batería <b>76 %</b>, cargando · <b>GameSir G8+</b> conectado</p>
+      <div class="lbl">Seguir jugando</div><div class="row">${GAMES.slice(0,4).map(g=>gameTile(g)).join('')}</div>
+      <div class="lbl">Tus accesos</div><div class="row">${pinTiles()}</div>`;
+    if(tabA==='games') h+=`<h1>Juegos</h1><p class="lead">Elige uno para ver sus Hz, proporción, guía y combinaciones.</p><div class="lbl">Biblioteca</div><div class="row" style="flex-wrap:wrap">${GAMES.map(g=>gameTile(g)).join('')}</div>`;
+    if(tabA==='panel') h+=`<h1>Panel de juego</h1><p class="lead">Se abre manteniendo la guía, en cualquier app.</p><div class="lbl">Opciones</div><div class="row">${['Orden y mosaicos','Fondo','Diseño','Colores'].map(n=>`<div class="card tile" data-nav data-open="Panel · ${n}">${ic('panel')}<div class="t">${n}</div></div>`).join('')}</div>`;
+    if(tabA==='more') h+=`<h1>Más</h1><p class="lead">Todo lo demás. <b>Y</b> fija o quita un acceso de Inicio.</p>`+moreList();
+    const D=[['home','Inicio','home'],['games','Juegos','games'],['panel','Panel','panel'],['more','Más','more']];
+    h+=`<div class="dock">${D.map(([k,n,i])=>`<div class="dk ${tabA===k?'cur':''}" data-nav data-tab="${k}">${ic(i)}${n}</div>`).join('')}</div>`;
+    s.innerHTML=h; return focusFirst(tabA==='more'?'.it':'.tile, .game');
+  }
+  if(V==='B'){
+    const L=['Jugar','Accesos','Todo'];
+    h+=`<div class="layers" style="margin-top:22px">${L.map((n,i)=>`<span class="${i===layerB?'cur':''}">${n}</span>`).join('')}<span style="margin-left:auto;font-size:13px">LB / RB cambian de capa</span></div>`;
+    if(layerB===0) h+=`<div class="shelf">${gameTile(GAMES[0],'big')}${GAMES.slice(1).map(g=>gameTile(g)).join('')}</div>
+      <p class="lead" style="margin-top:20px"><b>Skyward Sword HD</b> · última vez hace 2 horas · 60 Hz · Panel con L3 + R3 al mantener</p>`;
+    if(layerB===1) h+=`<h1>Accesos</h1><p class="lead">Los que elijas, en una sola fila. El resto está en Todo.</p><div class="lbl">Fijados</div><div class="chips">${pins.map(id=>`<div class="card chip" data-nav data-open="${ITEM[id].n}" data-id="${id}">${ic(ITEM[id].i)}${ITEM[id].n}</div>`).join('')}<div class="card chip add" data-nav data-layer="2">${ic('plus')}Elegir</div></div>
+      <div class="lbl">Ahora</div><p class="lead">Batería <b>76 %</b> · llena en 40 min · <b>120 Hz</b> · Bypass en espera</p>`;
+    if(layerB===2) h+=moreList();
+    s.innerHTML=h+hint(layerB===2?'Fijar':null); return focusFirst('.game, .chip, .it');
+  }
+  if(V==='C'){
+    const CATS=[['Jugar','Biblioteca y lo último'],['Accesos','Lo que fijaste'],['Panel','Cómo se ve y qué muestra'],['Controles','Guía y combinaciones'],['Tablet','Batería, pantalla y uso']];
+    const right=[
+      `<div class="row" style="flex-wrap:wrap">${GAMES.slice(0,4).map(g=>gameTile(g)).join('')}</div>`,
+      `<div class="row" style="flex-wrap:wrap">${pinTiles()}</div>`,
+      `<div class="card panelc">${['Orden y mosaicos','Fondo','Diseño','Colores'].map(n=>`<div class="it" data-nav data-open="Panel · ${n}">${ic('panel')}${n}</div>`).join('')}</div>`,
+      `<div class="card panelc">${['Botón guía','Combinaciones','Botones de volumen','Probar control'].map(n=>`<div class="it" data-nav data-open="${n}">${ic('combo')}${n}</div>`).join('')}</div>`,
+      `<div class="card panelc">${['Batería','Avisos de batería','Pantalla','Uso','Ajustes de la app'].map(n=>`<div class="it" data-nav data-open="${n}">${ic('bat')}${n}</div>`).join('')}</div>`];
+    h+=`<div class="idx"><div>${CATS.map(([n,d],i)=>`<div class="big ${i===catC?'cur':''}" data-nav data-cat="${i}">${n}<small>${d}</small></div>`).join('')}</div><div>${right[catC]}</div></div>`;
+    s.innerHTML=h+hint(); return focusFirst('.big.cur');
+  }
+}
+
+// Foco con la cruceta: el elemento más cercano en esa dirección
+let cur=null; const keep={};
+function focusFirst(sel){
+  const all=[...document.querySelectorAll('#screen [data-nav]')];
+  const k=V+tabA+layerB+catC+(page||'');
+  let el=keep[k]&&all.find(e=>e.dataset.key===keep[k]);
+  if(!el) el=(sel&&document.querySelector('#screen '+sel.split(',').map(x=>x.trim()).join(', #screen ')))||all[0];
+  setF(el);
+}
+function key(e){return e.dataset.id||e.dataset.open||e.dataset.tab||e.dataset.cat||e.dataset.go||e.dataset.layer}
+function setF(el){ document.querySelectorAll('#screen .f').forEach(x=>x.classList.remove('f')); cur=el; if(!el)return; el.classList.add('f'); el.dataset.key=key(el); keep[V+tabA+layerB+catC+(page||'')]=key(el);
+  if(V==='C'&&el.dataset.cat!==undefined&&+el.dataset.cat!==catC){catC=+el.dataset.cat;render();} }
+function move(dx,dy){
+  if(!cur)return; const a=cur.getBoundingClientRect(), ax=a.left+a.width/2, ay=a.top+a.height/2;
+  let best=null,bd=1e9;
+  document.querySelectorAll('#screen [data-nav]').forEach(e=>{ if(e===cur)return; const b=e.getBoundingClientRect(), bx=b.left+b.width/2, by=b.top+b.height/2;
+    const px=(bx-ax)*dx+(by-ay)*dy; if(px<=4)return; const off=Math.abs(dx?by-ay:bx-ax); const d=px+off*2.2; if(d<bd){bd=d;best=e;} });
+  if(best)setF(best);
+}
+function act(el){
+  if(!el)return;
+  if(el.dataset.tab){tabA=el.dataset.tab;return render();}
+  if(el.dataset.go){tabA=el.dataset.go;return render();}
+  if(el.dataset.layer){layerB=+el.dataset.layer;return render();}
+  if(el.dataset.cat!==undefined){move(1,0);return;}
+  if(el.dataset.open){page=el.dataset.open;render();}
+}
+function back(){ if(page){page=null;return render();} if(V==='A'&&tabA!=='home'){tabA='home';render();} if(V==='C')setF(document.querySelector('#screen .big.cur')); }
+function pin(){ const id=cur&&cur.dataset.id; if(!id)return; pins=pins.includes(id)?pins.filter(x=>x!==id):[...pins,id].slice(-6); render(); }
+document.addEventListener('keydown',e=>{
+  const m={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(m){e.preventDefault();move(...m);return;}
+  if(e.key==='Enter'||e.key===' '){e.preventDefault();act(cur);}
+  else if(e.key==='Escape'||e.key==='Backspace'){e.preventDefault();back();}
+  else if(e.key.toLowerCase()==='y')pin();
+  else if(e.key.toLowerCase()==='q'||e.key.toLowerCase()==='e'){const d=e.key.toLowerCase()==='e'?1:-1;
+    if(V==='A'){const t=['home','games','panel','more'];tabA=t[(t.indexOf(tabA)+d+4)%4];render();}
+    if(V==='B'){layerB=(layerB+d+3)%3;render();}
+    if(V==='C'){catC=(catC+d+5)%5;render();}}
+});
+document.getElementById('screen').addEventListener('click',e=>{const el=e.target.closest('[data-nav]');if(el){setF(el);act(el);}});
+const NOTES={
+ A:`<h4>A · Dock abajo</h4>Cuatro destinos fijos abajo (Inicio, Juegos, Panel, Más), flotando sobre el contenido como el dock de una consola, no como pestañas de app de teléfono. Inicio muestra una frase de estado, tus últimos juegos y tus accesos (editables). Todo lo demás vive en Más, agrupado, y desde ahí <b>Y</b> fija o quita un acceso de Inicio. LB/RB pasan entre destinos.`,
+ B:`<h4>B · Estante</h4>Sin barra: tres capas que se cambian con LB/RB. <i>Jugar</i> es un estante con el juego elegido grande y su estado debajo; <i>Accesos</i> son tus atajos en una sola fila más el estado de la tablet en una línea; <i>Todo</i> es la lista completa. Es la más "consola" y la más minimalista, pero los ajustes quedan a dos pasos.`,
+ C:`<h4>C · Índice</h4>Cinco palabras grandes a la izquierda, solo tipografía (sin barra, sin íconos ni fondo), y a la derecha lo que hay dentro de la elegida, que cambia al moverse. Es la más distinta y editorial; la tipografía es la que ordena. Accesos también es editable.`
+};
+document.querySelectorAll('.top button').forEach(b=>b.onclick=()=>{V=b.dataset.v;page=null;document.querySelectorAll('.top button').forEach(x=>x.classList.toggle('on',x===b));document.getElementById('note').innerHTML=NOTES[V];render();});
+document.getElementById('note').innerHTML=NOTES.A; render();
+</script>
+</body>
+</html>
