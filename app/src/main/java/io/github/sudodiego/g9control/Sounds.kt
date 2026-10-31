@@ -21,19 +21,15 @@ import androidx.compose.runtime.setValue
  * a R.raw van escritas (no por nombre): así la reducción de recursos de la versión publicada no los borra.
  */
 enum class NavPack {
-    CLASSIC, BUBBLE, GLASS, WOOD, SOFT, DIGITAL;
+    CLASSIC, BUBBLE, WOOD;
     val label get() = when (this) {
-        CLASSIC -> tr("Clásico", "Classic"); BUBBLE -> tr("Burbuja", "Bubble"); GLASS -> tr("Cristal", "Glass")
-        WOOD -> tr("Madera", "Wood"); SOFT -> tr("Suave", "Soft"); DIGITAL -> tr("Digital", "Digital")
+        CLASSIC -> tr("Clásico", "Classic"); BUBBLE -> tr("Burbuja", "Bubble"); WOOD -> tr("Madera", "Wood")
     }
     /** Mover, elegir, volver, sección, abrir el panel y salir. */
     val raw: List<Int> get() = when (this) {
         CLASSIC -> listOf(R.raw.nav_move, R.raw.nav_select, R.raw.nav_back, R.raw.nav_tab, R.raw.nav_open, R.raw.nav_exit)
         BUBBLE -> listOf(R.raw.nav_burbuja_move, R.raw.nav_burbuja_select, R.raw.nav_burbuja_back, R.raw.nav_burbuja_tab, R.raw.nav_burbuja_open, R.raw.nav_burbuja_exit)
-        GLASS -> listOf(R.raw.nav_cristal_move, R.raw.nav_cristal_select, R.raw.nav_cristal_back, R.raw.nav_cristal_tab, R.raw.nav_cristal_open, R.raw.nav_cristal_exit)
         WOOD -> listOf(R.raw.nav_madera_move, R.raw.nav_madera_select, R.raw.nav_madera_back, R.raw.nav_madera_tab, R.raw.nav_madera_open, R.raw.nav_madera_exit)
-        SOFT -> listOf(R.raw.nav_suave_move, R.raw.nav_suave_select, R.raw.nav_suave_back, R.raw.nav_suave_tab, R.raw.nav_suave_open, R.raw.nav_suave_exit)
-        DIGITAL -> listOf(R.raw.nav_digital_move, R.raw.nav_digital_select, R.raw.nav_digital_back, R.raw.nav_digital_tab, R.raw.nav_digital_open, R.raw.nav_digital_exit)
     }
 }
 

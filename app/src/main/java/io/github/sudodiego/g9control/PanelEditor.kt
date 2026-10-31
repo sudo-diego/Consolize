@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,7 +118,7 @@ fun PanelEditor(onDone: () -> Unit) {
             val slide = rememberSlide()
             val sb = secBounds[sec]
             Column(Modifier
-                .onGloballyPositioned { secBounds[sec] = it.boundsInRoot(); slide.moved(it.boundsInRoot().topLeft, draggingSec == sec) }
+                .onGloballyPositioned { secBounds[sec] = it.boundsInRoot(); slide.moved(it.positionInParent(), draggingSec == sec) }
                 .zIndex(if (secLifted) 10f else 0f)
                 .graphicsLayer {
                     val o = slide.offset
@@ -175,7 +176,7 @@ fun PanelEditor(onDone: () -> Unit) {
                         val tSlide = rememberSlide()
                         val r = bounds[t]
                         Box(Modifier.weight(1f).height(60.dp)
-                            .onGloballyPositioned { bounds[t] = it.boundsInRoot(); tSlide.moved(it.boundsInRoot().topLeft, isDragged) }
+                            .onGloballyPositioned { bounds[t] = it.boundsInRoot(); tSlide.moved(it.positionInParent(), isDragged) }
                             .zIndex(if (isDragged) 10f else if (isPicked) 5f else 0f)
                             .graphicsLayer {
                                 scaleX = lift; scaleY = lift

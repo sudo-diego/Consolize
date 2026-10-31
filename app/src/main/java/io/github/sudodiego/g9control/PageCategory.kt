@@ -158,10 +158,12 @@ fun CategoryFrame(s: AppState, content: @Composable () -> Unit) {
  * cosa; B (en lo abierto) vuelve aquí.
  */
 @Composable
-fun CategoryHub(s: AppState) {
+fun CategoryHub(s: AppState, dest: String = s.dest) {
     val a = LocalContext.current as MainActivity
     Box(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
-        when (s.dest) {
+        // El destino de ESTA pantalla (no el actual): mientras se va con su animación sigue mostrando lo suyo (antes, al
+        // ir de Control a Panel se veía Inicio un instante y de Control a Más, Más dos veces).
+        when (dest) {
             Dest.MORE -> MoreHub(s)
             Dest.CONTROL -> ControlHub(s)
             else -> HomeSummary(s, a)
@@ -270,7 +272,7 @@ private fun MoreHub(s: AppState) {
                 Surface(
                     onClick = { open = i }, interactionSource = src,
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
-                    modifier = Modifier.weight(1f).height(190.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
+                    modifier = Modifier.weight(1f).height(250.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
                         .graphicsLayer { alpha = if (open != null && open != i) 0.3f else 1f }
                         .focusLift(focused, src, 1.04f).focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
@@ -279,8 +281,10 @@ private fun MoreHub(s: AppState) {
                         Icon(MORE_ICONS[i], null, Modifier.size(40.dp), tint = if (focused) MaterialTheme.colorScheme.primary else cardOn().copy(alpha = 0.85f))
                         Spacer(Modifier.weight(1f))
                         Text(name, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-                        Text(items.joinToString(" · ") { it.label() }, fontSize = 12.sp, lineHeight = 17.sp, color = cardMuted(),
-                            maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(6.dp))
+                        // Lo que tiene, una cosa por línea (como un índice), las primeras cuatro.
+                        items.take(4).forEach { Text(it.label(), fontSize = 13.sp, lineHeight = 18.sp, color = cardMuted(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        if (items.size > 4) Text(tr("y ${items.size - 4} más", "and ${items.size - 4} more"), fontSize = 13.sp, lineHeight = 18.sp, color = cardMuted().copy(alpha = 0.5f))
                     }
                 }
             }

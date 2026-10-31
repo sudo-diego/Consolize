@@ -582,7 +582,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
             (enter togetherWith exit).using(androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() })
         },
         label = "page"
-    ) { (_, section, pageOrHub, sub, only) ->
+    ) { (screenDest, section, pageOrHub, sub, only) ->
         val page = pageOrHub ?: s.page
         val scroll = rememberScrollState()
         // Al abrir un menú, el foco entra a su primera opción (si no, se perdía y saltaba a la barra lateral).
@@ -593,7 +593,7 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
         val winFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
         var hadWin by remember { mutableStateOf(winFocused) }
         LaunchedEffect(winFocused) { if (winFocused && !hadWin) { kotlinx.coroutines.delay(60); runCatching { enter.requestFocus() } }; hadWin = winFocused }
-        if (pageOrHub == null) Box(Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup()) { CategoryHub(s) }
+        if (pageOrHub == null) Box(Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup()) { CategoryHub(s, screenDest) }
         else CompositionLocalProvider(LocalOnlyPanels provides only) { Column(
             Modifier.fillMaxSize().focusRequester(enter).focusRestorer().focusGroup().verticalScroll(scroll)
                 .padding(horizontal = 36.dp).padding(top = 20.dp, bottom = 28.dp),
