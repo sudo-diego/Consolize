@@ -33,9 +33,9 @@ shot 1-inicio 1
 key KEYCODE_BUTTON_R1; shot 2-biblioteca
 key KEYCODE_BUTTON_R1; shot 3-panel 3
 key KEYCODE_BUTTON_R1; shot 4-control
-key KEYCODE_BUTTON_A;  shot 5-boton-guia 3
+key KEYCODE_DPAD_CENTER; shot 5-boton-guia 3
 key KEYCODE_BUTTON_B;  sleep 1
 key KEYCODE_BUTTON_R1; shot 6-mas
-key KEYCODE_BUTTON_A;  shot 7-mas-menu
+key KEYCODE_DPAD_CENTER; shot 7-mas-menu
 key KEYCODE_BUTTON_B;  sleep 1
 ls -la shots
