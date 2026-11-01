@@ -342,6 +342,32 @@ private fun <T> IconChips(options: List<Triple<T, ImageVector?, String>>, select
     }
 }
 
+
+@Composable
+private fun TabletButtonsPanel(a: MainActivity) {
+    var swap by remember { mutableStateOf(AutoRules.swapVolume(a)) }
+    CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
+        Panel(tr("Botones de volumen", "Volume buttons")) {
+            SwitchTile(Icons.Outlined.SwapVert, tr("Invertir el volumen", "Swap volume"), swap) {
+                swap = it; AutoRules.setSwapVolume(a, it)
+            }
+            if (swap) {
+                var rotations by remember { mutableStateOf(AutoRules.swapRotations(a)) }
+                Text(tr("Solo en", "Only in"), fontSize = 14.sp)
+                MultiChips(listOf(1 to tr("Horizontal", "Landscape"), 3 to tr("Horizontal invertido", "Reverse landscape"),
+                    0 to tr("Vertical", "Portrait"), 2 to tr("Vertical invertido", "Reverse portrait")), rotations) { r, on ->
+                    rotations = if (on) rotations + r else rotations - r
+                    AutoRules.setSwapRotations(a, rotations)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Un atajo: los botones dibujados (Guía + RB…), cómo se usan (tocar, mantener) y qué hacen, con su interruptor. Sin
+ * botones: variante del atajo de arriba (↳).
+ */
 @Composable
 private fun ShortcutRow(keys: List<String>, how: String?, action: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = MaterialTheme.colorScheme
