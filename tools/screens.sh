@@ -35,7 +35,7 @@ DOCK_Y=1517
 shot 1-inicio 1
 tap 1075 $DOCK_Y; shot 2-biblioteca
 tap 1307 $DOCK_Y; shot 3-panel 3
-tap 1033 305;     shot 3b-editar-mosaicos 6
+tap 1030 375;     shot 3b-editar-mosaicos 6
 shot 3c-editar-mosaicos-2 3
 tap 1522 $DOCK_Y; shot 4-control
 tap 1349 680;     shot 5-boton-guia 3
