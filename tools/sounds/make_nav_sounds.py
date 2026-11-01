@@ -41,6 +41,14 @@ def noise_tick(dur, decay, cutoff=0.25, seed=1):
         out.append(y * e[i] * 3)
     return out
 
+def fade(buf, ms=60):
+    """Apaga los últimos [ms] con una curva suave (sin corte al final)."""
+    n = len(buf); f = min(n, int(ms / 1000 * SR))
+    for i in range(f):
+        k = 1 - i / f
+        buf[n - f + i] *= k * k
+    return buf
+
 def mix(*bufs):
     n = max(len(b) for b in bufs); out = [0.0] * n
     for b in bufs:
@@ -73,18 +81,22 @@ def packs():
     # Madera: marimba cálida (fundamental y el parcial 4x que se apaga rápido).
     mar = ((1, 1.0), (4, 0.25), (10, 0.05))
     P['madera'] = {
-        'move':   (tone(0.07, [(0, 523)], 0.025, mar), -11),
-        'select': (tone(0.2, [(0, 392), (0.06, 587)], 0.06, mar), -7),
-        'back':   (tone(0.18, [(0, 587), (0.06, 392)], 0.055, mar), -8),
-        'tab':    (tone(0.11, [(0, 440)], 0.04, mar), -9),
-        'open':   (tone(0.3, [(0, 392), (0.07, 494), (0.14, 659)], 0.07, mar), -7),
-        'exit':   (tone(0.34, [(0, 659), (0.08, 494), (0.16, 330)], 0.08, mar), -7),
+        # Más largos que su caída (antes se cortaban con la nota todavía sonando) y con una cola suave al final.
+        'move':   (fade(tone(0.16, [(0, 523)], 0.025, mar)), -11),
+        'select': (fade(tone(0.42, [(0, 392), (0.06, 587)], 0.06, mar)), -7),
+        'back':   (fade(tone(0.4, [(0, 587), (0.06, 392)], 0.055, mar)), -8),
+        'tab':    (fade(tone(0.26, [(0, 440)], 0.04, mar)), -9),
+        # Abrir el panel: dos notas suaves que suben (antes tres rápidas, sonaba raro).
+        'open':   (fade(tone(0.6, [(0, 523), (0.09, 784)], 0.09, mar, attack=0.004)), -8),
+        'exit':   (fade(tone(0.62, [(0, 659), (0.08, 494), (0.16, 330)], 0.08, mar)), -7),
     }
     return P
 
 if __name__ == '__main__':
     out = sys.argv[1] if len(sys.argv) > 1 else '.'
+    only = sys.argv[2] if len(sys.argv) > 2 else None   # un solo juego (p. ej. madera)
     for pack, sounds in packs().items():
+        if only and pack != only: continue
         for kind, (buf, db) in sounds.items():
             save(os.path.join(out, f'nav_{pack}_{kind}.wav'), buf, db)
     print('listo')

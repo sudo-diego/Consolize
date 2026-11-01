@@ -516,7 +516,11 @@ internal fun PanelLookPanel(a: MainActivity) {
             }
         }
         // Congelar el juego al abrir: con cualquier fondo (el fondo "Juego en pausa" ya lo hace siempre).
-        if (ThemeState.panelBackground != PanelBackground.GAME) SwitchRow(tr("Congelar el juego al abrir", "Freeze the game when opening"), ThemeState.panelFreeze) {
+        // Para qué sirve: detrás del panel (transparente o de vidrio) queda una foto quieta del juego en vez del juego en
+        // movimiento, que distrae. El juego no se pausa.
+        if (ThemeState.panelBackground != PanelBackground.GAME) SwitchTile(Icons.Outlined.PauseCircle, tr("Congelar la imagen del juego", "Freeze the game picture"),
+            ThemeState.panelFreeze, sub = tr("Detrás del panel queda quieta (útil con transparencia o vidrio). El juego sigue corriendo.",
+                "It stays still behind the panel (useful with transparency or glass). The game keeps running.")) {
             ThemeState.panelFreeze = it; Prefs.setPanelFreeze(a, it)
         }
         if (ThemeState.freezesGame) SliderRow(tr("Oscurecer", "Dim"), ThemeState.panelPauseDim, 0..90) { ThemeState.panelPauseDim = it; Prefs.setPanelPauseDim(a, it) }

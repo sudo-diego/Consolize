@@ -290,10 +290,11 @@ object AutoRules {
     enum class Guide(val key: String) { TAP_BACK("guide_tap_back"), HOLD_PANEL("guide_hold_panel"), RB_SHOT("guide_rb_shot"), LB_BACK("guide_lb_back"), HOLD_LOCK("guide_hold_lock"), LT_REC("guide_lt_rec"), RT_SHADOW("guide_rt_shadow") }
 
     /** Lo que puede hacer Guía + RB / LB / LT / RT (cada una se elige en Botón guía, manteniendo su tarjeta). */
-    enum class ComboAction { SHOT, BACK_HOLD, RECORD, SHADOW, PANEL, HOME, RECENTS;
+    enum class ComboAction { SHOT, BACK_HOLD, RECORD, SHADOW, PANEL, HOME, RECENTS, ROTATE;
         val label get() = when (this) {
             SHOT -> tr("Captura", "Screenshot"); BACK_HOLD -> tr("Mantener Atrás", "Hold Back"); RECORD -> tr("Grabar", "Record")
             SHADOW -> "Shadow Rec"; PANEL -> tr("Panel de juego", "Game panel"); HOME -> tr("Inicio", "Home"); RECENTS -> tr("Recientes", "Recents")
+            ROTATE -> tr("Rotar", "Rotate")
         }
     }
     /** Las combinaciones con la guía: su interruptor ([Guide]), el botón y lo que hacen por defecto. */

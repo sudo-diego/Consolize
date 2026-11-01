@@ -52,7 +52,7 @@ internal val PanelTile.icon: ImageVector get() = when (this) {
     PanelTile.REFRESH -> Icons.Outlined.DisplaySettings; PanelTile.LOCK_GESTURES -> Icons.Outlined.Lock; PanelTile.WIDE -> Icons.Outlined.AspectRatio
     PanelTile.ASPECT -> Icons.Outlined.Crop; PanelTile.DARK_SCREEN -> Icons.Outlined.TabletAndroid; PanelTile.WIFI -> Icons.Outlined.Wifi
     PanelTile.BLUETOOTH -> Icons.Outlined.Bluetooth; PanelTile.AIRPLANE -> Icons.Outlined.AirplanemodeActive; PanelTile.NIGHT_LIGHT -> Icons.Outlined.NightsStay
-    PanelTile.READING -> Icons.AutoMirrored.Outlined.MenuBook; PanelTile.MOUSE -> Icons.Outlined.Mouse; PanelTile.BACK -> Icons.AutoMirrored.Outlined.ArrowBack
+    PanelTile.READING -> Icons.AutoMirrored.Outlined.MenuBook; PanelTile.MOUSE -> Icons.Outlined.Mouse; PanelTile.ROTATE -> Icons.Outlined.ScreenRotation; PanelTile.BACK -> Icons.AutoMirrored.Outlined.ArrowBack
     PanelTile.HOME -> Icons.Outlined.Home; PanelTile.RECENTS_KEY -> Icons.Outlined.Layers; PanelTile.QUICK_SETTINGS -> Icons.Outlined.ToggleOn
     PanelTile.SLEEP -> Icons.Outlined.Bedtime; PanelTile.SETTINGS -> Icons.Outlined.Settings; PanelTile.G9_MODE -> Icons.Outlined.VideogameAsset
     PanelTile.APP -> Icons.AutoMirrored.Outlined.OpenInNew
@@ -225,7 +225,7 @@ fun PanelEditor(onDone: () -> Unit) {
                             .onFocusChanged { if (it.isFocused) UiSounds.play(ctx, UiSounds.Kind.MOVE) }
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(tileColor, PANEL_ACCENT, 0.35f) else tileColor)
-                            .then(if (target == t) Modifier.border(3.dp, PANEL_ACCENT, RoundedCornerShape(16.dp)).background(PANEL_ACCENT.copy(alpha = 0.2f))
+                            .then(if (target == t || (focused && picked != null && picked != t && picked?.section == t.section)) Modifier.border(3.dp, PANEL_ACCENT, RoundedCornerShape(16.dp)).background(PANEL_ACCENT.copy(alpha = 0.2f))
                                 else if (focused || isPicked) Modifier.border(2.dp, if (isPicked) PANEL_ACCENT else SELECTED, RoundedCornerShape(16.dp))
                                 else if (glassPanel) Modifier.border(1.dp, GLASS_EDGE, RoundedCornerShape(16.dp)) else Modifier)
                             .pointerInput(t) {
@@ -257,10 +257,9 @@ fun PanelEditor(onDone: () -> Unit) {
                             .onPreviewKeyEvent { e ->
                                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                                 if (e.key == Key.ButtonY) { toggleHidden(t); return@onPreviewKeyEvent true }
-                                if (!isPicked) return@onPreviewKeyEvent false
-                                val per = if (t.section == PanelRow.SLIDER) 2 else cols
-                                val d = when (e.key) { Key.DirectionLeft -> -1; Key.DirectionRight -> 1; Key.DirectionUp -> -per; Key.DirectionDown -> per; else -> 0 }
-                                if (d == 0) false else { moveTo(t, indexOf(t) + d); runCatching { focus.getValue(t).requestFocus() }; true }
+                                // Con uno tomado, las flechas mueven el foco como siempre: la casilla enfocada se marca como
+                                // destino (igual que con el dedo) y A lo deja ahí.
+                                false
                             }
                             .graphicsLayer { alpha = if (hidden && !isPicked) 0.4f else 1f },
                             contentAlignment = Alignment.CenterStart) {

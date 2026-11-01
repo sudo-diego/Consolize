@@ -52,7 +52,7 @@ fun TabletHomePage(s: AppState, a: MainActivity) {
             ServiceWarning(s, a)
             ShizukuWarning(a)
             TabletNowTiles(a)
-            QuickTiles(s, a)
+            Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) { QuickTiles(s, a) }
         }
     }
 }
@@ -154,7 +154,7 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     // Los interruptores elegidos (con "+" se agregan o quitan). Lo que no se puede usar ahora sale translúcido y dice
     // qué le falta.
     if (s.quickPins.isEmpty()) return
-    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    run {
         s.quickPins.forEach { id -> when (id) {
             "q_bypass" -> if (ready) {
                 // Igual que en el panel: con algo automático son tres estados, Automático → Encendido → Apagado.
@@ -388,8 +388,20 @@ fun HomeSummary(s: AppState, a: MainActivity) {
         HomeHero(a)
         // Sin recientes ni la última captura (no aportaban y las recientes no abrían en algunas tablets): los
         // interruptores y los accesos, todos con la misma forma.
-        QuickTiles(s, a)
-        HomeAccess(s)
+        // Interruptores y accesos en una sola grilla pareja (antes, los accesos seguían hacia la derecha en una fila
+        // larga y el último bajaba solo, cortado): filas de igual largo, como mucho 7 por fila.
+        val pinsCount = s.homePins.count { id -> allEntries(s).any { it.id == id } }
+        val total = s.quickPins.size + pinsCount + 1
+        val rows = (total + 6) / 7
+        var picking by remember { mutableStateOf(false) }
+        @OptIn(ExperimentalLayoutApi::class)
+        FlowRow(maxItemsInEachRow = (total + rows - 1) / rows,
+            horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            QuickTiles(s, a)
+            HomeAccess(s) { picking = true }
+        }
+        if (picking) AccessPicker(s) { picking = false }
+        Spacer(Modifier.height(24.dp))
     }
     }
 }
@@ -462,16 +474,10 @@ private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, valu
 
 /** Accesos: lo fijado desde Más (Y), como íconos grandes con su nombre debajo; "+" lleva a Más para elegir. */
 @Composable
-private fun HomeAccess(s: AppState) {
+private fun HomeAccess(s: AppState, onEdit: () -> Unit) {
     val entries = allEntries(s).associateBy { it.id }
-    val pins = s.homePins.mapNotNull { entries[it] }
-    var picking by remember { mutableStateOf(false) }
-    @OptIn(ExperimentalLayoutApi::class)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        pins.forEach { e -> AccessIcon(e.icon, e.label()) { s.goDest(e.id) } }
-        AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true) { picking = true }
-    }
-    if (picking) AccessPicker(s) { picking = false }
+    s.homePins.mapNotNull { entries[it] }.forEach { e -> AccessIcon(e.icon, e.label()) { s.goDest(e.id) } }
+    AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true, onClick = onEdit)
 }
 
 /**

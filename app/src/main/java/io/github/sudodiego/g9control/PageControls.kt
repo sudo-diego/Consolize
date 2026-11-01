@@ -59,7 +59,7 @@ private val AutoRules.ComboAction.icon: ImageVector get() = when (this) {
     AutoRules.ComboAction.SHOT -> Icons.Outlined.Screenshot; AutoRules.ComboAction.BACK_HOLD -> Icons.AutoMirrored.Outlined.ArrowBack
     AutoRules.ComboAction.RECORD -> Icons.Outlined.Videocam; AutoRules.ComboAction.SHADOW -> Icons.Outlined.History
     AutoRules.ComboAction.PANEL -> Icons.Outlined.Dashboard; AutoRules.ComboAction.HOME -> Icons.Outlined.Home
-    AutoRules.ComboAction.RECENTS -> Icons.Outlined.Layers
+    AutoRules.ComboAction.RECENTS -> Icons.Outlined.Layers; AutoRules.ComboAction.ROTATE -> Icons.Outlined.ScreenRotation
 }
 
 /**
@@ -296,11 +296,19 @@ private fun ChordEditor(a: MainActivity, c: AutoRules.Chord) {
                 AutoRules.setChordKeys(a, c, keys.first, keys.second); slot = null
             }
         }
-        IconChips(listOf(Triple(AutoRules.Where.ALL, Icons.Outlined.Public, tr("En todas", "Everywhere")),
-            Triple(AutoRules.Where.ONLY, Icons.Outlined.CheckCircle, tr("Solo en…", "Only in…")),
-            Triple(AutoRules.Where.EXCEPT, Icons.Outlined.Block, tr("Menos en…", "Except in…"))), where) { where = it; AutoRules.setChordWhere(a, c, it) }
-        if (where != AutoRules.Where.ALL) AppsRow(if (where == AutoRules.Where.ONLY) tr("Apps", "Apps") else tr("Menos en", "Except in"), apps) {
-            apps = it; AutoRules.setChordApps(a, c, it)
+        // Aquí lo general (encendida en todas las apps); por juego se apaga o enciende en su ficha de la Biblioteca.
+        // Si hay alguna app con algo propio, se dice cuántas y se puede volver a "en todas".
+        if (where != AutoRules.Where.ALL && LocalEditable.current) {
+            val names = remember(apps) { apps.mapNotNull { p -> runCatching { a.packageManager.getApplicationLabel(a.packageManager.getApplicationInfo(p, 0)).toString() }.getOrNull() } }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(if (where == AutoRules.Where.ONLY) Icons.Outlined.CheckCircle else Icons.Outlined.Block, null, Modifier.size(18.dp), tint = col.primary)
+                Spacer(Modifier.width(8.dp))
+                Text((if (where == AutoRules.Where.ONLY) tr("Solo en: ", "Only in: ") else tr("Menos en: ", "Except in: ")) +
+                    (names.joinToString(", ").ifEmpty { tr("ninguna", "none") }), fontSize = 13.sp, color = cardMuted(), modifier = Modifier.weight(1f, fill = false))
+                TextButton(onClick = { where = AutoRules.Where.ALL; AutoRules.setChordWhere(a, c, AutoRules.Where.ALL) }) {
+                    Icon(Icons.Outlined.Public, null, Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text(tr("En todas", "Everywhere"))
+                }
+            }
         }
     }
 }

@@ -265,6 +265,12 @@ class MainActivity : ComponentActivity() {
         val handled = super.dispatchKeyEvent(e)
         // La cruceta suena solo si movió el foco (Compose dice false en el tope): mantenerla en el borde no repite el sonido.
         if (handled && e.action == KeyEvent.ACTION_DOWN && e.keyCode in DPAD_KEYS && !s.capturing) UiSounds.play(this, UiSounds.Kind.MOVE)
+        // Abajo (o arriba) sin nada más que enfocar: la página se desplaza hasta el final (o el principio). Así se ve lo
+        // que no se enfoca (los datos de Batería al final, por ejemplo).
+        if (!handled && e.action == KeyEvent.ACTION_DOWN) when (e.keyCode) {
+            KeyEvent.KEYCODE_DPAD_DOWN -> s.pageEdge?.invoke(1)
+            KeyEvent.KEYCODE_DPAD_UP -> s.pageEdge?.invoke(-1)
+        }
         return handled
     }
     private val DPAD_KEYS = setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)
@@ -1244,6 +1250,8 @@ class AppState {
     var lightsChangedAt by mutableStateOf(0L)
     /** Prueba de botones en curso (se entra a propósito con "Probar botones"). */
     var testMode by mutableStateOf(false)
+    /** La página abierta: desplazarse hasta el final (1) o el principio (-1). La pone PageHost. */
+    var pageEdge: ((Int) -> Unit)? = null
     /** Los botones del control se usan para probar o grabar, no para navegar. */
     val capturing get() = testMode || macroRecording
     /** El dedo está sobre algún slider. */

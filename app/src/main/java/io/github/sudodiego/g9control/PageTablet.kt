@@ -9,6 +9,8 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,15 +28,81 @@ import kotlinx.coroutines.launch
 /** Batería: bypass, automático y límite de carga; a la derecha cómo está ahora. */
 @Composable
 fun BatteryPage(s: AppState, a: MainActivity) {
+    // Arriba, la batería grande y cómo está ahora (antes al final, y con la cruceta no se llegaba a verla); debajo, lo
+    // que se configura.
+    BatteryHero(a)
     TwoPane(
-        first = {
-            BatteryPanel(s, a)
-            Gate(s.autoServiceOn) { LowBatteryPanel(a) }
-            ShizukuHint()
-        },
-        // Consumo por app y sesiones: en Sistema → Uso, junto a las apps abiertas.
-        second = { BatteryNowPanel(a) }
+        first = { BatteryPanel(s, a); ShizukuHint() },
+        second = { Gate(s.autoServiceOn) { LowBatteryPanel(a) } }
     )
+}
+
+/** La batería dibujada en grande (se llena con el nivel, con rayo al cargar) y sus datos al lado, en chips. */
+@Composable
+private fun BatteryHero(a: MainActivity) {
+    var now by remember { mutableStateOf(batteryNow(a)) }
+    var watts by remember { mutableStateOf<Double?>(null) }
+    LaunchedEffect(Unit) { while (true) { now = batteryNow(a); watts = ZuiBattery.watts(a); delay(3000) } }
+    val b = now ?: return
+    val c = MaterialTheme.colorScheme
+    val bypass = b.plugged && !b.charging && ZuiBattery.bypassNow == true && Shell.state == Shell.State.READY
+    val state = when {
+        bypass -> "Bypass"
+        b.plugged && !b.charging -> tr("Enchufada, sin cargar", "Plugged in, not charging")
+        b.charging -> tr("Cargando", "Charging")
+        else -> tr("Con batería", "On battery")
+    }
+    val low = b.level <= 15 && !b.plugged
+    Panel {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.foundation.Canvas(Modifier.size(width = 150.dp, height = 74.dp)) {
+                val st = 4.dp.toPx(); val cap = 10.dp.toPx(); val r = 14.dp.toPx()
+                val body = androidx.compose.ui.geometry.Size(size.width - cap - st, size.height - st)
+                val tl = androidx.compose.ui.geometry.Offset(st / 2, st / 2)
+                drawRoundRect(c.onSurface.copy(alpha = 0.7f), tl, body, androidx.compose.ui.geometry.CornerRadius(r), style = androidx.compose.ui.graphics.drawscope.Stroke(st))
+                drawRoundRect(c.onSurface.copy(alpha = 0.7f), androidx.compose.ui.geometry.Offset(size.width - cap, size.height * 0.32f),
+                    androidx.compose.ui.geometry.Size(cap * 0.7f, size.height * 0.36f), androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
+                val pad = st + 4.dp.toPx()
+                val fillW = (body.width - 2 * pad + st) * (b.level / 100f)
+                drawRoundRect(if (low) c.error else c.primary, androidx.compose.ui.geometry.Offset(pad, pad),
+                    androidx.compose.ui.geometry.Size(fillW, size.height - 2 * pad), androidx.compose.ui.geometry.CornerRadius(r - pad / 2))
+            }
+            Spacer(Modifier.width(24.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("${b.level}", fontSize = 52.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, lineHeight = 52.sp)
+                    Text(" %", fontSize = 22.sp, modifier = Modifier.padding(bottom = 8.dp))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (b.charging || bypass || b.plugged) { Icon(if (b.charging) Icons.Outlined.Bolt else Icons.Outlined.Power, null, Modifier.size(18.dp), tint = c.primary); Spacer(Modifier.width(6.dp)) }
+                    Text(state, fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                }
+            }
+            // Los datos, en chips con ícono.
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(Modifier.widthIn(max = 420.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                HeroChip(Icons.Outlined.Thermostat, "%.1f °C".format(b.tempC), tr("Temperatura", "Temperature"))
+                if (!(b.plugged && !b.charging)) watts?.let { HeroChip(Icons.Outlined.Bolt, (if (b.charging) "+" else "") + "%.1f W".format(it), if (b.charging) tr("Entra", "Charging at") else tr("Consumo", "Draw")) }
+                if (!b.plugged) PowerLog.recentAvg?.let { HeroChip(Icons.Outlined.Speed, "%.1f W".format(it), tr("Último minuto", "Last minute")) }
+                if (!b.plugged) ZuiBattery.estimatedLeft(a)?.let { HeroChip(Icons.Outlined.Schedule, ZuiBattery.formatTime(it), tr("Quedan", "Left")) }
+                if (b.cycles >= 0) HeroChip(Icons.Outlined.Autorenew, "${b.cycles}", tr("Ciclos", "Cycles"))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroChip(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String) {
+    val c = MaterialTheme.colorScheme
+    Row(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.onSurface.copy(alpha = 0.05f)).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(20.dp), tint = c.primary)
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(value, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+            Text(label, fontSize = 11.sp, color = c.onSurfaceVariant, maxLines = 1)
+        }
+    }
 }
 
 /**
@@ -287,6 +355,9 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                 ChoiceRow(tr("Límite de carga", "Charge limit"), listOf(0 to tr("Apagado", "Off")) + ZuiBattery.LIMITS.map { it to "$it %" }, own) { lv ->
                     own = lv; ZuiBattery.setOwnLimit(a, lv.takeIf { it > 0 })
                 }
+                // Cómo funciona el límite propio: lo vigila la app, así que solo corta mientras está corriendo.
+                if (own > 0) Hint(tr("Lo vigila Consolize (con Shizuku y el servicio activos): si la tablet se apaga o se reinicia, no corta hasta que la app vuelva a correr.",
+                    "Consolize watches it (Shizuku and the service on): if the tablet powers off or restarts, it won't stop until the app runs again."), Icons.Outlined.Info)
                 // Sin explicar el de ZUI: las opciones dicen solas dónde corta. Solo el aviso si el del sistema no deja llegar.
                 if (own > 80 && limit != null) Hint(tr("El límite del sistema corta antes ($limit %).", "The system limit stops earlier ($limit %)."))
             }
@@ -397,6 +468,13 @@ private fun ScreenButtonsPanel(s: AppState, a: MainActivity) {
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
         Panel(tr("Pantalla", "Screen")) {
             ScreenRow(a)
+            // El mosaico Rotar del panel (y la combinación con la guía, si se elige): entre qué orientaciones va.
+            var cycle by remember { mutableStateOf(Rotation.cycle(a)) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Outlined.ScreenRotation, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(tr("Rotar", "Rotate"), fontSize = 14.sp)
+                ChoiceChips(Rotation.Cycle.entries.map { it to it.label }, cycle) { cycle = it; Rotation.setCycle(a, it) }
+            }
         }
     }
 }

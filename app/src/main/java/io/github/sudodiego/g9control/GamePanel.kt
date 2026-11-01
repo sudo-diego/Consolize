@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Crop
+import androidx.compose.material.icons.outlined.ScreenRotation
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.AirplanemodeActive
 import androidx.compose.material.icons.outlined.AirplanemodeInactive
@@ -1052,6 +1053,12 @@ class GamePanel(private val svc: AutoModeService) {
                 crossfade { showAspectMenu(pkg) }
             })
         }
+        // Rotar: el siguiente según lo elegido (Panel → Qué se muestra); mantener (o Y) vuelve a la automática.
+        addTile(PanelTile.ROTATE, PanelItem(tr("Rotar", "Rotate"), Icons.Outlined.ScreenRotation, PanelRow.SCREEN,
+            sub = Rotation.label(Rotation.locked, svc), active = Rotation.locked != null,
+            alt = { scope.launch { Rotation.set(svc, null) }; hide() }) {
+            scope.launch { Rotation.next(svc) }
+        })
         // Con un monitor en espejo y la pantalla de la tablet oscurecida (o encendida a mano): verla un rato o volver.
         if (Monitor.screen(svc) != Monitor.Screen.NORMAL && Monitor.current(svc) != null && Monitor.mirror(svc)) {
             val dark = svc.tabletDark

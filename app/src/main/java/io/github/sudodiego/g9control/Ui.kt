@@ -42,6 +42,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.shrinkVertically
@@ -587,6 +588,12 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     ) { (screenDest, section, pageOrHub, sub, only) ->
         val page = pageOrHub ?: s.page
         val scroll = rememberScrollState()
+        val edgeScope = rememberCoroutineScope()
+        if (pageOrHub != null) DisposableEffect(Unit) {
+            val f: (Int) -> Unit = { d -> edgeScope.launch { scroll.animateScrollTo(if (d > 0) scroll.maxValue else 0) } }
+            s.pageEdge = f
+            onDispose { if (s.pageEdge === f) s.pageEdge = null }
+        }
         // Al abrir un menú, el foco entra a su primera opción (si no, se perdía y saltaba a la barra lateral).
         val enter = remember { FocusRequester() }
         // Al entrar a cualquier pantalla (mosaicos, página, menú) el foco va a lo primero, salvo que una fila lo recupere.

@@ -105,9 +105,14 @@ object Shell {
     fun wideList(v: String) = if (v.isEmpty()) "settings delete system enable_wide_field_packages" else "settings put system enable_wide_field_packages $v"
     private val WIDE_LIST = Regex("settings (put system enable_wide_field_packages [A-Za-z0-9_.:]+|delete system enable_wide_field_packages)")
 
+    /** Rotación: fija una (sin rotación automática) o vuelve a la automática. */
+    fun autoRotate(on: Boolean) = "settings put system accelerometer_rotation ${if (on) 1 else 0}"
+    fun userRotation(r: Int) = "settings put system user_rotation $r"
+    private val ROTATION = Regex("settings put system (accelerometer_rotation [01]|user_rotation [0-3])")
+
     private fun allowed(cmd: String) =
         cmd in setOf(GA_GET, GA_SHOW, GA_HIDE, GA_LOG, BYPASS_GET, BYPASS_ON, BYPASS_OFF, LIMIT_GET, LIMIT_LEVEL, BACK_LONG, SF_LIST,
-            WIFI_ON, WIFI_OFF, BT_ON, BT_OFF, PLANE_ON, PLANE_OFF, PROCESSES, MEDIA_PROJ, TOP, RA_PROXY, RA_CFG, RA64_CFG, DOLPHIN_RA) || TOUCH.matches(cmd) || STOP_APP.matches(cmd) || PIDOF.matches(cmd) || WM_SIZE.matches(cmd) || SF_LATENCY.matches(cmd) || REFRESH.matches(cmd) || WIDE_SET.matches(cmd) || WIDE_LIST.matches(cmd) || cmd == INPUT_LIST ||
+            WIFI_ON, WIFI_OFF, BT_ON, BT_OFF, PLANE_ON, PLANE_OFF, PROCESSES, MEDIA_PROJ, TOP, RA_PROXY, RA_CFG, RA64_CFG, DOLPHIN_RA) || TOUCH.matches(cmd) || STOP_APP.matches(cmd) || PIDOF.matches(cmd) || WM_SIZE.matches(cmd) || SF_LATENCY.matches(cmd) || REFRESH.matches(cmd) || WIDE_SET.matches(cmd) || WIDE_LIST.matches(cmd) || ROTATION.matches(cmd) || cmd == INPUT_LIST ||
             (app != null && cmd.startsWith(screenCmd("")) && SCREEN.matches(cmd.removePrefix(screenCmd(""))))
 
     /** Para Ajustes (Compose lo vuelve a leer al cambiar). */
