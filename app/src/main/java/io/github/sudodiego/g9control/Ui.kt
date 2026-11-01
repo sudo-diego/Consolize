@@ -599,7 +599,8 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
                 .padding(horizontal = 36.dp).padding(top = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            PageTitle(s, section, sub)
+            // Lo abierto desde el dock no lleva título: el dock ya dice dónde se está. Lo abierto desde Más sí.
+            if (!s.rootPage) PageTitle(s, section, sub)
             // Páginas que no hacen nada sin el servicio de accesibilidad (dibujar sobre los juegos, leer el control en
             // cualquier app, pedir la frecuencia): lo dicen arriba, con el botón para activarlo.
             if (page in SERVICE_PAGES && !s.autoServiceOn) NeedsBanner(

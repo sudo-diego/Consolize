@@ -291,7 +291,7 @@ internal val glassPanel get() = ThemeState.panelBackground != PanelBackground.PL
 // Transparente: los mosaicos llevan más cuerpo para leerse sobre cualquier juego.
 internal val TILE_CLEAR get() = if (light) Color(0xD0F4F7FC) else Color(0xB8141C30)
 /** Halo de los textos sueltos (secciones, hora, la línea de abajo): se leen sobre cualquier imagen o juego. */
-internal val LABEL_STYLE get() = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(
+internal val LABEL_STYLE get() = androidx.compose.ui.text.TextStyle(fontFamily = Nunito, shadow = androidx.compose.ui.graphics.Shadow(
     if (light) Color(0xE6FFFFFF) else Color(0xB3000000), blurRadius = 8f))
 /** Velo sobre el degradado o la imagen, para que se lea el texto. */
 internal val PANEL_VEIL get() = if (light) Color(0x99EEF2F8) else Color(0x660A0F1F)

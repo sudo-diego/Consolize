@@ -99,3 +99,5 @@ Without a `keystore.properties` file the release is signed with the debug key.
 ## License
 
 [GPL-3.0](LICENSE).
+
+The app font is [Nunito](https://github.com/googlefonts/nunito) (SIL Open Font License 1.1).

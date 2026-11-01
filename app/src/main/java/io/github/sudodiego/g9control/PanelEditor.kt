@@ -113,7 +113,16 @@ fun PanelEditor(onDone: () -> Unit) {
 
     // Con el aspecto del panel de verdad (sus colores y su fondo), y las filas repartidas como en él.
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Column(Modifier.clip(RoundedCornerShape(24.dp)).background(PANEL_BG).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    // Detrás, lo mismo que el panel de verdad: su fondo (liso, degradado, imagen o transparente sobre el juego de muestra).
+    Box(Modifier.clip(RoundedCornerShape(24.dp))) {
+    Box(Modifier.matchParentSize()) {
+        GameScene(Modifier.fillMaxSize())
+        androidx.compose.runtime.CompositionLocalProvider(LocalPreviewScene provides { GameScene(Modifier.fillMaxSize()) }) {
+            if (ThemeState.panelBackground == PanelBackground.PLAIN) Box(Modifier.fillMaxSize().background(PANEL_BG)) else PanelBackdrop()
+        }
+        if (glassPanel) Box(Modifier.fillMaxSize().background(PANEL_VEIL))
+    }
+    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ThemeState.panelSections.forEach { sec -> key(sec) {
             val tiles = ThemeState.panelTileOrder.filter { it.section == sec }
             val secSrc = remember { MutableInteractionSource() }
@@ -162,7 +171,7 @@ fun PanelEditor(onDone: () -> Unit) {
                     .padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.DragIndicator, null, Modifier.size(18.dp), tint = if (secLifted) PANEL_ACCENT else PANEL_MUTED)
                     Spacer(Modifier.width(6.dp))
-                    Text(sec.label.uppercase(), fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold,
+                    Text(sec.label.uppercase(), fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, style = LABEL_STYLE,
                         color = if (secLifted) PANEL_ACCENT else PANEL_MUTED)
                 }
                 // Todos los mosaicos de la sección en el mismo contenedor: al cambiar de fila no se corta el arrastre.
@@ -181,7 +190,7 @@ fun PanelEditor(onDone: () -> Unit) {
                             spring(dampingRatio = 0.6f, stiffness = 500f), label = "lift")
                         val tSlide = rememberSlide()
                         val r = bounds[t]
-                        Box(Modifier.weight(1f).height(60.dp)
+                        Box(Modifier.weight(1f).height(TILE_H)
                             .onGloballyPositioned { bounds[t] = it.boundsInRoot(); tSlide.moved(it.positionInParent(), isDragged) }
                             .zIndex(if (isDragged) 10f else if (isPicked) 5f else 0f)
                             .graphicsLayer {
@@ -194,8 +203,9 @@ fun PanelEditor(onDone: () -> Unit) {
                             }
                             .focusRequester(focus.getValue(t))
                             .clip(RoundedCornerShape(16.dp))
-                            .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(TILE, PANEL_ACCENT, 0.35f) else TILE)
-                            .then(if (focused || isPicked) Modifier.border(2.dp, if (isPicked) PANEL_ACCENT else SELECTED, RoundedCornerShape(16.dp)) else Modifier)
+                            .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(tileColor, PANEL_ACCENT, 0.35f) else tileColor)
+                            .then(if (focused || isPicked) Modifier.border(2.dp, if (isPicked) PANEL_ACCENT else SELECTED, RoundedCornerShape(16.dp))
+                                else if (glassPanel) Modifier.border(1.dp, GLASS_EDGE, RoundedCornerShape(16.dp)) else Modifier)
                             .pointerInput(t) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { p -> val b = bounds[t] ?: return@detectDragGesturesAfterLongPress
@@ -232,11 +242,11 @@ fun PanelEditor(onDone: () -> Unit) {
                             .graphicsLayer { alpha = if (hidden && !isPicked) 0.4f else 1f },
                             contentAlignment = Alignment.CenterStart) {
                             Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(PANEL_FG.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
-                                    Icon(t.icon, null, Modifier.size(19.dp), tint = PANEL_FG.copy(alpha = 0.85f))
+                                Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(PANEL_FG.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
+                                    Icon(t.icon, null, Modifier.size(20.dp), tint = PANEL_FG.copy(alpha = 0.85f))
                                 }
                                 Spacer(Modifier.width(10.dp))
-                                Text(t.label, Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = PANEL_FG, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(t.label, Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = PANEL_FG, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 // El ojo solo en el elegido (para ocultarlo con el dedo) y en los ocultos (para mostrarlos): en todos
                                 // mareaba.
                                 if (focused || isPicked || hidden) Icon(if (hidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null,
@@ -248,6 +258,7 @@ fun PanelEditor(onDone: () -> Unit) {
                 }
             }
         } }
+    }
     }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             PadBadge("A", round = true); Spacer(Modifier.width(6.dp))

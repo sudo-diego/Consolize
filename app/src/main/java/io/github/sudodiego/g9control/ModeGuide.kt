@@ -251,7 +251,7 @@ class ModeGuide(private val ctx: AccessibilityService) {
         val cv = ComposeView(ctx).apply {
             setViewTreeLifecycleOwner(o)
             setViewTreeSavedStateRegistryOwner(o)
-            setContent { GuideOverlay(ui) { escape() } }
+            setContent { AppFont { GuideOverlay(ui) { escape() } } }
         }
         // La ventana cubre la pantalla y el aviso se ubica dentro (así sus animaciones no quedan recortadas).
         // Con bloqueo recibe los toques (no pasan al juego); sin bloqueo los deja pasar todos.

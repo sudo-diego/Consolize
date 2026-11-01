@@ -273,16 +273,37 @@ private fun MoreHub(s: AppState) {
                 Surface(
                     onClick = { open = i }, interactionSource = src,
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
-                    modifier = Modifier.weight(1f).height(200.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
+                    modifier = Modifier.weight(1f).height(260.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
                         .graphicsLayer { alpha = if (open != null && open != i) 0.3f else 1f }
                         .focusLift(focused, src, 1.04f).bump(RoundedCornerShape(24.dp)).focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
-                    Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
-                        // Un ícono grande de línea, del color del texto (con el foco, del acento).
-                        Icon(MORE_ICONS[i], null, Modifier.size(52.dp), tint = if (focused) MaterialTheme.colorScheme.primary else cardOn().copy(alpha = 0.85f))
-                        Spacer(Modifier.weight(1f))
-                        // Solo el nombre (lo que tiene se ve al abrirlo).
-                        Text(name, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                    Column(Modifier.padding(14.dp)) {
+                        // Como un canal de consola: en vez de un ícono suelto, una ventanita con los íconos de lo que
+                        // tiene adentro (los mismos de su menú). Con el foco la ventanita toma el acento.
+                        val acc = MaterialTheme.colorScheme.primary
+                        val win = androidx.compose.animation.animateColorAsState(
+                            if (focused) acc else acc.copy(alpha = 0.12f), label = "ventana").value
+                        Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(win),
+                            contentAlignment = Alignment.Center) {
+                            val shown = items.take(4)
+                            val extra = items.size - shown.size
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                shown.chunked(2).forEachIndexed { r, row ->
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        row.forEachIndexed { j, e ->
+                                            val last = r == 1 && j == 1 && extra > 0
+                                            Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(cardBase()),
+                                                contentAlignment = Alignment.Center) {
+                                                if (last) Text("+${extra + 1}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = acc)
+                                                else Icon(e.icon, null, Modifier.size(28.dp), tint = acc)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text(name, fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp, bottom = 2.dp))
                     }
                 }
             }
@@ -432,8 +453,9 @@ fun EntryTile(s: AppState, e: Entry, modifier: Modifier, pins: Boolean = false) 
             } else Modifier)
     ) {
         Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(cardOn().copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                Icon(e.icon, null, Modifier.size(22.dp), tint = cardOn().copy(alpha = 0.85f))
+            // Los mismos íconos de la ventanita del tema: del acento, sobre un tinte del acento.
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                Icon(e.icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.width(12.dp))
             Text(label, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)

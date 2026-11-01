@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.DisplaySettings
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -148,9 +149,11 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
     // Cada pocos segundos, como en Batería: el bypass automático lo cambia solo (al salir de un juego quedaba "Encendido").
     LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; tick++; kotlinx.coroutines.delay(3000) } }
-    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-        // Sin Shizuku el bypass no se puede cambiar: no sale (el aviso de arriba lo dice). Igual que en el panel: con algo
-        // automático (bypass automático o límite propio) son tres estados, Automático → Encendido → Apagado → Automático.
+    // Siempre los mismos cuatro círculos (antes Bypass y 16:9 desaparecían sin Shizuku y quedaba solo Monitor):
+    // lo que no se puede usar ahora sale translúcido y dice qué le falta.
+    Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        // Igual que en el panel: con algo automático (bypass automático o límite propio) son tres estados,
+        // Automático → Encendido → Apagado → Automático.
         if (ready) {
             val hasAuto = AutoRules.smartBypass(a) || ZuiBattery.ownLimit(a) != null
             val isAuto = remember(tick, bypass) { hasAuto && !ZuiBattery.manualOverride }
@@ -170,18 +173,22 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
                     tick++
                 }
             }
-        }
+        } else QuickTile(Icons.Outlined.Power, "Bypass", tr("Necesita Shizuku", "Needs Shizuku"), false, Modifier, enabled = false) {}
         // El monitor lo dibuja el servicio de accesibilidad: sin él no se puede encender.
         QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else { tick; AutoRules.hudLabel(a) },
             hud && service, Modifier, enabled = service) { AutoRules.cycleHud(a); hud = AutoRules.perfHud(a); tick++ }
-        if (Aspect.available(a)) QuickTile(Icons.Outlined.AspectRatio, "16:9", if (wide) tr("Encendido", "On") else tr("Apagado", "Off"), wide,
-            Modifier) {
+        val aspectOk = Aspect.available(a)
+        QuickTile(Icons.Outlined.AspectRatio, "16:9", if (!aspectOk) tr("Necesita Shizuku", "Needs Shizuku") else if (wide) tr("Encendido", "On") else tr("Apagado", "Off"),
+            wide && aspectOk, Modifier, enabled = aspectOk) {
             scope.launch {
                 Aspect.toggle(a)
                 delay(500)
                 wide = Aspect.is169(a)
             }
         }
+        // El panel de juego, sin el control (lo abre el servicio).
+        QuickTile(Icons.Outlined.SpaceDashboard, tr("Panel", "Panel"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else tr("Abrir", "Open"),
+            false, Modifier, enabled = service) { AutoModeService.active?.openPanel() }
     }
 }
 
@@ -360,20 +367,16 @@ private fun android.graphics.drawable.Drawable.toBitmapSafe(): android.graphics.
  */
 @Composable
 fun HomeSummary(s: AppState, a: MainActivity) {
-    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(34.dp)) {
+    // Todo centrado y en filas, como el menú de una consola: arriba la tablet de un vistazo (una barra), luego volver a
+    // lo último, los interruptores redondos y tus accesos. Antes iba en dos columnas y quedaba un hueco en medio.
+    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(36.dp)) {
         ServiceWarning(s, a)
         ShizukuWarning(a)
-        // A la izquierda lo que se usa (volver a una app, la última captura, los ajustes rápidos y tus accesos); a la
-        // derecha, cómo está la tablet.
-        Row(verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(30.dp)) {
-                HomeRecents(a)
-                QuickTiles(s, a)
-                HomeAccess(s)
-            }
-            Spacer(Modifier.width(40.dp))
-            HomeHero(a)
-        }
+        HomeHero(a)
+        HomeRecents(a)
+        QuickTiles(s, a)
+        HomeAccess(s)
     }
 }
 
@@ -399,16 +402,18 @@ private fun HomeHero(a: MainActivity) {
     val w = remember(tick) { ZuiBattery.watts(a) }
     val cpu = remember(tick) { Stats.cpuMhz() }
     val hz = remember(tick) { RefreshRate.current(a) }
-    // A la derecha, en columna: la batería (en una línea: ya está grande arriba) y los datos del mini monitor.
-    Column(Modifier.width(250.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    // Una barra de vidrio arriba (como la de estado de una consola): la batería y los datos del mini monitor en fila.
+    val shape = RoundedCornerShape(28.dp)
+    Row(Modifier.bump(shape).clip(shape).background(cardColor()).padding(horizontal = 22.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(width = 30.dp, height = 22.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.graphicsLayer { scaleX = 1.1f; scaleY = 1.1f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held, ink = backdropOn(), accent = c.primary) }
+                Box(Modifier.graphicsLayer { scaleX = 1.1f; scaleY = 1.1f }) { BatteryGlyph(b.level, b.charging && !bypass, bypass, held, ink = cardOn(), accent = c.primary) }
             }
             Spacer(Modifier.width(10.dp))
             Column {
-                Text("${b.level} %", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = backdropOn())
-                Text(sub, fontSize = 11.sp, color = backdropMuted(), maxLines = 1)
+                Text("${b.level} %", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = cardOn())
+                Text(sub, fontSize = 11.sp, color = cardMuted(), maxLines = 1)
             }
         }
         // RAM: la usada de toda (o la libre); se cambia tocándola.
@@ -435,8 +440,8 @@ private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, valu
         Icon(icon, null, Modifier.size(22.dp), tint = c.primary)
         Spacer(Modifier.width(10.dp))
         Column {
-            Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else backdropOn())
-            if (label != null) Text(label, fontSize = 11.sp, color = backdropMuted(), maxLines = 1)
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, color = if (accent) c.primary else cardOn())
+            if (label != null) Text(label, fontSize = 11.sp, color = cardMuted(), maxLines = 1)
         }
     }
 }
@@ -447,7 +452,7 @@ private fun HomeAccess(s: AppState) {
     val entries = allEntries(s).associateBy { it.id }
     val pins = s.homePins.mapNotNull { entries[it] }
     @OptIn(ExperimentalLayoutApi::class)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         pins.forEach { e -> AccessIcon(e.icon, e.label()) { s.goDest(e.id) } }
         AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true) { s.goDest(Dest.MORE) }
     }
@@ -501,7 +506,7 @@ private fun HomeRecents(a: MainActivity) {
     var shot by remember { mutableStateOf<Pair<android.net.Uri, androidx.compose.ui.graphics.ImageBitmap>?>(null) }
     LaunchedEffect(tick) { shot = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { latestShot(a) } }
     if (recents.isEmpty() && shot == null) return
-    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.Top) {
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.Top) {
         recents.forEach { pkg ->
             val icon = remember(pkg) { RecentApps.icon(a, pkg) }
             AppIconTile(icon, RecentApps.label(a, pkg)) { RecentApps.open(a, pkg) }

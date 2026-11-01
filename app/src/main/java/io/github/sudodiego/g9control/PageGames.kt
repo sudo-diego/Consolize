@@ -92,10 +92,10 @@ fun GamesPage(s: AppState, a: MainActivity) {
             Segmented(listOf(false to tr("Juegos", "Games"), true to tr("Todas las apps", "All apps")), all) { all = it }
             when {
                 // Cargando: esqueletos que laten (la forma de lo que viene, en vez de un "Cargando…").
-                apps == null -> SkeletonGrid(12, pulse = true)
+                apps == null -> SkeletonGrid(rows = 4, pulse = true)
                 // Sin juegos: la forma de la biblioteca, tenue, y qué hacer.
                 list.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    SkeletonGrid(6, pulse = false)
+                    SkeletonGrid(rows = 2, pulse = false)
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(tr("No hay juegos instalados", "No games installed"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = backdropOn())
                         TextButton(onClick = { all = true }) { Text(tr("Ver todas las apps", "Show all apps")) }
@@ -167,19 +167,28 @@ private fun GameTile(a: MainActivity, s: AppState, g: GameEntry, sel: Boolean, m
 
 /** Esqueletos de la biblioteca: cuadrados y rayas con la forma de los juegos; [pulse] los hace latir (cargando). */
 @Composable
-private fun SkeletonGrid(n: Int, pulse: Boolean) {
+private fun SkeletonGrid(rows: Int, pulse: Boolean) {
     val alpha = if (pulse) {
         val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "esqueleto")
         t.animateFloat(0.35f, 0.75f, androidx.compose.animation.core.infiniteRepeatable(
             androidx.compose.animation.core.tween(800), androidx.compose.animation.core.RepeatMode.Reverse), label = "late").value
     } else 0.25f
     val col = cardColor()
-    FlowRow(Modifier.graphicsLayer { this.alpha = alpha }, horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        repeat(n) {
-            Column(Modifier.width(120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.size(96.dp).bump(RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(col))
-                Spacer(Modifier.height(10.dp))
-                Box(Modifier.size(width = 72.dp, height = 10.dp).clip(RoundedCornerShape(5.dp)).background(col))
+    // Filas completas del ancho disponible (antes eran 12 sueltos y quedaban dos filas a medias);
+    // cada fila un poco más tenue, como si la biblioteca siguiera hacia abajo.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val perRow = ((maxWidth + 20.dp) / 140.dp).toInt().coerceAtLeast(1)
+        Column(Modifier.graphicsLayer { this.alpha = alpha }, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            repeat(rows) { r ->
+                Row(Modifier.graphicsLayer { this.alpha = 1f - r * (0.6f / rows) }, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    repeat(perRow) {
+                        Column(Modifier.width(120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(Modifier.size(96.dp).bump(RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(col))
+                            Spacer(Modifier.height(10.dp))
+                            Box(Modifier.size(width = 72.dp, height = 10.dp).clip(RoundedCornerShape(5.dp)).background(col))
+                        }
+                    }
+                }
             }
         }
     }

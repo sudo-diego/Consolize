@@ -183,7 +183,7 @@ fun PanelPreview() {
  * de un juego; queda solo en la tablet). Como cuadro fijo y más chica: es una miniatura.
  */
 @Composable
-private fun GameScene(modifier: Modifier) {
+internal fun GameScene(modifier: Modifier) {
     val ctx = LocalContext.current
     val uri = ThemeState.previewUri
     var bmp by remember(uri) { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }

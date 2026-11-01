@@ -1791,7 +1791,7 @@ class GamePanel(private val svc: AutoModeService) {
         val cv = ComposeView(svc).apply {
             setViewTreeLifecycleOwner(o)
             setViewTreeSavedStateRegistryOwner(o)
-            setContent {
+            setContent { AppFont {
                 // Aparece desvaneciéndose (la animación de la ventana sola no siempre se ve al abrir).
                 val alpha = remember { androidx.compose.animation.core.Animatable(0f) }
                 LaunchedEffect(Unit) { alpha.animateTo(1f, androidx.compose.animation.core.tween(160)) }
@@ -1821,7 +1821,7 @@ class GamePanel(private val svc: AutoModeService) {
                     )
                     }
                 }
-            }
+            } }
         }
         // Desde el principio con el ancho de la tarjeta (con WRAP_CONTENT Android la mide con el ancho de un diálogo,
         // ~580 dp, y se cortaba; con todo el ancho y achicándola después, ZUI animaba el cambio como un deslizamiento).

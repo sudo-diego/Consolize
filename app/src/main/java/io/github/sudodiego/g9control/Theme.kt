@@ -324,6 +324,7 @@ fun G9Theme(content: @Composable () -> Unit) {
     }
     MaterialTheme(
         colorScheme = withCards(scheme),
+        typography = AppTypography,
         shapes = Shapes(
             small = RoundedCornerShape(10.dp),
             medium = RoundedCornerShape(16.dp),
@@ -331,4 +332,31 @@ fun G9Theme(content: @Composable () -> Unit) {
         ),
         content = content
     )
+}
+
+/** Fuente de la app: Nunito (redondeada, de consola; licencia OFL). */
+val Nunito = androidx.compose.ui.text.font.FontFamily(
+    androidx.compose.ui.text.font.Font(R.font.nunito_regular, androidx.compose.ui.text.font.FontWeight.Normal),
+    androidx.compose.ui.text.font.Font(R.font.nunito_medium, androidx.compose.ui.text.font.FontWeight.Medium),
+    androidx.compose.ui.text.font.Font(R.font.nunito_semibold, androidx.compose.ui.text.font.FontWeight.SemiBold),
+    androidx.compose.ui.text.font.Font(R.font.nunito_bold, androidx.compose.ui.text.font.FontWeight.Bold),
+)
+
+val AppTypography: Typography = Typography().let { t ->
+    fun androidx.compose.ui.text.TextStyle.n() = copy(fontFamily = Nunito)
+    t.copy(
+        displayLarge = t.displayLarge.n(), displayMedium = t.displayMedium.n(), displaySmall = t.displaySmall.n(),
+        headlineLarge = t.headlineLarge.n(), headlineMedium = t.headlineMedium.n(), headlineSmall = t.headlineSmall.n(),
+        titleLarge = t.titleLarge.n(), titleMedium = t.titleMedium.n(), titleSmall = t.titleSmall.n(),
+        bodyLarge = t.bodyLarge.n(), bodyMedium = t.bodyMedium.n(), bodySmall = t.bodySmall.n(),
+        labelLarge = t.labelLarge.n(), labelMedium = t.labelMedium.n(), labelSmall = t.labelSmall.n(),
+    )
+}
+
+/** Para las ventanas del servicio (panel, avisos), que no pasan por G9Theme. */
+@Composable
+fun AppFont(content: @Composable () -> Unit) {
+    MaterialTheme(typography = AppTypography) {
+        ProvideTextStyle(LocalTextStyle.current.copy(fontFamily = Nunito), content)
+    }
 }
