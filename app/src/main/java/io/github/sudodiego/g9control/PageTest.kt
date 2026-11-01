@@ -207,7 +207,14 @@ private fun TestPanel(s: AppState) {
             }
             if (s.testMode) {
                 TextButton(onClick = { s.testedKeys.clear(); s.otherKeys.clear() }) { Text(tr("Reiniciar", "Reset")) }
-                FilledTonalButton(onClick = { s.testMode = false }) { Text(tr("Terminar", "Finish")) }
+                // Junto a Terminar: B con su aro, que se llena mientras se mantiene (1 s sale de la prueba).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HoldBadge(s.bHold)
+                    Spacer(Modifier.width(6.dp))
+                    Text(tr("1 s", "1 s"), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(12.dp))
+                    FilledTonalButton(onClick = { s.testMode = false }) { Text(tr("Terminar", "Finish")) }
+                }
             } else Button(onClick = { s.testedKeys.clear(); s.otherKeys.clear(); s.testMode = true }) { Text(tr("Probar botones", "Test buttons")) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {

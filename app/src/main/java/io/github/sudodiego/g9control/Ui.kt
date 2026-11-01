@@ -466,7 +466,7 @@ fun PadBadge(label: String, round: Boolean = false) {
 
 /** Botón B con un aro que se llena mientras se mantiene (1 s o 3 s); al soltar vuelve a cero. */
 @Composable
-private fun HoldBadge(hold: Pair<Long, Long>?, ready: Boolean = false) {
+internal fun HoldBadge(hold: Pair<Long, Long>?, ready: Boolean = false) {
     val c = MaterialTheme.colorScheme
     val progress = remember { Animatable(0f) }
     LaunchedEffect(hold, ready) {
@@ -542,7 +542,7 @@ private fun HintBar(s: AppState) {
                 hints.forEachIndexed { i, (k, v) ->
                     if (i > 0) Spacer(Modifier.width(18.dp))
                     // El aro de B es la cuenta atrás de mantener (salir de la app, de la prueba); cerrar la macro es un toque.
-                    if (k == "B" && s.editingMacro == null && s.atTop) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
+                    if (k == "B" && s.editingMacro == null && (s.atTop || s.capturing)) HoldBadge(s.bHold, s.bReady) else if (k.length == 1) PadBadge(k, round = true) else PadBadge(k)
                     Spacer(Modifier.width(6.dp))
                     Text(v, fontSize = 13.sp, color = c.onSurface, maxLines = 1)
                 }
