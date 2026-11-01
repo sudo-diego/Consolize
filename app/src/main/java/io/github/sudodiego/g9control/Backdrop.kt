@@ -66,6 +66,11 @@ fun Backdrop() {
         // (MainActivity), que cubre también la barra de estado. Aquí nada.
         AppBackground.WALLPAPER -> Unit
     }
+    // Sobre el fondo de pantalla o la imagen, el tapiz elegido (rayas, puntos…) muy suave: se sigue viendo lo de
+    // detrás, pero con la textura de consola.
+    val ov = ThemeState.overlay
+    if (ov != null && (ThemeState.background == AppBackground.WALLPAPER || ThemeState.background == AppBackground.IMAGE))
+        PatternBackdrop(ov, Color.Transparent, backdropOn().copy(alpha = 0.12f))
 }
 
 /**

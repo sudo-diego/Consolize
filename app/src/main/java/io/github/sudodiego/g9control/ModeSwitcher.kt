@@ -55,6 +55,8 @@ object Prefs {
     fun setCardCustom(ctx: Context, v: Long) = sp(ctx).edit().putLong("card_custom", v).apply()
     fun pattern(ctx: Context) = runCatching { Pattern.valueOf(sp(ctx).getString("pattern", null)!!) }.getOrDefault(Pattern.STRIPES)
     fun setPattern(ctx: Context, v: Pattern) = sp(ctx).edit().putString("pattern", v.name).apply()
+    fun overlay(ctx: Context): Pattern? = sp(ctx).getString("overlay_pattern", Pattern.STRIPES.name).let { n -> Pattern.entries.firstOrNull { it.name == n } }
+    fun setOverlay(ctx: Context, v: Pattern?) = sp(ctx).edit().putString("overlay_pattern", v?.name ?: "NONE").apply()
     fun stripeBase(ctx: Context) = sp(ctx).getLong("stripe_base", 0xFFEEF2F6)
     fun setStripeBase(ctx: Context, v: Long) = sp(ctx).edit().putLong("stripe_base", v).apply()
     fun stripeLine(ctx: Context) = sp(ctx).getLong("stripe_line", 0xFFE3E9F0)

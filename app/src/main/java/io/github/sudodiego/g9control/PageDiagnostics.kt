@@ -85,10 +85,13 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                     // Consola: el color del fondo y el de las rayitas, cada uno con la rueda.
                     if (ThemeState.background == AppBackground.STRIPES) {
                         // El dibujo, con una muestra de cada uno (se ve antes de elegirlo).
-                        PatternPicker(ThemeState.pattern) { ThemeState.pattern = it; Prefs.setPattern(a, it) }
+                        PatternPicker(ThemeState.pattern) { it?.let { p -> ThemeState.pattern = p; Prefs.setPattern(a, p) } }
                         ColorRow(tr("Color del fondo", "Background color"), ThemeState.stripeBase) { ThemeState.stripeBase = it; Prefs.setStripeBase(a, it) }
                         ColorRow(tr("Color de las rayas", "Stripe color"), ThemeState.stripeLine) { ThemeState.stripeLine = it; Prefs.setStripeLine(a, it) }
                     }
+                    // Fondo de pantalla o imagen: encima, el tapiz (o ninguno).
+                    if (ThemeState.background == AppBackground.IMAGE || ThemeState.background == AppBackground.WALLPAPER)
+                        PatternPicker(ThemeState.overlay, overlay = true) { ThemeState.overlay = it; Prefs.setOverlay(a, it) }
                     if (ThemeState.background == AppBackground.IMAGE) {
                         ImageButtons(a) { a.pickBackground() }
                         SliderRow(tr("Desenfoque", "Blur"), ThemeState.backgroundBlur, 0..100) {
@@ -837,11 +840,15 @@ private fun CardSample(col: androidx.compose.ui.graphics.Color) {
 
 /** Los tapices como muestras chicas (cada una dibujada con los colores elegidos); la elegida, con borde de acento. */
 @Composable
-private fun PatternPicker(current: Pattern, onPick: (Pattern) -> Unit) {
+private fun PatternPicker(current: Pattern?, overlay: Boolean = false, onPick: (Pattern?) -> Unit) {
     val c = MaterialTheme.colorScheme
+    // Sobre el fondo de pantalla: las muestras en oscuro con líneas claras, y la primera es "Ninguno".
+    val bg = if (overlay) androidx.compose.ui.graphics.Color(0xFF3A4458) else androidx.compose.ui.graphics.Color(ThemeState.stripeBase)
+    val line = if (overlay) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.3f)
+        else androidx.compose.ui.graphics.lerp(androidx.compose.ui.graphics.Color(ThemeState.stripeLine), androidx.compose.ui.graphics.Color.Black, 0.1f)
     @OptIn(ExperimentalLayoutApi::class)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Pattern.entries.forEach { p ->
+        (if (overlay) listOf<Pattern?>(null) + Pattern.entries else Pattern.entries).forEach { p ->
             val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
             val focused by src.collectIsFocusedAsState()
             val shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
@@ -849,12 +856,11 @@ private fun PatternPicker(current: Pattern, onPick: (Pattern) -> Unit) {
                 Box(Modifier.size(width = 96.dp, height = 64.dp).focusLift(focused, src, 1.06f).clip(shape)
                     .border(if (p == current || focused) 3.dp else 1.dp, if (p == current || focused) c.primary else c.outline, shape)
                     .clickable(interactionSource = src, indication = null) { onPick(p) }) {
-                    PatternBackdrop(p, androidx.compose.ui.graphics.Color(ThemeState.stripeBase), androidx.compose.ui.graphics.Color(ThemeState.stripeLine).let {
-                        // En la muestra, un poco más marcado (si no, en chico casi no se ve).
-                        androidx.compose.ui.graphics.lerp(it, androidx.compose.ui.graphics.Color.Black, 0.1f) }, Modifier.matchParentSize())
+                    if (p == null) Box(Modifier.matchParentSize().background(bg))
+                    else PatternBackdrop(p, bg, line, Modifier.matchParentSize())
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(p.label, fontSize = 12.sp, color = if (p == current) c.primary else c.onSurfaceVariant)
+                Text(p?.label ?: tr("Ninguno", "None"), fontSize = 12.sp, color = if (p == current) c.primary else c.onSurfaceVariant)
             }
         }
     }
