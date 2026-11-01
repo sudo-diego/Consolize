@@ -15,6 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -125,27 +127,42 @@ private fun SticksReadout(s: AppState) {
     }
 }
 
-/** Un stick: el círculo, la estela de por dónde pasó (se borra al dejar de probar) y el punto actual. */
+/**
+ * Un stick: el círculo, lo que alcanzó en cada dirección (una figura que se va llenando hacia el borde al girarlo; no se
+ * borra mientras dura la prueba) y el punto actual. Si la figura no llega al círculo en algún lado, el stick no alcanza.
+ */
 @Composable
 private fun StickTrace(x: Float, y: Float, on: Boolean, modifier: Modifier) {
     val c = MaterialTheme.colorScheme
-    val trail = remember { androidx.compose.runtime.mutableStateListOf<androidx.compose.ui.geometry.Offset>() }
-    LaunchedEffect(on) { if (!on) trail.clear() }
+    val n = 64
+    val reach = remember { androidx.compose.runtime.mutableStateListOf<Float>().apply { repeat(n) { add(0f) } } }
+    LaunchedEffect(on) { if (!on) for (i in 0 until n) reach[i] = 0f }
     LaunchedEffect(x, y) {
-        val p = androidx.compose.ui.geometry.Offset(x, y)
-        if (on && (trail.isEmpty() || (trail.last() - p).getDistance() > 0.02f)) { trail.add(p); if (trail.size > 900) trail.removeAt(0) }
+        if (!on) return@LaunchedEffect
+        val d = kotlin.math.hypot(x, y).coerceAtMost(1f)
+        if (d < 0.05f) return@LaunchedEffect
+        val ang = (kotlin.math.atan2(y, x) + 2 * Math.PI) % (2 * Math.PI)
+        val i = ((ang / (2 * Math.PI)) * n).toInt().coerceIn(0, n - 1)
+        if (d > reach[i]) reach[i] = d
     }
     androidx.compose.foundation.Canvas(modifier) {
         val r = size.minDimension / 2f - 6.dp.toPx()
-        fun at(o: androidx.compose.ui.geometry.Offset) = androidx.compose.ui.geometry.Offset(center.x + o.x.coerceIn(-1f, 1f) * r, center.y + o.y.coerceIn(-1f, 1f) * r)
         drawCircle(c.onSurface.copy(alpha = 0.06f), r, center)
-        drawCircle(c.outline.copy(alpha = 0.5f), r, center, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
         drawLine(c.outlineVariant, androidx.compose.ui.geometry.Offset(center.x - r, center.y), androidx.compose.ui.geometry.Offset(center.x + r, center.y), 1.5f)
         drawLine(c.outlineVariant, androidx.compose.ui.geometry.Offset(center.x, center.y - r), androidx.compose.ui.geometry.Offset(center.x, center.y + r), 1.5f)
-        // La estela: trazos gruesos y suaves que, al girar el stick, van llenando el borde.
-        for (i in 1 until trail.size) drawLine(c.primary.copy(alpha = 0.25f), at(trail[i - 1]), at(trail[i]), 6.dp.toPx(),
-            cap = androidx.compose.ui.graphics.StrokeCap.Round)
-        val p = at(androidx.compose.ui.geometry.Offset(x, y))
+        if (reach.any { it > 0f }) {
+            val path = androidx.compose.ui.graphics.Path()
+            for (i in 0 until n) {
+                val a = (i + 0.5) / n * 2 * Math.PI
+                val pt = androidx.compose.ui.geometry.Offset(center.x + (kotlin.math.cos(a) * reach[i] * r).toFloat(), center.y + (kotlin.math.sin(a) * reach[i] * r).toFloat())
+                if (i == 0) path.moveTo(pt.x, pt.y) else path.lineTo(pt.x, pt.y)
+            }
+            path.close()
+            drawPath(path, c.primary.copy(alpha = 0.22f))
+            drawPath(path, c.primary.copy(alpha = 0.7f), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx()))
+        }
+        drawCircle(c.outline.copy(alpha = 0.5f), r, center, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+        val p = androidx.compose.ui.geometry.Offset(center.x + x.coerceIn(-1f, 1f) * r, center.y + y.coerceIn(-1f, 1f) * r)
         drawCircle(c.primary, 9.dp.toPx(), p)
         drawCircle(c.onPrimary, 9.dp.toPx(), p, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5f))
     }
@@ -194,8 +211,8 @@ private fun TestPanel(s: AppState) {
             } else Button(onClick = { s.testedKeys.clear(); s.otherKeys.clear(); s.testMode = true }) { Text(tr("Probar botones", "Test buttons")) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            Box(Modifier.weight(1f)) { TriggerRow("LT", v(s.lt)) }
-            Box(Modifier.weight(1f)) { TriggerRow("RT", v(s.rt)) }
+            Box(Modifier.weight(1f)) { TriggerRow("LT", v(s.lt), s.testMode) }
+            Box(Modifier.weight(1f)) { TriggerRow("RT", v(s.rt), s.testMode) }
         }
         KeyGrid(s, pressed)
     }
@@ -229,10 +246,22 @@ private fun KeyGrid(s: AppState, pressed: Set<PadKey>) {
 }
 
 @Composable
-private fun TriggerRow(label: String, v: Float) {
+private fun TriggerRow(label: String, v: Float, on: Boolean) {
+    val c = MaterialTheme.colorScheme
+    // Veinte tramos de 5 %: el de ahora lleno del acento y los que ya se alcanzaron, marcados (así se ve si el gatillo
+    // llega a todos los valores o salta alguno). Se borra al terminar la prueba.
+    val seen = remember { androidx.compose.runtime.mutableStateListOf<Boolean>().apply { repeat(20) { add(false) } } }
+    LaunchedEffect(on) { if (!on) for (i in 0 until 20) seen[i] = false }
+    LaunchedEffect(v) { if (on && v > 0.01f) seen[(v * 20).toInt().coerceIn(0, 19)] = true }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.width(40.dp), fontSize = 14.sp)
-        LinearProgressIndicator(progress = { v.coerceIn(0f, 1f) }, Modifier.weight(1f).height(8.dp))
-        Text("%3d%%".format((v * 100).toInt()), Modifier.width(52.dp), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.weight(1f).height(14.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            for (i in 0 until 20) {
+                val now = v * 20 > i
+                Box(Modifier.weight(1f).fillMaxHeight().clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                    .background(when { now -> c.primary; seen[i] -> c.primary.copy(alpha = 0.3f); else -> c.onSurface.copy(alpha = 0.08f) }))
+            }
+        }
+        Text("%3d%%".format((v * 100).toInt()), Modifier.width(52.dp), fontSize = 13.sp, color = c.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.End)
     }
 }

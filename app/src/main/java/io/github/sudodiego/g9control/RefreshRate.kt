@@ -248,6 +248,26 @@ object RefreshRate {
         } else runCatching { wm.updateViewLayout(v, lp) }
     }
 
+    /**
+     * Mientras se está en "Hz en juegos": la ventana de la app pide esa frecuencia, para verla de verdad (y con la
+     * pelota de muestra). null vuelve a lo del sistema. Solo la ventana de la app: al salir de la página se suelta.
+     */
+    fun previewIn(window: android.view.Window, hz: Int?) {
+        val d = display(window.context) ?: return
+        val cur = d.mode
+        val lp = window.attributes
+        lp.preferredDisplayModeId = if (hz == null) 0 else d.supportedModes
+            .filter { it.physicalWidth == cur.physicalWidth && it.physicalHeight == cur.physicalHeight }
+            .minByOrNull { kotlin.math.abs(it.refreshRate - hz) }?.modeId ?: 0
+        runCatching {
+            val c = android.view.WindowManager.LayoutParams::class.java
+            val v = hz?.toFloat() ?: 0f
+            c.getField("preferredMinDisplayRefreshRate").setFloat(lp, v)
+            c.getField("preferredMaxDisplayRefreshRate").setFloat(lp, v)
+        }
+        window.attributes = lp
+    }
+
     /** Lo que tiene el sistema sin G9 Control (para mostrar "Sistema · 120 Hz"). */
     fun systemPeak(ctx: Context): Int {
         val p = sp(ctx)

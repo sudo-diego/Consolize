@@ -190,7 +190,10 @@ private fun ControlHub(s: AppState) {
     val battery = remember(tick, pad?.id) {
         if (android.os.Build.VERSION.SDK_INT >= 31) pad?.batteryState?.takeIf { it.isPresent }?.capacity?.takeIf { it in 0f..1f }?.let { (it * 100).toInt() } else null
     }
-    val info = listOfNotNull(if (g9) s.padMode?.label else null, battery?.let { "$it %" })
+    val padCharging = remember(tick, pad?.id) {
+        android.os.Build.VERSION.SDK_INT >= 31 && pad?.batteryState?.status == android.hardware.BatteryState.STATUS_CHARGING
+    }
+    val info = listOfNotNull(if (g9) s.padMode?.label else null)
     val entries = entriesFor(s, Section.CONTROLS)
     Row(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(400.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -199,7 +202,22 @@ private fun ControlHub(s: AppState) {
             Spacer(Modifier.height(14.dp))
             Text(when { g9 -> "Legion G9"; pad != null -> pad.name; else -> tr("Sin control", "No controller") },
                 fontSize = 28.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = backdropOn())
-            if (info.isNotEmpty()) Text(info.joinToString("  ·  "), fontSize = 15.sp, color = backdropMuted())
+            // El modo (del G9) y la batería del control dibujada, como la de la tablet: con poca, parpadea.
+            if (info.isNotEmpty() || battery != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                if (info.isNotEmpty()) Text(info.joinToString("  ·  "), fontSize = 15.sp, color = backdropMuted())
+                if (info.isNotEmpty() && battery != null) Spacer(Modifier.width(14.dp))
+                battery?.let { lv ->
+                    val low = lv <= 20 && !padCharging
+                    val blink = if (low) androidx.compose.animation.core.rememberInfiniteTransition(label = "bat").animateFloat(1f, 0.25f,
+                        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(600),
+                            androidx.compose.animation.core.RepeatMode.Reverse), label = "parpadeo").value else 1f
+                    Box(Modifier.graphicsLayer { alpha = blink; scaleX = 1.2f; scaleY = 1.2f }) {
+                        BatteryGlyph(lv, padCharging, false, ink = backdropOn(), accent = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text("$lv %", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = if (low) MaterialTheme.colorScheme.error else backdropOn())
+                }
+            }
             else if (pad == null) Text(tr("Conecta uno para probarlo", "Connect one to test it"), fontSize = 15.sp, color = backdropMuted())
         }
         Spacer(Modifier.width(40.dp))

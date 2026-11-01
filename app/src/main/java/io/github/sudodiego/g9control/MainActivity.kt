@@ -86,7 +86,9 @@ class MainActivity : ComponentActivity() {
                     else androidx.activity.SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                App(state, this)
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides roomyBringIntoView(androidx.compose.ui.platform.LocalDensity.current)) {
+                    App(state, this)
+                }
             }
         }
         handleIntent(intent)
@@ -1181,9 +1183,16 @@ class AppState {
     /** Lo de en medio del dock (hasta 4) y lo fijado en Inicio (Accesos), por id. */
     var dockMid by mutableStateOf(listOf(Dest.LIBRARY, Dest.PANEL, Dest.CONTROL))
     var homePins by mutableStateOf(listOf("guide", "combos", "hz", "captures"))
+    /** Los interruptores de Inicio (bypass, monitor, 16:9, panel…), también elegibles con "+". */
+    var quickPins by mutableStateOf(QUICK_IDS)
     fun loadPins(ctx: android.content.Context) {
         dockMid = Prefs.dockMid(ctx) ?: dockMid
         homePins = Prefs.homePins(ctx) ?: homePins
+        quickPins = Prefs.quickPins(ctx) ?: quickPins
+    }
+    fun toggleQuickPin(ctx: android.content.Context, id: String) {
+        quickPins = if (id in quickPins) quickPins - id else QUICK_IDS.filter { it in quickPins || it == id }
+        Prefs.setQuickPins(ctx, quickPins)
     }
     fun toggleDockPin(ctx: android.content.Context, id: String) {
         dockMid = if (id in dockMid) dockMid - id else (dockMid + id).takeLast(4)

@@ -287,15 +287,23 @@ private fun GamesHzPanel(a: MainActivity) {
             ChoiceChips(listOf(0 to tr("Sistema", "System")) + RefreshRate.supported(a).map { it to "$it Hz" }, hz) {
                 hz = it; RefreshRate.setForGames(a, it.takeIf { v -> v > 0 })
             }
+            // Mientras se está aquí, la pantalla cambia de verdad a lo elegido (al salir vuelve sola): se ve la diferencia
+            // en la pelota y en toda la app.
+            DisposableEffect(hz) {
+                RefreshRate.previewIn(a.window, hz.takeIf { it > 0 })
+                onDispose { RefreshRate.previewIn(a.window, null) }
+            }
+            var now by remember { mutableIntStateOf(RefreshRate.current(a) ?: 60) }
+            LaunchedEffect(hz) { repeat(6) { kotlinx.coroutines.delay(300); now = RefreshRate.current(a) ?: now } }
             // Cómo se ve: una pelota que avanza solo [hz] veces por segundo (a 30 se nota a saltos; a 120, fluida).
-            HzDemo(if (hz > 0) hz else (RefreshRate.current(a) ?: 60))
+            HzDemo(if (hz > 0) hz else now, now)
         }
     }
 }
 
 /** Una pelota que cruza de lado a lado moviéndose a [hz] cuadros por segundo, con la estela de sus últimos cuadros. */
 @Composable
-private fun HzDemo(hz: Int) {
+private fun HzDemo(hz: Int, screen: Int) {
     val c = MaterialTheme.colorScheme
     var t by remember { mutableStateOf(0f) }
     LaunchedEffect(Unit) {
@@ -311,7 +319,8 @@ private fun HzDemo(hz: Int) {
             for (k in 4 downTo 1) drawCircle(c.primary.copy(alpha = 0.08f * (5 - k)), r, androidx.compose.ui.geometry.Offset(xAt(t - k / hz.toFloat()), size.height / 2))
             drawCircle(c.primary, r, androidx.compose.ui.geometry.Offset(xAt(t), size.height / 2))
         }
-        Text("$hz Hz · " + "%.1f ms".format(1000f / hz) + tr(" por cuadro", " per frame"), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("$hz Hz · " + "%.1f ms".format(1000f / hz) + tr(" por cuadro", " per frame") + tr(" · pantalla ahora: $screen Hz", " · screen now: $screen Hz"),
+            fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

@@ -76,6 +76,8 @@ object Prefs {
     fun setDockMid(ctx: Context, v: List<String>) = sp(ctx).edit().putString("dock_mid", v.joinToString(",")).apply()
     fun homePins(ctx: Context): List<String>? = sp(ctx).getString("home_pins", null)?.split(',')?.filter { it.isNotBlank() }
     fun setHomePins(ctx: Context, v: List<String>) = sp(ctx).edit().putString("home_pins", v.joinToString(",")).apply()
+    fun quickPins(ctx: Context): List<String>? = sp(ctx).getString("home_quick", null)?.split(',')?.filter { it.isNotBlank() }
+    fun setQuickPins(ctx: Context, v: List<String>) = sp(ctx).edit().putString("home_quick", v.joinToString(",").ifEmpty { "," }).apply()
 
     /** Barra lateral compacta (solo íconos). */
     fun navCompact(ctx: Context) = sp(ctx).getBoolean("nav_compact", false)

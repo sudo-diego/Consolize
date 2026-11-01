@@ -41,6 +41,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.animation.core.VectorConverter
 import kotlinx.coroutines.launch
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 
 /** El ícono de cada mosaico del panel (los mismos que usa el panel). */
 internal val PanelTile.icon: ImageVector get() = when (this) {
@@ -79,6 +80,8 @@ fun PanelEditor(onDone: () -> Unit) {
     var finger by remember { mutableStateOf(Offset.Zero) }
     var grab by remember { mutableStateOf(Offset.Zero) }
     var holdOver by remember { mutableStateOf<Any?>(null) }
+    // Arrastrando con el dedo: el mosaico sobre el que está (ahí va a caer), marcado con el acento.
+    var target by remember { mutableStateOf<PanelTile?>(null) }
     val bounds = remember { mutableStateMapOf<PanelTile, Rect>() }
     val secBounds = remember { mutableStateMapOf<PanelRow, Rect>() }
     val focus = remember { PanelTile.entries.associateWith { androidx.compose.ui.focus.FocusRequester() } }
@@ -91,6 +94,7 @@ fun PanelEditor(onDone: () -> Unit) {
         val same = order.filter { it.section == t.section }.toMutableList()
         val from = same.indexOf(t); val dest = to.coerceIn(0, same.size - 1)
         if (from < 0 || from == dest) return
+        UiSounds.play(ctx, UiSounds.Kind.MOVE)
         same.add(dest, same.removeAt(from))
         val it = same.iterator()
         save(order.map { o -> if (o.section == t.section) it.next() else o })
@@ -113,6 +117,14 @@ fun PanelEditor(onDone: () -> Unit) {
 
     // Con el aspecto del panel de verdad (sus colores y su fondo), y las filas repartidas como en él.
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+            PadBadge("A", round = true); Spacer(Modifier.width(6.dp))
+            Text(if (picked != null || pickedSec != null) tr("Soltar", "Drop") else tr("Mover", "Move"), fontSize = 13.sp, color = c.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp)); PadBadge("Y", round = true); Spacer(Modifier.width(6.dp))
+            Text(tr("Ocultar", "Hide"), fontSize = 13.sp, color = c.onSurfaceVariant)
+            Spacer(Modifier.width(16.dp)); PadBadge("B", round = true); Spacer(Modifier.width(6.dp))
+            Text(tr("Listo", "Done"), fontSize = 13.sp, color = c.onSurfaceVariant)
+        }
     // Detrás, lo mismo que el panel de verdad: su fondo (liso, degradado, imagen o transparente sobre el juego de muestra).
     Box(Modifier.clip(RoundedCornerShape(24.dp))) {
     // Con cabecera (la imagen arriba y el resto liso) o liso: el fondo liso del panel. Degradado o imagen de fondo: solo
@@ -209,17 +221,21 @@ fun PanelEditor(onDone: () -> Unit) {
                                 shape = RoundedCornerShape(16.dp); clip = false
                             }
                             .focusRequester(focus.getValue(t))
+                            // Moverse por el editor suena como en el resto de la app.
+                            .onFocusChanged { if (it.isFocused) UiSounds.play(ctx, UiSounds.Kind.MOVE) }
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(tileColor, PANEL_ACCENT, 0.35f) else tileColor)
-                            .then(if (focused || isPicked) Modifier.border(2.dp, if (isPicked) PANEL_ACCENT else SELECTED, RoundedCornerShape(16.dp))
+                            .then(if (target == t) Modifier.border(3.dp, PANEL_ACCENT, RoundedCornerShape(16.dp)).background(PANEL_ACCENT.copy(alpha = 0.2f))
+                                else if (focused || isPicked) Modifier.border(2.dp, if (isPicked) PANEL_ACCENT else SELECTED, RoundedCornerShape(16.dp))
                                 else if (glassPanel) Modifier.border(1.dp, GLASS_EDGE, RoundedCornerShape(16.dp)) else Modifier)
                             .pointerInput(t) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { p -> val b = bounds[t] ?: return@detectDragGesturesAfterLongPress
                                         dragging = t; picked = null; holdOver = null; grab = p; finger = Offset(b.left + p.x, b.top + p.y) },
-                                    onDragEnd = { dragging = null }, onDragCancel = { dragging = null }
+                                    onDragEnd = { dragging = null; target = null }, onDragCancel = { dragging = null; target = null }
                                 ) { ch, d ->
                                     ch.consume(); finger += d
+                                    target = bounds.entries.firstOrNull { (o, b) -> o != t && o.section == t.section && b.contains(finger) }?.key
                                     // Solo cuando el dedo llega al centro de otro mosaico de su sección (no al rozarlo): así no
                                     // salta de ida y vuelta; y no otra vez sobre el mismo hasta salir de él.
                                     val over = bounds.entries.firstOrNull { (o, b) -> o != t && o.section == t.section &&
@@ -267,14 +283,6 @@ fun PanelEditor(onDone: () -> Unit) {
         } }
     }
     }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            PadBadge("A", round = true); Spacer(Modifier.width(6.dp))
-            Text(if (picked != null || pickedSec != null) tr("Soltar", "Drop") else tr("Mover", "Move"), fontSize = 13.sp, color = c.onSurfaceVariant)
-            Spacer(Modifier.width(16.dp)); PadBadge("Y", round = true); Spacer(Modifier.width(6.dp))
-            Text(tr("Ocultar", "Hide"), fontSize = 13.sp, color = c.onSurfaceVariant)
-            Spacer(Modifier.width(16.dp)); PadBadge("B", round = true); Spacer(Modifier.width(6.dp))
-            Text(tr("Listo", "Done"), fontSize = 13.sp, color = c.onSurfaceVariant)
-        }
     }
 }
 

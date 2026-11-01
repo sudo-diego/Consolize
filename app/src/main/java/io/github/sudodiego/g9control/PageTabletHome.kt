@@ -151,47 +151,53 @@ private fun QuickTiles(s: AppState, a: MainActivity) {
     var wide by remember { mutableStateOf(Aspect.is169(a)) }
     // Cada pocos segundos, como en Batería: el bypass automático lo cambia solo (al salir de un juego quedaba "Encendido").
     LaunchedEffect(ready) { while (ready) { ZuiBattery.readBypass()?.let { bypass = it }; tick++; kotlinx.coroutines.delay(3000) } }
-    // Siempre los mismos cuatro círculos (antes Bypass y 16:9 desaparecían sin Shizuku y quedaba solo Monitor):
-    // lo que no se puede usar ahora sale translúcido y dice qué le falta.
-    Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-        // Igual que en el panel: con algo automático (bypass automático o límite propio) son tres estados,
-        // Automático → Encendido → Apagado → Automático.
-        if (ready) {
-            val hasAuto = AutoRules.smartBypass(a) || ZuiBattery.ownLimit(a) != null
-            val isAuto = remember(tick, bypass) { hasAuto && !ZuiBattery.manualOverride }
-            val state = when {
-                isAuto -> if (bypass) ZuiBattery.autoWhy?.let { tr("Auto: ", "Auto: ") + it.first } ?: tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
-                bypass -> tr("Encendido", "On")
-                else -> tr("Apagado", "Off")
-            }
-            QuickTile(Icons.Outlined.Power, "Bypass", state, bypass, Modifier) {
-                if (!isAuto && !bypass && hasAuto) {
-                    AutoModeService.active?.bypassToAuto() ?: ZuiBattery.returnToAuto()
-                    tick++
-                } else scope.launch {
-                    // Desde el automático, el primer toque siempre lo enciende (pasa a ser manual).
-                    val want = if (isAuto) true else !bypass
-                    if (ZuiBattery.setBypass(want)) bypass = want
-                    tick++
+    // Los interruptores elegidos (con "+" se agregan o quitan). Lo que no se puede usar ahora sale translúcido y dice
+    // qué le falta.
+    if (s.quickPins.isEmpty()) return
+    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        s.quickPins.forEach { id -> when (id) {
+            "q_bypass" -> if (ready) {
+                // Igual que en el panel: con algo automático son tres estados, Automático → Encendido → Apagado.
+                val hasAuto = AutoRules.smartBypass(a) || ZuiBattery.ownLimit(a) != null
+                val isAuto = remember(tick, bypass) { hasAuto && !ZuiBattery.manualOverride }
+                val state = when {
+                    isAuto -> if (bypass) ZuiBattery.autoWhy?.let { tr("Auto: ", "Auto: ") + it.first } ?: tr("Auto: activo", "Auto: on") else tr("Auto: en espera", "Auto: waiting")
+                    bypass -> tr("Encendido", "On")
+                    else -> tr("Apagado", "Off")
+                }
+                QuickTile(Icons.Outlined.Power, "Bypass", state, bypass, Modifier) {
+                    if (!isAuto && !bypass && hasAuto) {
+                        AutoModeService.active?.bypassToAuto() ?: ZuiBattery.returnToAuto()
+                        tick++
+                    } else scope.launch {
+                        val want = if (isAuto) true else !bypass
+                        if (ZuiBattery.setBypass(want)) bypass = want
+                        tick++
+                    }
+                }
+            } else QuickTile(Icons.Outlined.Power, "Bypass", tr("Necesita Shizuku", "Needs Shizuku"), false, Modifier, enabled = false) {}
+            "q_monitor" -> QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else { tick; AutoRules.hudLabel(a) },
+                hud && service, Modifier, enabled = service) { AutoRules.cycleHud(a); hud = AutoRules.perfHud(a); tick++ }
+            "q_wide" -> {
+                val aspectOk = Aspect.available(a)
+                QuickTile(Icons.Outlined.AspectRatio, "16:9", if (!aspectOk) tr("Necesita Shizuku", "Needs Shizuku") else if (wide) tr("Encendido", "On") else tr("Apagado", "Off"),
+                    wide && aspectOk, Modifier, enabled = aspectOk) {
+                    scope.launch { Aspect.toggle(a); delay(500); wide = Aspect.is169(a) }
                 }
             }
-        } else QuickTile(Icons.Outlined.Power, "Bypass", tr("Necesita Shizuku", "Needs Shizuku"), false, Modifier, enabled = false) {}
-        // El monitor lo dibuja el servicio de accesibilidad: sin él no se puede encender.
-        QuickTile(Icons.Outlined.QueryStats, tr("Monitor", "Monitor"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else { tick; AutoRules.hudLabel(a) },
-            hud && service, Modifier, enabled = service) { AutoRules.cycleHud(a); hud = AutoRules.perfHud(a); tick++ }
-        val aspectOk = Aspect.available(a)
-        QuickTile(Icons.Outlined.AspectRatio, "16:9", if (!aspectOk) tr("Necesita Shizuku", "Needs Shizuku") else if (wide) tr("Encendido", "On") else tr("Apagado", "Off"),
-            wide && aspectOk, Modifier, enabled = aspectOk) {
-            scope.launch {
-                Aspect.toggle(a)
-                delay(500)
-                wide = Aspect.is169(a)
-            }
-        }
-        // El panel de juego, sin el control (lo abre el servicio).
-        QuickTile(Icons.Outlined.SpaceDashboard, tr("Panel", "Panel"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else tr("Abrir", "Open"),
-            false, Modifier, enabled = service) { AutoModeService.active?.openPanel() }
+            "q_panel" -> QuickTile(Icons.Outlined.SpaceDashboard, tr("Panel", "Panel"), if (!service) tr("Necesita accesibilidad", "Needs accessibility") else tr("Abrir", "Open"),
+                false, Modifier, enabled = service) { AutoModeService.active?.openPanel() }
+        } }
     }
+}
+
+/** Los interruptores que puede tener Inicio: id, ícono y nombre (para el elegidor). */
+internal val QUICK_IDS = listOf("q_bypass", "q_monitor", "q_wide", "q_panel")
+internal fun quickInfo(id: String): Pair<androidx.compose.ui.graphics.vector.ImageVector, String> = when (id) {
+    "q_bypass" -> Icons.Outlined.Power to "Bypass"
+    "q_monitor" -> Icons.Outlined.QueryStats to tr("Monitor", "Monitor")
+    "q_wide" -> Icons.Outlined.AspectRatio to "16:9"
+    else -> Icons.Outlined.SpaceDashboard to tr("Abrir el panel", "Open the panel")
 }
 
 /**
@@ -205,14 +211,14 @@ private fun QuickTile(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
     val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
     Column(Modifier.width(112.dp).alpha(if (enabled) 1f else 0.5f), horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(onClick = onClick, enabled = enabled, interactionSource = src, shape = androidx.compose.foundation.shape.CircleShape,
+        Surface(onClick = onClick, enabled = enabled, interactionSource = src, shape = RoundedCornerShape(26.dp),
             color = androidx.compose.animation.animateColorAsState(if (on) c.primary else cardColor(), label = "q").value,
             contentColor = if (on) c.onPrimary else cardOn(),
-            modifier = Modifier.size(76.dp).focusLift(focused, src, 1.08f).bump(androidx.compose.foundation.shape.CircleShape).focusHalo(focused, androidx.compose.foundation.shape.CircleShape)) {
-            Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(32.dp)) }
+            modifier = Modifier.size(88.dp).focusLift(focused, src, 1.08f).bump(RoundedCornerShape(26.dp)).focusHalo(focused, RoundedCornerShape(26.dp))) {
+            Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(38.dp)) }
         }
         Spacer(Modifier.height(8.dp))
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = backdropOn(), maxLines = 1)
+        Text(title, fontSize = 13.sp, color = backdropOn(), maxLines = 1)
         Text(state, fontSize = 12.sp, color = if (on) c.primary else backdropMuted(), maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
@@ -380,7 +386,8 @@ fun HomeSummary(s: AppState, a: MainActivity) {
         ServiceWarning(s, a)
         ShizukuWarning(a)
         HomeHero(a)
-        HomeRecents(a)
+        // Sin recientes ni la última captura (no aportaban y las recientes no abrían en algunas tablets): los
+        // interruptores y los accesos, todos con la misma forma.
         QuickTiles(s, a)
         HomeAccess(s)
     }
@@ -481,6 +488,21 @@ private fun AccessPicker(s: AppState, onClose: () -> Unit) {
             modifier = Modifier.widthIn(max = 1000.dp).fillMaxWidth(0.85f).fillMaxHeight(0.85f)) {
             Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Text(tr("INTERRUPTORES", "TOGGLES"), fontSize = 12.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = c.primary)
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    QUICK_IDS.forEach { id ->
+                        val on = id in s.quickPins
+                        val (icon, label) = quickInfo(id)
+                        Box {
+                            AccessIcon(icon, label, ghost = !on) { s.toggleQuickPin(ctx, id) }
+                            if (on) Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 10.dp).size(24.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape).background(c.primary), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Outlined.Check, null, Modifier.size(16.dp), tint = c.onPrimary)
+                            }
+                        }
+                    }
+                }
                 moreGroups(s).forEach { (name, items) ->
                     Text(name.uppercase(), fontSize = 12.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = c.primary)
                     @OptIn(ExperimentalLayoutApi::class)

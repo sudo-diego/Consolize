@@ -177,9 +177,26 @@ private fun LowBatteryPanel(a: MainActivity) {
             SwitchTile(Icons.Outlined.Power, tr("Al enchufar", "Plugged in"), charge) { charge = it; AutoRules.setChargeNotice(a, it) }
             SwitchTile(Icons.Outlined.PowerOff, tr("Al desenchufar", "Unplugged"), unplug) { unplug = it; AutoRules.setUnplugNotice(a, it) }
             SwitchTile(Icons.Outlined.MusicNote, tr("Sonido al enchufar", "Plug-in sound"), chargeSound) { chargeSound = it; AutoRules.setChargeSound(a, it) }
-            SwitchTile(Icons.Outlined.BatteryAlert, tr("Batería baja", "Low battery"), low, sub = tr("Avisa al 15, 10 y 5 %", "At 15, 10 and 5 %")) { low = it; AutoRules.setLowBattery(a, it) }
+            SwitchTile(Icons.Outlined.BatteryAlert, tr("Batería baja", "Low battery"), low) { low = it; AutoRules.setLowBattery(a, it) }
             SwitchTile(Icons.Outlined.NotificationsActive, tr("Sonido batería baja", "Low battery sound"), lowSound) { lowSound = it; AutoRules.setLowBatterySound(a, it) }
             SwitchTile(Icons.Outlined.Layers, tr("Encima del de Android", "Over Android's"), overToast, sub = tr("Tapa el aviso de carga del sistema", "Covers the system's charging notice")) { overToast = it; AutoRules.setLowBatteryOverToast(a, it) }
+        }
+        // A qué niveles avisa: se eligen (uno o varios).
+        if (low) {
+            var levels by remember { mutableStateOf(AutoRules.lowLevels(a)) }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Outlined.BatteryAlert, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                MultiChips(AutoRules.LOW_LEVELS.map { it to "$it %" }, levels) { lv, on ->
+                    levels = if (on) levels + lv else levels - lv; AutoRules.setLowLevels(a, levels)
+                }
+            }
+        }
+        // Encima del de Android: subirlo o bajarlo hasta que lo tape justo (cada tablet lo pone distinto) y probarlo.
+        if (overToast) {
+            var nudge by remember { mutableIntStateOf(AutoRules.toastNudge(a)) }
+            SliderRow(tr("Altura del aviso", "Notice height"), nudge, -80..80, (if (nudge > 0) "+" else "") + "$nudge dp") {
+                nudge = it; AutoRules.setToastNudge(a, it)
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { AutoRules.preview(a, "charge") }) { Icon(Icons.Outlined.PlayArrow, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Al enchufar", "Plugged in")) }

@@ -556,7 +556,9 @@ private fun HintBar(s: AppState) {
 @Composable
 private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
     // Al cambiar de pestaña se termina la prueba de botones.
-    LaunchedEffect(s.page) { if (s.page != Page.TEST) s.testMode = false }
+    // Al irse de Probar control (a otra página o a un destino del dock con el dedo) se termina la prueba: antes seguía
+    // tomando los botones en Más y no se podía navegar.
+    LaunchedEffect(s.page, s.dest, s.inHub) { if (s.page != Page.TEST || s.inHub) s.testMode = false }
     // Atrás de Android (gesto o botón) también cierra el menú abierto.
     androidx.activity.compose.BackHandler(enabled = !s.atTop) { s.back() }
     // Probando botones o grabando una macro, la guía es un botón más (no abre el panel).
@@ -1503,10 +1505,10 @@ fun SwitchTile(icon: ImageVector, label: String, checked: Boolean, modifier: Mod
             Box(Modifier.size(width = 22.dp, height = 8.dp).clip(CircleShape).background(if (checked) c.primary else c.onSurface.copy(alpha = 0.15f)))
         }
         Column {
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp, maxLines = 2,
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp, maxLines = 3,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             // Qué hace, en corto, cuando el nombre solo no alcanza.
-            if (sub != null) Text(sub, fontSize = 11.sp, lineHeight = 14.sp, color = c.onSurfaceVariant, maxLines = 2,
+            if (sub != null) Text(sub, fontSize = 11.sp, lineHeight = 14.sp, color = c.onSurfaceVariant, maxLines = 4,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
@@ -1517,4 +1519,24 @@ fun SwitchTile(icon: ImageVector, label: String, checked: Boolean, modifier: Mod
 @Composable
 fun TileFlow(content: @Composable () -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+}
+
+
+/**
+ * Al mover el foco con la cruceta, lo enfocado queda con aire alrededor (un margen), no pegado al borde. Así, al llegar
+ * a lo último se ve el final de la página (antes quedaba cortado) y al volver a lo primero se ve su título.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun roomyBringIntoView(density: androidx.compose.ui.unit.Density) = object : androidx.compose.foundation.gestures.BringIntoViewSpec {
+    private val margin = with(density) { 140.dp.toPx() }
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val m = minOf(margin, ((containerSize - size) / 2f).coerceAtLeast(0f))
+        val start = offset - m
+        val end = offset + size + m
+        return when {
+            start >= 0f && end <= containerSize -> 0f
+            start < 0f -> start
+            else -> end - containerSize
+        }
+    }
 }

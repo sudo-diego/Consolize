@@ -586,7 +586,7 @@ internal class ShotFlash(private val svc: AccessibilityService) {
                 // (medido en la Y700); la tarjeta es más alta y opaca, para que no se transparente su texto.
                 val card = thumb.height + 16 * dp
                 val center = hiddenNavBar() + toastOffset() + 36 * dp
-                y = (center - card / 2 - 16 * dp).toInt().coerceAtLeast(0)
+                y = (center - card / 2 - 16 * dp + AutoRules.toastNudge(svc) * dp).toInt().coerceAtLeast(0)
                 android.util.Log.d(AutoModeService.TAG, "aviso sobre el toast: barra escondida ${hiddenNavBar()}, toast ${toastOffset()}, y $y")
             }
         }

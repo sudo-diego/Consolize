@@ -436,7 +436,8 @@ enum class PadKey(private val es: String, private val en: String = es) {
     val label get() = tr(es, en)
 }
 
-private val LIT = Color(0xFF3DD6FF)
+/** Lo apretado: el color de acento de la app (lo pone cada dibujo al componerse; antes, siempre celeste). */
+private var LIT = Color(0xFF3DD6FF)
 
 /** Dibujo del G9 con [pressed] iluminado y la posición de cada stick como un punto que se mueve. */
 @Composable
@@ -444,6 +445,7 @@ fun ControllerTestView(
     pressed: Set<PadKey>, lx: Float, ly: Float, rx: Float, ry: Float, lt: Float, rt: Float, modifier: Modifier,
     lights: AppState? = null
 ) {
+    LIT = androidx.compose.material3.MaterialTheme.colorScheme.primary
     Box(modifier.aspectRatio(ASPECT)) {
         val text = rememberTextMeasurer()
         Canvas(Modifier.matchParentSize()) { controllerBody(text) }
@@ -537,6 +539,7 @@ private val GP_HOME = Offset(0.5f, 0.44f)
 fun GenericControllerView(
     pressed: Set<PadKey>, lx: Float, ly: Float, rx: Float, ry: Float, lt: Float, rt: Float, modifier: Modifier
 ) {
+    LIT = androidx.compose.material3.MaterialTheme.colorScheme.primary
     Box(modifier.aspectRatio(GP_ASPECT)) {
         val text = rememberTextMeasurer()
         Canvas(Modifier.matchParentSize()) { genericBody(text, lt, rt) }
@@ -595,10 +598,12 @@ private fun DrawScope.genericBody(text: TextMeasurer, lt: Float, rt: Float) {
     for (right in listOf(false, true)) {
         fun x(v: Float) = (if (right) 1f - v else v) * w
         val trig = Path().apply {
-            moveTo(x(0.15f), 0.10f * h)
-            cubicTo(x(0.16f), 0.02f * h, x(0.22f), 0.0f * h, x(0.27f), 0.0f * h)
-            lineTo(x(0.31f), 0.0f * h)
-            lineTo(x(0.31f), 0.09f * h)
+            // Bajan hasta detrás del hombro (antes terminaban arriba de él y parecían flotar).
+            moveTo(x(0.14f), 0.17f * h)
+            cubicTo(x(0.145f), 0.06f * h, x(0.19f), 0.015f * h, x(0.25f), 0.015f * h)
+            lineTo(x(0.29f), 0.015f * h)
+            cubicTo(x(0.31f), 0.015f * h, x(0.32f), 0.04f * h, x(0.32f), 0.08f * h)
+            lineTo(x(0.32f), 0.17f * h)
             close()
         }
         drawPath(trig, Brush.verticalGradient(listOf(pal.bumperTop, pal.bumperBottom), 0f, 0.1f * h))

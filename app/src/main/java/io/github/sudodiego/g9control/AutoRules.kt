@@ -119,7 +119,13 @@ object AutoRules {
     /** Aviso de batería baja (tarjeta a 15, 10 y 5 % sin cargador). */
     fun lowBattery(ctx: Context) = sp(ctx).getBoolean("low_battery", true)
     fun setLowBattery(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("low_battery", v).apply()
-    val LOW_LEVELS = listOf(15, 10, 5)
+    val LOW_LEVELS = listOf(20, 15, 10, 5)
+    /** A qué niveles avisa (se eligen; por defecto 15, 10 y 5). */
+    fun lowLevels(ctx: Context): Set<Int> = sp(ctx).getString("low_levels", null)?.split(',')?.mapNotNull { it.toIntOrNull() }?.toSet() ?: setOf(15, 10, 5)
+    fun setLowLevels(ctx: Context, v: Set<Int>) = sp(ctx).edit().putString("low_levels", v.joinToString(",")).apply()
+    /** Ajuste fino (dp, + sube) del aviso encima del de Android: cada tablet lo pone un poco distinto. */
+    fun toastNudge(ctx: Context) = sp(ctx).getInt("toast_nudge", 0)
+    fun setToastNudge(ctx: Context, v: Int) = sp(ctx).edit().putInt("toast_nudge", v).apply()
     /** El aviso de batería baja abajo al centro, encima del toast de ZUI (que no se puede quitar). */
     fun lowBatteryOverToast(ctx: Context) = sp(ctx).getBoolean("low_battery_over_toast", true)
     fun setLowBatteryOverToast(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("low_battery_over_toast", v).apply()
@@ -211,7 +217,7 @@ object AutoRules {
     fun setChordWhere(ctx: Context, c: Chord, v: Where) = sp(ctx).edit().putString("chord_${c.id}_where", v.name).apply()
     fun chordApps(ctx: Context, c: Chord): Set<String> = sp(ctx).getString("chord_${c.id}_apps", null)
         ?.split(',')?.filter { it.isNotBlank() }?.toSet()
-        ?: if (c == Chord.SHOT) emptySet() else STREAMING
+        ?: emptySet()  // Sin lista de fábrica: cada uno elige sus apps.
     fun setChordApps(ctx: Context, c: Chord, v: Set<String>) = sp(ctx).edit().putString("chord_${c.id}_apps", v.sorted().joinToString(",")).apply()
 
     /** Funciona en esta app (encendido y según dónde). */
