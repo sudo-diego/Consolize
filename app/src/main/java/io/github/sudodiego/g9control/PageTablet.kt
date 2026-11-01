@@ -53,7 +53,8 @@ private fun BatteryHero(a: MainActivity) {
         else -> tr("Con batería", "On battery")
     }
     val low = b.level <= 15 && !b.plugged
-    Panel {
+    // Con título: las páginas abiertas desde Más muestran solo sus partes por nombre (sin él no salía).
+    Panel(tr("Ahora", "Now")) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.foundation.Canvas(Modifier.size(width = 150.dp, height = 74.dp)) {
                 val st = 4.dp.toPx(); val cap = 10.dp.toPx(); val r = 14.dp.toPx()
