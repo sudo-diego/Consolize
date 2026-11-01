@@ -126,7 +126,7 @@ private fun GuidePanel(a: MainActivity) {
                     }
                 }
             }
-            SwitchRow(tr("Aviso al transmitir", "Notice when streaming"), streamTip) { streamTip = it; AutoRules.setStreamTip(a, it) }
+            SwitchTile(Icons.Outlined.Cast, tr("Aviso al transmitir", "Streaming notice"), streamTip) { streamTip = it; AutoRules.setStreamTip(a, it) }
         }
     }
 }
@@ -285,8 +285,7 @@ private fun TabletButtonsPanel(a: MainActivity) {
     var swap by remember { mutableStateOf(AutoRules.swapVolume(a)) }
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
         Panel(tr("Botones de volumen", "Volume buttons")) {
-            SwitchRow(tr("Invertir el volumen", "Swap volume buttons"), swap,
-                null) {
+            SwitchTile(Icons.Outlined.SwapVert, tr("Invertir el volumen", "Swap volume"), swap) {
                 swap = it; AutoRules.setSwapVolume(a, it)
             }
             if (swap) {

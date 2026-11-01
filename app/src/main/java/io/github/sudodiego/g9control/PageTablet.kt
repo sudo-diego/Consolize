@@ -1,5 +1,7 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import android.content.Intent
@@ -165,26 +167,23 @@ fun BatteryNowPanel(a: MainActivity) {
 private fun LowBatteryPanel(a: MainActivity) {
     Panel(tr("Avisos de batería", "Battery notices")) {
         var charge by remember { mutableStateOf(AutoRules.chargeNotice(a)) }
-        SwitchRow(tr("Al enchufar", "When plugged in"), charge) {
-            charge = it; AutoRules.setChargeNotice(a, it)
-        }
         var unplug by remember { mutableStateOf(AutoRules.unplugNotice(a)) }
-        SwitchRow(tr("Al desenchufar", "When unplugged"), unplug) { unplug = it; AutoRules.setUnplugNotice(a, it) }
         var chargeSound by remember { mutableStateOf(AutoRules.chargeSound(a)) }
-        SwitchRow(tr("Sonido al enchufar", "Sound when plugged in"), chargeSound) { chargeSound = it; AutoRules.setChargeSound(a, it) }
         var low by remember { mutableStateOf(AutoRules.lowBattery(a)) }
-        SwitchRow(tr("Batería baja", "Low battery"), low, tr("A 15, 10 y 5 %", "At 15, 10 and 5 %")) {
-            low = it; AutoRules.setLowBattery(a, it)
-        }
         var lowSound by remember { mutableStateOf(AutoRules.lowBatterySound(a)) }
-        SwitchRow(tr("Con sonido", "With sound"), lowSound) { lowSound = it; AutoRules.setLowBatterySound(a, it) }
         var overToast by remember { mutableStateOf(AutoRules.lowBatteryOverToast(a)) }
-        SwitchRow(tr("Tapar el aviso de Android", "Cover Android's notice"), overToast) {
-            overToast = it; AutoRules.setLowBatteryOverToast(a, it)
+        // En mosaicos (antes, seis filas de texto con su interruptor).
+        TileFlow {
+            SwitchTile(Icons.Outlined.Power, tr("Al enchufar", "Plugged in"), charge) { charge = it; AutoRules.setChargeNotice(a, it) }
+            SwitchTile(Icons.Outlined.PowerOff, tr("Al desenchufar", "Unplugged"), unplug) { unplug = it; AutoRules.setUnplugNotice(a, it) }
+            SwitchTile(Icons.Outlined.MusicNote, tr("Sonido al enchufar", "Plug-in sound"), chargeSound) { chargeSound = it; AutoRules.setChargeSound(a, it) }
+            SwitchTile(Icons.Outlined.BatteryAlert, tr("Batería baja · 15, 10, 5 %", "Low battery · 15, 10, 5 %"), low) { low = it; AutoRules.setLowBattery(a, it) }
+            SwitchTile(Icons.Outlined.NotificationsActive, tr("Sonido batería baja", "Low battery sound"), lowSound) { lowSound = it; AutoRules.setLowBatterySound(a, it) }
+            SwitchTile(Icons.Outlined.Layers, tr("Tapar el de Android", "Cover Android's"), overToast) { overToast = it; AutoRules.setLowBatteryOverToast(a, it) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { AutoRules.preview(a, "charge") }) { Text(tr("Ver al enchufar", "Show plugged in")) }
-            TextButton(onClick = { AutoRules.preview(a, "battery") }) { Text(tr("Ver batería baja", "Show low battery")) }
+            TextButton(onClick = { AutoRules.preview(a, "charge") }) { Icon(Icons.Outlined.PlayArrow, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Al enchufar", "Plugged in")) }
+            TextButton(onClick = { AutoRules.preview(a, "battery") }) { Icon(Icons.Outlined.PlayArrow, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Batería baja", "Low battery")) }
             // El aviso del sistema (notificación de SystemUI, canal BAT): una app no lo puede apagar, pero sí abrir su ajuste.
             TextButton(onClick = {
                 runCatching {
@@ -192,7 +191,7 @@ private fun LowBatteryPanel(a: MainActivity) {
                         .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, "com.android.systemui")
                         .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, "BAT"))
                 }
-            }) { Text(tr("Quitar el aviso del sistema", "Turn off the system notice")) }
+            }) { Icon(Icons.Outlined.NotificationsOff, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Aviso del sistema", "System notice")) }
         }
     }
 }
@@ -274,27 +273,22 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                 // Sin explicar el de ZUI: las opciones dicen solas dónde corta. Solo el aviso si el del sistema no deja llegar.
                 if (own > 80 && limit != null) Hint(tr("El límite del sistema corta antes ($limit %).", "The system limit stops earlier ($limit %)."))
             }
-            Gate(ready) {
-                SwitchRow(
-                    tr("Bypass", "Bypass"), bypass == true, null
-                ) { want ->
-                    if (ready) scope.launch { if (ZuiBattery.setBypass(want)) bypass = want }
+            // Bypass a mano y automático, lado a lado en mosaicos; lo del automático, debajo si está encendido.
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Gate(ready) {
+                    SwitchTile(Icons.Outlined.Power, "Bypass", bypass == true) { want ->
+                        if (ready) scope.launch { if (ZuiBattery.setBypass(want)) bypass = want }
+                    }
+                }
+                Gate(ready && s.autoServiceOn) {
+                    SwitchTile(Icons.Outlined.Autorenew, tr("Bypass automático", "Automatic bypass"), smart) {
+                        smart = it; AutoRules.setSmartBypass(a, it)
+                        // Que no peleen: el inteligente de Game Assistant queda en Manual (se puede con WRITE_SECURE_SETTINGS).
+                        if (it && Aspect.canWrite(a)) runCatching { Settings.Global.putInt(a.contentResolver, "intelligent_bypass_charging_value", 0) }
+                    }
                 }
             }
             Gate(ready && s.autoServiceOn) {
-                // Automático: un resumen de cuándo se activa, que cambia con lo que se elija.
-                val conds = tr("desde $level %", "from $level %") +
-                    if (temp > 0) (if (any) tr(" o ", " or ") else tr(" y ", " and ")) + tr("desde $temp °C", "from $temp °C") else ""
-                val summary = listOfNotNull(
-                    tr("Enchufada", "Plugged in"),
-                    if (games) tr("en un juego", "in a game") else null,
-                    conds
-                ).joinToString(" · ")
-                SwitchRow(tr("Bypass automático", "Automatic bypass"), smart, if (smart) summary else null) {
-                    smart = it; AutoRules.setSmartBypass(a, it)
-                    // Que no peleen: el inteligente de Game Assistant queda en Manual (se puede con WRITE_SECURE_SETTINGS).
-                    if (it && Aspect.canWrite(a)) runCatching { Settings.Global.putInt(a.contentResolver, "intelligent_bypass_charging_value", 0) }
-                }
                 if (smart) {
                     ChoiceRow(tr("Cuándo", "When"), listOf(true to tr("En juegos", "In games"), false to tr("Siempre", "Always")), games) { games = it; AutoRules.setSmartBypassGames(a, it) }
                     // Libre, pero se pega en 20, 40, 60 y 80 (los de antes). Por qué esos: ver el texto de abajo.

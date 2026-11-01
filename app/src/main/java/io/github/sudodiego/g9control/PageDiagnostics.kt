@@ -14,7 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -107,7 +107,7 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                 }
               }
                 var full by remember { mutableStateOf(Prefs.fullscreen(a)) }
-                SwitchRow(tr("Pantalla completa", "Full screen"), full) {
+                SwitchTile(Icons.Outlined.Fullscreen, tr("Pantalla completa", "Full screen"), full) {
                     full = it; Prefs.setFullscreen(a, it); a.applyFullscreen()
                 }
             }
@@ -351,18 +351,23 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
                 side = { PosGrid(shotPos) { shotPos = it; AutoRules.setShotPos(a, it) } }) {
                 ChoiceRow(tr("Sonido", "Sound"), ShotSound.entries.map { it to it.label }, shotSound) { shotSound = it; AutoRules.setShotSound(a, it) }
             }
-            SwitchRow(tr("Aviso con cualquier captura", "Notice for any screenshot"), s.anyShot,
-                tr("También las de Android · pide el permiso de fotos", "Android's too · asks for the photos permission")) { a.setAnyShot(it) }
             var overToast by remember { mutableStateOf(AutoRules.shotOverToast(a)) }
-            SwitchRow(tr("Tapar el aviso de Android", "Cover Android's notice"), overToast) {
-                overToast = it; AutoRules.setShotOverToast(a, it)
+            TileFlow {
+                // "Cualquier captura": también las de Android (pide el permiso de fotos).
+                SwitchTile(Icons.Outlined.Screenshot, tr("Con cualquier captura", "Any screenshot"), s.anyShot) { a.setAnyShot(it) }
+                SwitchTile(Icons.Outlined.Layers, tr("Tapar el de Android", "Cover Android's"), overToast) { overToast = it; AutoRules.setShotOverToast(a, it) }
             }
-            // Grabación: dos, que no van juntas (las maneja el panel; ver la grabación en GamePanel).
-            InfoRow(tr("Grabar", "Record"), tr("Guía + LT", "Guide + LT"))
-            InfoRow("Shadow Rec", tr("Guía + RT · guarda lo último", "Guide + RT · saves the latest"))
-            OutlinedButton(onClick = {
-                runCatching { a.startActivity(android.content.Intent().setClassName(ZuiGame.PACKAGE, "com.zui.ugame.gamesetting.ui.options.OptionActivity")) }
-            }) { Text(tr("Calidad de Shadow Rec", "Shadow Rec quality")) }
+            // Grabación: los atajos dibujados (los maneja el panel) y la calidad de Shadow Rec, en una línea.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Icon(Icons.Outlined.Videocam, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                KeyCombo(listOf(tr("Guía", "Guide"), "LT"))
+                Icon(Icons.Outlined.History, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                KeyCombo(listOf(tr("Guía", "Guide"), "RT"))
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = {
+                    runCatching { a.startActivity(android.content.Intent().setClassName(ZuiGame.PACKAGE, "com.zui.ugame.gamesetting.ui.options.OptionActivity")) }
+                }) { Icon(Icons.Outlined.Tune, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Shadow Rec") }
+            }
         }
         }, second = {
         Panel(tr("Monitor de rendimiento", "Performance monitor"), trailing = { Switch(perfHud, { perfHud = it; AutoRules.setPerfHud(a, it) }, enabled = LocalGateOk.current) }) {
@@ -580,42 +585,55 @@ private fun PermissionsPanel(s: AppState, a: MainActivity) {
     var warnShizuku by remember { mutableStateOf(AutoRules.warnShizuku(a)) }
     var shizukuTile by remember { mutableStateOf(AutoRules.shizukuTile(a)) }
     Panel(tr("Permisos", "Permissions")) {
-        PermRow(tr("Servicio de accesibilidad", "Accessibility service"), s.autoServiceOn,
-            tr("Panel, atajos y capturas", "Panel, shortcuts and screenshots")) {
-            Hint(tr("Si sale «Ajuste restringido»: Ajustes → Apps → Consolize → ⋮ → Permitir ajustes restringidos.",
-                "If “Restricted setting” appears: Settings → Apps → Consolize → ⋮ → Allow restricted settings."))
-            Button(onClick = { AutoRules.openServiceSettings(a) }) { Text(tr("Abrir accesibilidad", "Open accessibility")) }
-        }
-        // Sin interruptores para los avisos de Inicio y el mosaico de Shizuku: se avisa siempre que falta algo.
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        PermRow(tr("Shizuku (opcional)", "Shizuku (optional)"), shizuku == Shell.State.READY,
-            tr("Bypass, rendimiento, FPS, apps abiertas y más", "Bypass, performance, FPS, open apps and more"),
-            off = if (shizuku == Shell.State.NO_PERMISSION) tr("Falta el permiso", "Permission missing") else tr("No está iniciado", "Not started")
-        ) {
-            val launch = remember { Shell.launchIntent(a) }
-            when {
-                shizuku == Shell.State.NO_PERMISSION -> Button(onClick = { Shell.requestPermission() }) { Text(tr("Dar permiso", "Grant permission")) }
-                launch != null -> Button(onClick = { runCatching { a.startActivity(launch) } }) { Text(tr("Abrir Shizuku", "Open Shizuku")) }
-                else -> Hint(tr("No está instalado (shizuku.rikka.app).", "Not installed (shizuku.rikka.app)."))
+        // Tres tarjetas lado a lado (antes, tres bloques de texto uno debajo del otro): el ícono, si está y, si falta,
+        // el botón para darlo.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            PermCard(Icons.Outlined.Accessibility, tr("Accesibilidad", "Accessibility"), s.autoServiceOn,
+                tr("Panel, atajos, capturas", "Panel, shortcuts, screenshots"), Modifier.weight(1f)) {
+                Button(onClick = { AutoRules.openServiceSettings(a) }) { Text(tr("Activar", "Turn on")) }
+                Text(tr("¿«Ajuste restringido»? Apps → Consolize → ⋮", "“Restricted setting”? Apps → Consolize → ⋮"),
+                    fontSize = 11.sp, lineHeight = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-        }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        PermRow(tr("Permiso de pantalla", "Screen permission"), Aspect.canWrite(a),
-            tr("16:9 y brillo en juegos · se da una vez desde un computador", "16:9 and brightness in games · granted once from a computer"), off = tr("Falta", "Missing")) {
-            Hint(Aspect.GRANT_COMMAND)
+            PermCard(Icons.Outlined.Terminal, "Shizuku", shizuku == Shell.State.READY,
+                tr("Bypass, FPS, apps abiertas", "Bypass, FPS, open apps"), Modifier.weight(1f),
+                off = if (shizuku == Shell.State.NO_PERMISSION) tr("Sin permiso", "No permission") else tr("Apagado", "Off")) {
+                val launch = remember { Shell.launchIntent(a) }
+                when {
+                    shizuku == Shell.State.NO_PERMISSION -> Button(onClick = { Shell.requestPermission() }) { Text(tr("Dar permiso", "Grant")) }
+                    launch != null -> Button(onClick = { runCatching { a.startActivity(launch) } }) { Text(tr("Abrir", "Open")) }
+                    else -> Text(tr("No instalado", "Not installed"), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            PermCard(Icons.Outlined.AspectRatio, tr("Pantalla", "Screen"), Aspect.canWrite(a),
+                tr("16:9 y brillo en juegos", "16:9 and brightness in games"), Modifier.weight(1f), off = tr("Falta", "Missing")) {
+                // El comando, para copiarlo (se da una vez desde un computador).
+                var copied by remember { mutableStateOf(false) }
+                OutlinedButton(onClick = {
+                    (a.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("adb", Aspect.GRANT_COMMAND)); copied = true
+                }) { Icon(Icons.Outlined.ContentCopy, null, Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)); Text(if (copied) tr("Copiado", "Copied") else "adb") }
+            }
         }
     }
 }
-/** Un permiso: nombre y estado en una fila, para qué sirve debajo y, si falta, cómo darlo. */
+/** Un permiso en tarjeta: el ícono (del acento si está, rojo si falta), el nombre, para qué y, si falta, cómo darlo. */
 @Composable
-private fun PermRow(title: String, ok: Boolean, desc: String, off: String = tr("Apagado", "Off"), fix: @Composable ColumnScope.() -> Unit) {
+private fun PermCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, ok: Boolean, desc: String, modifier: Modifier,
+    off: String = tr("Apagado", "Off"), fix: @Composable ColumnScope.() -> Unit) {
     val c = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val tint = if (ok) c.primary else c.error
+    Column(modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(c.onSurface.copy(alpha = 0.05f)).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title, Modifier.weight(1f), fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            Text(if (ok) tr("Activo", "On") else off, fontSize = 14.sp, color = if (ok) c.primary else c.error)
+            Box(Modifier.size(44.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(tint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(24.dp), tint = tint) }
+            Spacer(Modifier.weight(1f))
+            Icon(if (ok) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline, null, Modifier.size(18.dp), tint = tint)
+            Spacer(Modifier.width(4.dp))
+            Text(if (ok) tr("Activo", "On") else off, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = tint)
         }
-        Text(desc, fontSize = 13.sp, color = c.onSurfaceVariant)
+        Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text(desc, fontSize = 12.sp, color = c.onSurfaceVariant)
         if (!ok) fix()
     }
 }
@@ -702,8 +720,15 @@ private fun SoundSettings(a: MainActivity) {
     val music = AmbientMusic.on
     var musicVol by remember { mutableIntStateOf(Prefs.musicVolume(a)) }
     val hasMusic = AmbientMusic.hasFile
-    SwitchRow(tr("Sonidos al navegar", "Navigation sounds"), nav) {
-        nav = it; Prefs.setNavSounds(a, it); if (it) { UiSounds.preload(a); UiSounds.play(a, UiSounds.Kind.SELECT) }
+    TileFlow {
+        SwitchTile(Icons.Outlined.GraphicEq, tr("Sonidos al navegar", "Navigation sounds"), nav) {
+            nav = it; Prefs.setNavSounds(a, it); if (it) { UiSounds.preload(a); UiSounds.play(a, UiSounds.Kind.SELECT) }
+        }
+        if (nav) SwitchTile(Icons.Outlined.SpaceDashboard, tr("También en el panel", "In the panel too"), navPanel) { navPanel = it; Prefs.setNavSoundsPanel(a, it) }
+        // Sin archivo, tocarlo pide uno.
+        SwitchTile(Icons.Outlined.MusicNote, if (hasMusic) tr("Música ambiental", "Background music") else tr("Música · elegir…", "Music · pick…"), music && hasMusic) {
+            if (!hasMusic) a.pickMusic() else { AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a) }
+        }
     }
     if (nav) {
         // El juego de sonidos: al elegir uno suena su "elegir" para escucharlo.
@@ -711,14 +736,9 @@ private fun SoundSettings(a: MainActivity) {
         ChoiceRow(tr("Estilo de los sonidos", "Sound style"), NavPack.entries.map { it to it.label }, pack) {
             pack = it; Prefs.setNavPack(a, it); UiSounds.reload(a)
         }
-        SwitchRow(tr("También en el panel de juego", "Also in the game panel"), navPanel) { navPanel = it; Prefs.setNavSoundsPanel(a, it) }
         SliderRow(tr("Volumen de los sonidos", "Sound volume"), navVol, 10..100, "$navVol %") {
             navVol = it; Prefs.setNavVolume(a, it); UiSounds.play(a, UiSounds.Kind.MOVE)
         }
-    }
-    SwitchRow(tr("Música ambiental", "Background music"), music && hasMusic,
-        if (hasMusic) null else tr("Elige un archivo de audio", "Pick an audio file")) {
-        if (!hasMusic) a.pickMusic() else { AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a) }
     }
     if (music && hasMusic) {
         SliderRow(tr("Volumen de la música", "Music volume"), musicVol, 5..100, "$musicVol %") {

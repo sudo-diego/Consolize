@@ -1467,3 +1467,42 @@ fun ColorRow(title: String, argb: Long, onPick: (Long) -> Unit) {
     }
     if (open) ColorWheelDialog(title, argb, { open = false }) { onPick(it); open = false }
 }
+
+/**
+ * Interruptor en mosaico, como los del panel de juego: el ícono en una insignia (del acento al encenderse) y el nombre
+ * debajo. Reemplaza a las filas "texto + interruptor": varias juntas se ven de un vistazo y casi sin leer.
+ */
+@Composable
+fun SwitchTile(icon: ImageVector, label: String, checked: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true,
+    onChange: (Boolean) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val ok = enabled && LocalEditable.current
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(20.dp)
+    val bg by androidx.compose.animation.animateColorAsState(if (checked) c.primary.copy(alpha = 0.16f) else c.onSurface.copy(alpha = 0.05f), label = "fondo")
+    val badge by androidx.compose.animation.animateColorAsState(if (checked) c.primary else c.onSurface.copy(alpha = 0.1f), label = "insignia")
+    Column(modifier.width(148.dp).height(112.dp).alpha(if (ok) 1f else 0.45f)
+        .focusLift(focused, src, 1.05f).clip(shape).background(bg)
+        .focusHalo(focused, shape)
+        .clickable(interactionSource = src, indication = null, enabled = ok) { onChange(!checked) }
+        .padding(14.dp), verticalArrangement = Arrangement.SpaceBetween) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(badge), contentAlignment = Alignment.Center) {
+                Icon(icon, null, Modifier.size(22.dp), tint = if (checked) c.onPrimary else c.onSurface.copy(alpha = 0.8f))
+            }
+            Spacer(Modifier.weight(1f))
+            // El estado en chico: una pastilla que se llena (como la luz de un botón).
+            Box(Modifier.size(width = 22.dp, height = 8.dp).clip(CircleShape).background(if (checked) c.primary else c.onSurface.copy(alpha = 0.15f)))
+        }
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp, maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+}
+
+/** Una grilla de mosaicos (los de arriba), que baja de línea si no caben. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TileFlow(content: @Composable () -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+}
