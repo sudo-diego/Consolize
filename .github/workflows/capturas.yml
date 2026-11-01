@@ -43,4 +43,4 @@ jobs:
         run: |
           gh release view capturas >/dev/null 2>&1 || gh release create capturas --prerelease --title "Capturas" --notes "Capturas de la app en un emulador." --target "$GITHUB_SHA"
           for a in $(gh release view capturas --json assets --jq '.assets[].name'); do gh release delete-asset capturas "$a" -y; done
-          gh release upload capturas shots/*.png --clobber
+          gh release upload capturas shots/*.png shots/log.txt --clobber

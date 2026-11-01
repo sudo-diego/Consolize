@@ -94,9 +94,9 @@ fun GamesPage(s: AppState, a: MainActivity) {
                 // Cargando: esqueletos que laten (la forma de lo que viene, en vez de un "Cargando…").
                 apps == null -> SkeletonGrid(12, pulse = true)
                 // Sin juegos: la forma de la biblioteca, tenue, y qué hacer.
-                list.isEmpty() -> Box(contentAlignment = Alignment.Center) {
+                list.isEmpty() -> Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     SkeletonGrid(6, pulse = false)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(tr("No hay juegos instalados", "No games installed"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = backdropOn())
                         TextButton(onClick = { all = true }) { Text(tr("Ver todas las apps", "Show all apps")) }
                     }
