@@ -357,8 +357,8 @@ private fun BatteryPanel(s: AppState, a: MainActivity) {
                     own = lv; ZuiBattery.setOwnLimit(a, lv.takeIf { it > 0 })
                 }
                 // Cómo funciona el límite propio: lo vigila la app, así que solo corta mientras está corriendo.
-                if (own > 0) Hint(tr("Lo vigila Consolize (con Shizuku y el servicio activos): si la tablet se apaga o se reinicia, no corta hasta que la app vuelva a correr.",
-                    "Consolize watches it (Shizuku and the service on): if the tablet powers off or restarts, it won't stop until the app runs again."), Icons.Outlined.Info)
+                if (own > 0) NoteStrip(tr("Lo vigila Consolize (con Shizuku y el servicio activos): si la tablet se apaga o se reinicia, no corta hasta que la app vuelva a correr.",
+                    "Consolize watches it (Shizuku and the service on): if the tablet powers off or restarts, it won't stop until the app runs again."), Icons.Outlined.WarningAmber)
                 // Sin explicar el de ZUI: las opciones dicen solas dónde corta. Solo el aviso si el del sistema no deja llegar.
                 if (own > 80 && limit != null) Hint(tr("El límite del sistema corta antes ($limit %).", "The system limit stops earlier ($limit %)."))
             }
@@ -469,13 +469,17 @@ private fun ScreenButtonsPanel(s: AppState, a: MainActivity) {
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
         Panel(tr("Pantalla", "Screen")) {
             ScreenRow(a)
-            // El mosaico Rotar del panel (y la combinación con la guía, si se elige): entre qué orientaciones va.
-            var cycle by remember { mutableStateOf(Rotation.cycle(a)) }
+            // El mosaico Rotar del panel (y la combinación con la guía): entre qué orientaciones va (dos o más).
+            var rot by remember { mutableStateOf(Rotation.chosen(a).toSet()) }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Outlined.ScreenRotation, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(tr("Rotar", "Rotate"), fontSize = 14.sp)
-                ChoiceChips(Rotation.Cycle.entries.map { it to it.label }, cycle) { cycle = it; Rotation.setCycle(a, it) }
+                Text(tr("Rotar entre", "Rotate between"), fontSize = 14.sp)
+                MultiChips(Rotation.Orient.entries.map { it to it.label }, rot) { o, on ->
+                    val n = if (on) rot + o else rot - o
+                    if (n.size >= 2) { rot = n; Rotation.setChosen(a, n) }
+                }
             }
+            if (!Rotation.available) Hint(tr("Rotar necesita Shizuku.", "Rotating needs Shizuku."))
         }
     }
 }

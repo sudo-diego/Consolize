@@ -2,6 +2,8 @@
 
 package io.github.sudodiego.g9control
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.ui.draw.clip
 
 import androidx.compose.foundation.background
@@ -252,6 +254,16 @@ private fun GameDetail(s: AppState, a: MainActivity, g: GameEntry) {
                 SwitchRow(tr("Guía + RB: captura del juego", "Guide + RB: game's screenshot"), byGame) { byGame = it; AutoRules.setShotByGame(a, g.pkg, it) }
             }
 
+            // App de transmisión (Moonlight, Artemis…): ahí los gestos quedan para el PC, así que sin una combinación de
+            // Atrás no se puede salir. Se recomienda encenderla aquí.
+            if (g.pkg in AutoRules.STREAMING && !(AutoRules.chordOn(a, AutoRules.Chord.BACK) && AutoRules.chordActive(a, AutoRules.Chord.BACK, g.pkg))) {
+                val (b1, b2) = AutoRules.chordKeys(a, AutoRules.Chord.BACK)
+                NoteStrip(tr("App de transmisión: los gestos van al PC. Enciende ${b1.label} + ${b2.label} (Atrás) aquí para poder salir de ella.",
+                    "Streaming app: gestures go to the PC. Turn on ${b1.label} + ${b2.label} (Back) here to be able to leave it."), Icons.Outlined.WarningAmber)
+                TextButton(onClick = {
+                    AutoRules.setChordOn(a, AutoRules.Chord.BACK, true); AutoRules.setChordHere(a, AutoRules.Chord.BACK, g.pkg, true)
+                }) { Text(tr("Encender Atrás aquí", "Turn on Back here")) }
+            }
             // Combinaciones de dos botones (Controles → Combinaciones) en esta app: así cada una se elige donde funciona.
             AutoRules.Chord.entries.filter { AutoRules.chordOn(a, it) }.forEach { c ->
                 var here by remember { mutableStateOf(AutoRules.chordActive(a, c, g.pkg)) }

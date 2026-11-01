@@ -1053,11 +1053,14 @@ class GamePanel(private val svc: AutoModeService) {
                 crossfade { showAspectMenu(pkg) }
             })
         }
-        // Rotar: el siguiente según lo elegido (Panel → Qué se muestra); mantener (o Y) vuelve a la automática.
+        // Rotar (con Shizuku): A la siguiente de las elegidas (Tablet → Pantalla); Y vuelve a como estaba. El panel queda
+        // abierto y dice a cuál fue.
         addTile(PanelTile.ROTATE, PanelItem(tr("Rotar", "Rotate"), Icons.Outlined.ScreenRotation, PanelRow.SCREEN,
-            sub = Rotation.label(Rotation.locked, svc), active = Rotation.locked != null,
-            alt = { scope.launch { Rotation.set(svc, null) }; hide() }) {
-            scope.launch { Rotation.next(svc) }
+            sub = if (!Rotation.available) tr("Necesita Shizuku", "Needs Shizuku") else Rotation.current?.label ?: tr("Como estaba", "As it was"),
+            active = Rotation.current != null, enabled = Rotation.available,
+            foot = tr("A rotar · Y volver a como estaba · B cerrar", "A rotate · Y back to how it was · B close"),
+            alt = { scope.launch { Rotation.restore(); refresh(); toast(tr("Rotación como estaba", "Rotation as it was")) } }) {
+            scope.launch { Rotation.next(svc)?.let { refresh(); toast(tr("Pantalla: ", "Screen: ") + it.label) } }
         })
         // Con un monitor en espejo y la pantalla de la tablet oscurecida (o encendida a mano): verla un rato o volver.
         if (Monitor.screen(svc) != Monitor.Screen.NORMAL && Monitor.current(svc) != null && Monitor.mirror(svc)) {

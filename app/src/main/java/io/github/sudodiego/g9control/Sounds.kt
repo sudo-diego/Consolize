@@ -21,9 +21,10 @@ import androidx.compose.runtime.setValue
  * a R.raw van escritas (no por nombre): así la reducción de recursos de la versión publicada no los borra.
  */
 enum class NavPack {
-    CLASSIC, BUBBLE, WOOD;
+    // Madera es el clásico de Consolize (va primero); los de siempre quedan como "Original". Los nombres guardados no cambian.
+    WOOD, BUBBLE, CLASSIC;
     val label get() = when (this) {
-        CLASSIC -> tr("Clásico", "Classic"); BUBBLE -> tr("Burbuja", "Bubble"); WOOD -> tr("Madera", "Wood")
+        CLASSIC -> tr("Original", "Original"); BUBBLE -> tr("Burbuja", "Bubble"); WOOD -> tr("Clásico", "Classic")
     }
     /** Mover, elegir, volver, sección, abrir el panel y salir. */
     val raw: List<Int> get() = when (this) {

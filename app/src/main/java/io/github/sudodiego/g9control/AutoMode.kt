@@ -967,7 +967,7 @@ class AutoModeService : AccessibilityService() {
             AutoRules.ComboAction.PANEL -> panel.show()
             AutoRules.ComboAction.HOME -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_HOME) }
             AutoRules.ComboAction.RECENTS -> { panel.hide(); performGlobalAction(GLOBAL_ACTION_RECENTS) }
-            AutoRules.ComboAction.ROTATE -> scope.launch { Rotation.next(this@AutoModeService) }
+            AutoRules.ComboAction.ROTATE -> scope.launch { Rotation.next(this@AutoModeService)?.let { panel.message(tr("Pantalla: ", "Screen: ") + it.label, null) } }
         }
         return true
     }

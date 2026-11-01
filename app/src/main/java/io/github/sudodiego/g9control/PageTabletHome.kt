@@ -391,14 +391,25 @@ fun HomeSummary(s: AppState, a: MainActivity) {
         // Interruptores y accesos en una sola grilla pareja (antes, los accesos seguían hacia la derecha en una fila
         // larga y el último bajaba solo, cortado): filas de igual largo, como mucho 7 por fila.
         val pinsCount = s.homePins.count { id -> allEntries(s).any { it.id == id } }
-        val total = s.quickPins.size + pinsCount + 1
-        val rows = (total + 6) / 7
+        // "Editar" va aparte, abajo (dentro contaba como uno más y quedaban filas disparejas: 7 y 6).
+        val total = s.quickPins.size + pinsCount
+        val rows = ((total + 6) / 7).coerceAtLeast(1)
         var picking by remember { mutableStateOf(false) }
         @OptIn(ExperimentalLayoutApi::class)
-        FlowRow(maxItemsInEachRow = (total + rows - 1) / rows,
+        FlowRow(maxItemsInEachRow = ((total + rows - 1) / rows).coerceAtLeast(1),
             horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             QuickTiles(s, a)
-            HomeAccess(s) { picking = true }
+            HomeAccess(s)
+        }
+        val editSrc = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+        val editFocused by editSrc.collectIsFocusedAsState()
+        Surface(onClick = { picking = true }, interactionSource = editSrc, shape = androidx.compose.foundation.shape.CircleShape,
+            color = cardColor(), contentColor = cardOn(),
+            modifier = Modifier.focusLift(editFocused, editSrc, 1.06f).focusHalo(editFocused, androidx.compose.foundation.shape.CircleShape)) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
+                Text(tr("Editar Inicio", "Edit Home"), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
         }
         if (picking) AccessPicker(s) { picking = false }
         Spacer(Modifier.height(24.dp))
@@ -474,10 +485,9 @@ private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, valu
 
 /** Accesos: lo fijado desde Más (Y), como íconos grandes con su nombre debajo; "+" lleva a Más para elegir. */
 @Composable
-private fun HomeAccess(s: AppState, onEdit: () -> Unit) {
+private fun HomeAccess(s: AppState) {
     val entries = allEntries(s).associateBy { it.id }
     s.homePins.mapNotNull { entries[it] }.forEach { e -> AccessIcon(e.icon, e.label()) { s.goDest(e.id) } }
-    AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true, onClick = onEdit)
 }
 
 /**

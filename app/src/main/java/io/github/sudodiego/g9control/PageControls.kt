@@ -115,7 +115,15 @@ private fun GuidePanel(a: MainActivity) {
                         // Mantener la guía 5 s: el control se apaga y la tablet se bloquea.
                         val lock = states.getValue(AutoRules.Guide.HOLD_LOCK)
                         ComboChip("5 s", Icons.Outlined.Bedtime, null, lock.value, false, editable,
-                            onToggle = { lock.value = !lock.value; AutoRules.setGuide(a, AutoRules.Guide.HOLD_LOCK, lock.value) }, onMenu = {})
+                            onToggle = { lock.value = !lock.value; AutoRules.setGuide(a, AutoRules.Guide.HOLD_LOCK, lock.value) }, onMenu = null)
+                    }
+                    // Qué hace cada botón en las combinaciones (antes no se sabía que Y cambia la acción). La de 5 s solo se
+                    // enciende o apaga.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PadBadge("A", round = true); Spacer(Modifier.width(6.dp))
+                        Text(tr("Encender o apagar", "Turn on or off"), fontSize = 12.sp, color = cardMuted())
+                        Spacer(Modifier.width(16.dp)); PadBadge("Y", round = true); Spacer(Modifier.width(6.dp))
+                        Text(tr("Cambiar qué hace (o mantener con el dedo)", "Change what it does (or long-press)"), fontSize = 12.sp, color = cardMuted())
                     }
                     openCombo?.let { c ->
                         OptionStrip(AutoRules.ComboAction.entries.map { Triple(it, it.icon, it.label) }, combos.getValue(c).value) {
@@ -180,14 +188,14 @@ private fun PressDots(p: AutoRules.GuidePress) {
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ComboChip(key: String, icon: ImageVector, note: String?, on: Boolean, open: Boolean, enabled: Boolean, onToggle: () -> Unit, onMenu: () -> Unit) {
+private fun ComboChip(key: String, icon: ImageVector, note: String?, on: Boolean, open: Boolean, enabled: Boolean, onToggle: () -> Unit, onMenu: (() -> Unit)?) {
     val c = MaterialTheme.colorScheme
     val src = remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
     val shape = RoundedCornerShape(16.dp)
     Row(Modifier.focusLift(focused, src, 1.05f).bump(shape).focusHalo(focused || open, shape).clip(shape).background(cardColor())
         .combinedClickable(interactionSource = src, indication = null, enabled = enabled, onClick = onToggle, onLongClick = onMenu)
-        .onPreviewKeyEvent { e -> if (e.type == KeyEventType.KeyUp && e.key == Key.ButtonY) { onMenu(); true } else false }
+        .onPreviewKeyEvent { e -> if (onMenu != null && e.type == KeyEventType.KeyUp && e.key == Key.ButtonY) { onMenu(); true } else false }
         .alpha(if (on) 1f else 0.4f)
         .padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
         // La guía: un círculo del color de acento con la casita.

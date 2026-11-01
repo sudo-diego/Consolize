@@ -116,7 +116,7 @@ private fun SticksReadout(s: AppState) {
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             listOf(tr("Izquierdo", "Left") to (v(s.lx) to v(s.ly)), tr("Derecho", "Right") to (v(s.rx) to v(s.ry))).forEach { (name, xy) ->
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    StickTrace(xy.first, xy.second, on, Modifier.size(150.dp))
+                    StickTrace(xy.first, xy.second, on, s.testReset, Modifier.size(150.dp))
                     Text(name, fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     Text("%+.2f  %+.2f".format(xy.first, xy.second), fontSize = 12.sp, color = c.onSurfaceVariant,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1)
@@ -133,11 +133,11 @@ private fun SticksReadout(s: AppState) {
  * (cardinal snapping), y la zona muerta del centro.
  */
 @Composable
-private fun StickTrace(x: Float, y: Float, on: Boolean, modifier: Modifier) {
+private fun StickTrace(x: Float, y: Float, on: Boolean, reset: Int, modifier: Modifier) {
     val c = MaterialTheme.colorScheme
     // Posiciones en una grilla de 1/100 (cada celda una vez), hasta 8000.
     val seen = remember { androidx.compose.runtime.mutableStateMapOf<Int, Unit>() }
-    LaunchedEffect(on) { if (!on) seen.clear() }
+    LaunchedEffect(on, reset) { if (!on || reset > 0) seen.clear() }
     LaunchedEffect(x, y) {
         if (!on || seen.size > 8000) return@LaunchedEffect
         val qx = ((x.coerceIn(-1f, 1f) + 1f) * 100).toInt(); val qy = ((y.coerceIn(-1f, 1f) + 1f) * 100).toInt()
@@ -199,7 +199,7 @@ private fun TestPanel(s: AppState) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (s.testMode) {
-                TextButton(onClick = { s.testedKeys.clear(); s.otherKeys.clear() }) { Text(tr("Reiniciar", "Reset")) }
+                TextButton(onClick = { s.testedKeys.clear(); s.otherKeys.clear(); s.testReset++ }) { Text(tr("Reiniciar", "Reset")) }
                 // Junto a Terminar: B con su aro, que se llena mientras se mantiene (1 s sale de la prueba).
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     HoldBadge(s.bHold)
@@ -211,8 +211,8 @@ private fun TestPanel(s: AppState) {
             } else Button(onClick = { s.testedKeys.clear(); s.otherKeys.clear(); s.testMode = true }) { Text(tr("Probar botones", "Test buttons")) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            Box(Modifier.weight(1f)) { TriggerRow("LT", v(s.lt), s.testMode) }
-            Box(Modifier.weight(1f)) { TriggerRow("RT", v(s.rt), s.testMode) }
+            Box(Modifier.weight(1f)) { TriggerRow("LT", v(s.lt), s.testMode, s.testReset) }
+            Box(Modifier.weight(1f)) { TriggerRow("RT", v(s.rt), s.testMode, s.testReset) }
         }
         KeyGrid(s, pressed)
     }
@@ -246,14 +246,15 @@ private fun KeyGrid(s: AppState, pressed: Set<PadKey>) {
 }
 
 @Composable
-private fun TriggerRow(label: String, v: Float, on: Boolean) {
+private fun TriggerRow(label: String, v: Float, on: Boolean, reset: Int) {
     val c = MaterialTheme.colorScheme
     // Cada 1 % del recorrido: lo alcanzado queda marcado (una rayita por valor), así se ve si el gatillo salta valores.
     // El de ahora, una barra encima. Se borra al terminar la prueba.
     val seen = remember { androidx.compose.runtime.mutableStateListOf<Boolean>().apply { repeat(101) { add(false) } } }
-    LaunchedEffect(on) { if (!on) for (i in 0..100) seen[i] = false }
+    LaunchedEffect(on, reset) { if (!on || reset > 0) for (i in 0..100) seen[i] = false }
     LaunchedEffect(v) { if (on) seen[(v * 100).toInt().coerceIn(0, 100)] = true }
-    val count = seen.count { it }
+    // De 1 a 100 % (el 0 es soltarlo: no cuenta).
+    val count = (1..100).count { seen[it] }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.width(40.dp), fontSize = 14.sp)
         androidx.compose.foundation.Canvas(Modifier.weight(1f).height(18.dp)) {
@@ -268,7 +269,7 @@ private fun TriggerRow(label: String, v: Float, on: Boolean) {
         }
         Column(Modifier.width(64.dp), horizontalAlignment = Alignment.End) {
             Text("%d%%".format((v * 100).toInt()), fontSize = 13.sp, color = c.onSurface)
-            Text(tr("$count/101", "$count/101"), fontSize = 10.sp, color = c.onSurfaceVariant)
+            Text("$count/100", fontSize = 10.sp, color = c.onSurfaceVariant)
         }
     }
 }

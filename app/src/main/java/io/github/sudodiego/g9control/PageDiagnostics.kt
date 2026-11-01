@@ -602,7 +602,12 @@ internal fun PanelLookPanel(a: MainActivity) {
     // mosaicos nuevos y un fondo que no sea liso (sobre un color liso no hay qué desenfocar).
     if (!ThemeState.panelClassic && ThemeState.panelBackground != PanelBackground.PLAIN && android.os.Build.VERSION.SDK_INT >= 31)
         Panel(tr("Vidrio líquido", "Liquid glass")) {
-            SwitchRow(tr("Mosaicos de vidrio líquido", "Liquid glass tiles"), ThemeState.panelLiquid) { ThemeState.panelLiquid = it; Prefs.setPanelLiquid(a, it) }
+            // Al encenderlo se congela también la imagen del juego (el vidrio se ve mejor sobre algo quieto); se puede
+            // volver a apagar aparte.
+            SwitchRow(tr("Mosaicos de vidrio líquido", "Liquid glass tiles"), ThemeState.panelLiquid) {
+                ThemeState.panelLiquid = it; Prefs.setPanelLiquid(a, it)
+                if (it && !ThemeState.panelFreeze) { ThemeState.panelFreeze = true; Prefs.setPanelFreeze(a, true) }
+            }
             if (ThemeState.panelLiquid) LiquidSliders(a)
         }    // Tema y color valen también para los avisos y las guías (lo que se dibuja sobre el juego).
     Panel(tr("Colores", "Colors"), tr("También en avisos y guías", "Also in notices and guides")) {
@@ -760,31 +765,42 @@ private fun SoundSettings(a: MainActivity) {
     val music = AmbientMusic.on
     var musicVol by remember { mutableIntStateOf(Prefs.musicVolume(a)) }
     val hasMusic = AmbientMusic.hasFile
+    var pack by remember { mutableStateOf(Prefs.navPack(a)) }
+    // Dos mosaicos (sonidos y música): cada uno dice cómo está y, al tocarlo, abre debajo todo lo suyo (antes eran un
+    // interruptor y, aparte, el estilo y el volumen sueltos).
+    var open by remember { mutableStateOf<String?>(null) }
     TileFlow {
-        SwitchTile(Icons.Outlined.GraphicEq, tr("Sonidos al navegar", "Navigation sounds"), nav) {
-            nav = it; Prefs.setNavSounds(a, it); if (it) { UiSounds.preload(a); UiSounds.play(a, UiSounds.Kind.SELECT) }
-        }
-        if (nav) SwitchTile(Icons.Outlined.SpaceDashboard, tr("También en el panel", "In the panel too"), navPanel) { navPanel = it; Prefs.setNavSoundsPanel(a, it) }
-        // Sin archivo, tocarlo pide uno.
-        SwitchTile(Icons.Outlined.MusicNote, if (hasMusic) tr("Música ambiental", "Background music") else tr("Música · elegir…", "Music · pick…"), music && hasMusic) {
-            if (!hasMusic) a.pickMusic() else { AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a) }
+        SwitchTile(Icons.Outlined.GraphicEq, tr("Sonidos al navegar", "Navigation sounds"), nav,
+            sub = if (nav) pack.label + " · $navVol %" else tr("Apagados", "Off")) { open = if (open == "nav") null else "nav" }
+        SwitchTile(Icons.Outlined.MusicNote, tr("Música ambiental", "Background music"), music && hasMusic,
+            sub = when { !hasMusic -> tr("Sin elegir", "None chosen"); music -> "$musicVol %"; else -> tr("Apagada", "Off") }) { open = if (open == "music") null else "music" }
+    }
+    androidx.compose.animation.AnimatedVisibility(open == "nav") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Apagados o uno de los juegos (al elegirlo suena su "elegir" para escucharlo).
+            ChoiceChips(listOf<NavPack?>(null).map { it to tr("Apagados", "Off") } + NavPack.entries.map { it to it.label }, if (nav) pack else null) {
+                if (it == null) { nav = false; Prefs.setNavSounds(a, false) }
+                else { nav = true; Prefs.setNavSounds(a, true); pack = it; Prefs.setNavPack(a, it); UiSounds.reload(a); UiSounds.preload(a); UiSounds.play(a, UiSounds.Kind.SELECT) }
+            }
+            if (nav) {
+                SliderRow(tr("Volumen", "Volume"), navVol, 10..100, "$navVol %") { navVol = it; Prefs.setNavVolume(a, it); UiSounds.play(a, UiSounds.Kind.MOVE) }
+                SwitchTile(Icons.Outlined.SpaceDashboard, tr("También en el panel", "In the panel too"), navPanel) { navPanel = it; Prefs.setNavSoundsPanel(a, it) }
+            }
         }
     }
-    if (nav) {
-        // El juego de sonidos: al elegir uno suena su "elegir" para escucharlo.
-        var pack by remember { mutableStateOf(Prefs.navPack(a)) }
-        ChoiceRow(tr("Estilo de los sonidos", "Sound style"), NavPack.entries.map { it to it.label }, pack) {
-            pack = it; Prefs.setNavPack(a, it); UiSounds.reload(a)
+    androidx.compose.animation.AnimatedVisibility(open == "music") {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (hasMusic) ChoiceChips(listOf(false to tr("Apagada", "Off"), true to tr("Encendida", "On")), music) {
+                AmbientMusic.on = it; Prefs.setMusic(a, it); AmbientMusic.restart(a)
+            }
+            if (hasMusic && music) SliderRow(tr("Volumen", "Volume"), musicVol, 5..100, "$musicVol %") {
+                musicVol = it; Prefs.setMusicVolume(a, it); AmbientMusic.setVolume(a)
+            }
+            OutlinedButton(onClick = { a.pickMusic() }) {
+                Icon(Icons.Outlined.LibraryMusic, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
+                Text(if (hasMusic) tr("Cambiar música", "Change music") else tr("Elegir música", "Pick music"))
+            }
         }
-        SliderRow(tr("Volumen de los sonidos", "Sound volume"), navVol, 10..100, "$navVol %") {
-            navVol = it; Prefs.setNavVolume(a, it); UiSounds.play(a, UiSounds.Kind.MOVE)
-        }
-    }
-    if (music && hasMusic) {
-        SliderRow(tr("Volumen de la música", "Music volume"), musicVol, 5..100, "$musicVol %") {
-            musicVol = it; Prefs.setMusicVolume(a, it); AmbientMusic.setVolume(a)
-        }
-        OutlinedButton(onClick = { a.pickMusic() }) { Text(tr("Cambiar música", "Change music")) }
     }
 }
 

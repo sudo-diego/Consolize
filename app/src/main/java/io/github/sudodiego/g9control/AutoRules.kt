@@ -171,7 +171,7 @@ object AutoRules {
     enum class Chord(val id: String, val defA: PadKey, val defB: PadKey) {
         PANEL("panel", PadKey.L3, PadKey.R3), SHOT("shot", PadKey.R3, PadKey.A), BACK("back", PadKey.START, PadKey.SELECT);
         val label get() = when (this) {
-            PANEL -> tr("Panel de juego", "Game panel"); SHOT -> tr("Captura", "Screenshot"); BACK -> tr("Atrás (menú de la app de transmisión)", "Back (streaming app menu)")
+            PANEL -> tr("Panel de juego", "Game panel"); SHOT -> tr("Captura", "Screenshot"); BACK -> tr("Atrás", "Back")
         }
         val short get() = when (this) { PANEL -> tr("Panel", "Panel"); SHOT -> tr("Captura", "Screenshot"); BACK -> tr("Atrás", "Back") }
     }

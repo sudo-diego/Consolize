@@ -125,6 +125,19 @@ fun NeedsBanner(text: String, action: String, onAction: () -> Unit) {
     }
 }
 
+/** Un aviso importante dentro de una página, con el mismo dibujo que el de accesibilidad (pastilla de color), sin botón. */
+@Composable
+fun NoteStrip(text: String, icon: ImageVector = Icons.Outlined.Info) {
+    val c = MaterialTheme.colorScheme
+    Surface(color = c.tertiaryContainer.copy(alpha = 0.85f), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, Modifier.size(20.dp), tint = c.onTertiaryContainer)
+            Spacer(Modifier.width(10.dp))
+            Text(text, fontSize = 13.sp, lineHeight = 17.sp, color = c.onTertiaryContainer)
+        }
+    }
+}
+
 private data class NavItem(val page: Page, val es: String, val en: String, val icon: ImageVector, val selectedIcon: ImageVector) {
     val label get() = tr(es, en)
 }

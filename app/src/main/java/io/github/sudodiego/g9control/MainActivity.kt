@@ -1250,6 +1250,8 @@ class AppState {
     var lightsChangedAt by mutableStateOf(0L)
     /** Prueba de botones en curso (se entra a propósito con "Probar botones"). */
     var testMode by mutableStateOf(false)
+    /** Sube con "Reiniciar" en Probar control: borra lo dibujado de sticks y gatillos. */
+    var testReset by mutableIntStateOf(0)
     /** La página abierta: desplazarse hasta el final (1) o el principio (-1). La pone PageHost. */
     var pageEdge: ((Int) -> Unit)? = null
     /** Los botones del control se usan para probar o grabar, no para navegar. */
