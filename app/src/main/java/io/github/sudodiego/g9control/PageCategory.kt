@@ -273,19 +273,16 @@ private fun MoreHub(s: AppState) {
                 Surface(
                     onClick = { open = i }, interactionSource = src,
                     shape = RoundedCornerShape(24.dp), color = cardColor(), contentColor = cardOn(),
-                    modifier = Modifier.weight(1f).height(250.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
+                    modifier = Modifier.weight(1f).height(200.dp).focusRequester(catFocus[i]).focusProperties { canFocus = open == null }
                         .graphicsLayer { alpha = if (open != null && open != i) 0.3f else 1f }
                         .focusLift(focused, src, 1.04f).bump(RoundedCornerShape(24.dp)).focusHalo(focused, RoundedCornerShape(24.dp))
                 ) {
                     Column(Modifier.padding(horizontal = 22.dp, vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
                         // Un ícono grande de línea, del color del texto (con el foco, del acento).
-                        Icon(MORE_ICONS[i], null, Modifier.size(40.dp), tint = if (focused) MaterialTheme.colorScheme.primary else cardOn().copy(alpha = 0.85f))
+                        Icon(MORE_ICONS[i], null, Modifier.size(52.dp), tint = if (focused) MaterialTheme.colorScheme.primary else cardOn().copy(alpha = 0.85f))
                         Spacer(Modifier.weight(1f))
-                        Text(name, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(6.dp))
-                        // Lo que tiene, una cosa por línea (como un índice), las primeras cuatro.
-                        items.take(4).forEach { Text(it.label(), fontSize = 13.sp, lineHeight = 18.sp, color = cardMuted(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                        if (items.size > 4) Text(tr("y ${items.size - 4} más", "and ${items.size - 4} more"), fontSize = 13.sp, lineHeight = 18.sp, color = cardMuted().copy(alpha = 0.5f))
+                        // Solo el nombre (lo que tiene se ve al abrirlo).
+                        Text(name, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

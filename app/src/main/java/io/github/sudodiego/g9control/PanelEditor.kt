@@ -109,7 +109,9 @@ fun PanelEditor(onDone: () -> Unit) {
         onDispose { s?.backOverride = null }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    // Con el aspecto del panel de verdad (sus colores y su fondo), y las filas repartidas como en él.
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.clip(RoundedCornerShape(24.dp)).background(PANEL_BG).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ThemeState.panelSections.forEach { sec -> key(sec) {
             val tiles = ThemeState.panelTileOrder.filter { it.section == sec }
             val secSrc = remember { MutableInteractionSource() }
@@ -128,12 +130,12 @@ fun PanelEditor(onDone: () -> Unit) {
                     shadowElevation = if (secLifted) 16f else 0f
                 }
                 .clip(RoundedCornerShape(18.dp))
-                .background(if (secLifted) c.primary.copy(alpha = 0.10f) else Color.Transparent)
+                .background(if (secLifted) PANEL_ACCENT.copy(alpha = 0.12f) else Color.Transparent)
                 .padding(4.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // La manija de la sección: mantener y arrastrar (o A y ↑ ↓ con el control).
                 Row(Modifier.focusRequester(secFocus.getValue(sec)).clip(RoundedCornerShape(10.dp))
-                    .then(if (secFocused || pickedSec == sec) Modifier.border(2.dp, if (pickedSec == sec) c.primary else c.onSurface, RoundedCornerShape(10.dp)) else Modifier)
+                    .then(if (secFocused || pickedSec == sec) Modifier.border(2.dp, if (pickedSec == sec) PANEL_ACCENT else SELECTED, RoundedCornerShape(10.dp)) else Modifier)
                     .pointerInput(sec) {
                         detectDragGesturesAfterLongPress(
                             onDragStart = { p -> val b = secBounds[sec] ?: return@detectDragGesturesAfterLongPress
@@ -156,14 +158,16 @@ fun PanelEditor(onDone: () -> Unit) {
                         }
                     }
                     .padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.DragIndicator, null, Modifier.size(20.dp), tint = if (secLifted) c.primary else c.onSurfaceVariant)
+                    Icon(Icons.Outlined.DragIndicator, null, Modifier.size(18.dp), tint = if (secLifted) PANEL_ACCENT else PANEL_MUTED)
                     Spacer(Modifier.width(6.dp))
-                    Text(sec.label.uppercase(), fontSize = 12.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold,
-                        color = if (secLifted) c.primary else c.onSurfaceVariant)
+                    Text(sec.label.uppercase(), fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (secLifted) PANEL_ACCENT else PANEL_MUTED)
                 }
                 // Todos los mosaicos de la sección en el mismo contenedor: al cambiar de fila no se corta el arrastre.
                 @OptIn(ExperimentalLayoutApi::class)
-                FlowRow(maxItemsInEachRow = if (sec == PanelRow.SLIDER) 2 else cols,
+                // Como el panel: las filas parejas (6 quedan en 3 + 3, no en 4 + 2).
+                val perRow = if (sec == PanelRow.SLIDER) 2 else tiles.size.let { n -> if (n == 0) cols else { val rows = (n + cols - 1) / cols; (n + rows - 1) / rows } }
+                FlowRow(maxItemsInEachRow = perRow,
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     tiles.forEach { t -> key(t) {
                         val hidden = t in ThemeState.panelHidden
@@ -188,8 +192,8 @@ fun PanelEditor(onDone: () -> Unit) {
                             }
                             .focusRequester(focus.getValue(t))
                             .clip(RoundedCornerShape(16.dp))
-                            .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(cardColor(), c.primary, 0.3f) else cardColor())
-                            .then(if (focused || isPicked) Modifier.border(2.dp, if (isPicked) c.primary else cardOn(), RoundedCornerShape(16.dp)) else Modifier)
+                            .background(if (isPicked || isDragged) androidx.compose.ui.graphics.lerp(TILE, PANEL_ACCENT, 0.35f) else TILE)
+                            .then(if (focused || isPicked) Modifier.border(2.dp, if (isPicked) PANEL_ACCENT else SELECTED, RoundedCornerShape(16.dp)) else Modifier)
                             .pointerInput(t) {
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = { p -> val b = bounds[t] ?: return@detectDragGesturesAfterLongPress
@@ -226,20 +230,23 @@ fun PanelEditor(onDone: () -> Unit) {
                             .graphicsLayer { alpha = if (hidden && !isPicked) 0.4f else 1f },
                             contentAlignment = Alignment.CenterStart) {
                             Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(cardOn().copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                                    Icon(t.icon, null, Modifier.size(19.dp), tint = cardOn())
+                                Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(PANEL_FG.copy(alpha = 0.13f)), contentAlignment = Alignment.Center) {
+                                    Icon(t.icon, null, Modifier.size(19.dp), tint = PANEL_FG.copy(alpha = 0.85f))
                                 }
                                 Spacer(Modifier.width(10.dp))
-                                Text(t.label, Modifier.weight(1f), fontSize = 13.sp, color = cardOn(), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Icon(if (hidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null,
+                                Text(t.label, Modifier.weight(1f), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = PANEL_FG, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                // El ojo solo en el elegido (para ocultarlo con el dedo) y en los ocultos (para mostrarlos): en todos
+                                // mareaba.
+                                if (focused || isPicked || hidden) Icon(if (hidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null,
                                     Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).clickable { toggleHidden(t) }.padding(4.dp),
-                                    tint = if (hidden) cardOn().copy(alpha = 0.6f) else cardOn().copy(alpha = 0.35f))
+                                    tint = PANEL_FG.copy(alpha = if (hidden) 0.7f else 0.5f))
                             }
                         }
                     } }
                 }
             }
         } }
+    }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             PadBadge("A", round = true); Spacer(Modifier.width(6.dp))
             Text(if (picked != null || pickedSec != null) tr("Soltar", "Drop") else tr("Mover", "Move"), fontSize = 13.sp, color = c.onSurfaceVariant)

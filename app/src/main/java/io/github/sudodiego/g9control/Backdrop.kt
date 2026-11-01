@@ -56,15 +56,7 @@ fun Backdrop() {
     when (ThemeState.background) {
         AppBackground.PLAIN -> Box(Modifier.fillMaxSize().background(base))
         // Consola: liso con rayitas horizontales finas (los dos colores se eligen en Apariencia).
-        AppBackground.STRIPES -> {
-            val bg = Color(ThemeState.stripeBase); val line = Color(ThemeState.stripeLine)
-            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                drawRect(bg)
-                val step = 6.dp.toPx(); val h = 3.dp.toPx()
-                var y = step - h
-                while (y < size.height) { drawRect(line, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Size(size.width, h)); y += step }
-            }
-        }
+        AppBackground.STRIPES -> PatternBackdrop(ThemeState.pattern, Color(ThemeState.stripeBase), Color(ThemeState.stripeLine))
         AppBackground.GRADIENT -> GradientBackdrop(dark)
         AppBackground.IMAGE -> {
             val uri = ThemeState.backgroundUri
@@ -389,5 +381,36 @@ fun FrozenGame(blur: Int) {
         if (Build.VERSION.SDK_INT >= 31) renderEffect = RenderEffect.createBlurEffect(r, r, Shader.TileMode.CLAMP).asComposeRenderEffect()
     }) {
         translate(-origin.x, -origin.y) { drawImage(f) }
+    }
+}
+/**
+ * El tapiz: el color de fondo y un dibujo fino con el otro color (rayas, puntos, círculos, diagonales, cuadrícula u
+ * ondas). Es fijo (no se anima): no gasta batería.
+ */
+@Composable
+fun PatternBackdrop(p: Pattern, bg: Color, line: Color, modifier: Modifier = Modifier.fillMaxSize()) {
+    androidx.compose.foundation.Canvas(modifier) {
+        drawRect(bg)
+        val w = size.width; val h = size.height
+        when (p) {
+            Pattern.STRIPES -> { val step = 6.dp.toPx(); val t = 3.dp.toPx(); var y = step - t
+                while (y < h) { drawRect(line, Offset(0f, y), androidx.compose.ui.geometry.Size(w, t)); y += step } }
+            Pattern.DOTS -> { val step = 18.dp.toPx(); val r = 2.5.dp.toPx(); var y = step / 2; var row = 0
+                while (y < h) { var x = if (row % 2 == 0) step / 2 else step; while (x < w) { drawCircle(line, r, Offset(x, y)); x += step }; y += step * 0.866f; row++ } }
+            Pattern.CIRCLES -> { val rnd = java.util.Random(7); val st = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx())
+                repeat(26) { val r = (24 + rnd.nextInt(90)).dp.toPx(); drawCircle(line, r, Offset(rnd.nextFloat() * w, rnd.nextFloat() * h), style = st) } }
+            Pattern.DIAGONAL -> { val step = 12.dp.toPx(); val t = 3.dp.toPx(); var x = -h
+                while (x < w) { drawLine(line, Offset(x, h), Offset(x + h, 0f), t); x += step } }
+            Pattern.GRID -> { val step = 28.dp.toPx(); val t = 1.5.dp.toPx(); var x = step
+                while (x < w) { drawLine(line, Offset(x, 0f), Offset(x, h), t); x += step }
+                var y = step; while (y < h) { drawLine(line, Offset(0f, y), Offset(w, y), t); y += step } }
+            Pattern.WAVES -> { val step = 22.dp.toPx(); val amp = 5.dp.toPx(); val len = 60.dp.toPx(); val st = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx())
+                var y = step / 2
+                while (y < h + amp) {
+                    val path = androidx.compose.ui.graphics.Path(); var x = 0f; path.moveTo(0f, y)
+                    while (x <= w) { x += 6f; path.lineTo(x, y + amp * kotlin.math.sin(x / len * 2 * Math.PI).toFloat()) }
+                    drawPath(path, line, style = st); y += step
+                } }
+        }
     }
 }

@@ -111,9 +111,16 @@ enum class AppTheme { SYSTEM, LIGHT, DARK;
     val label get() = when (this) { SYSTEM -> tr("Del sistema", "System"); LIGHT -> tr("Claro", "Light"); DARK -> tr("Oscuro", "Dark") }
 }
 
+/** El dibujo del tapiz "Consola" (con los dos colores elegidos). */
+enum class Pattern { STRIPES, DOTS, CIRCLES, DIAGONAL, GRID, WAVES;
+    val label get() = when (this) {
+        STRIPES -> tr("Rayas", "Stripes"); DOTS -> tr("Puntos", "Dots"); CIRCLES -> tr("Círculos", "Circles")
+        DIAGONAL -> tr("Diagonales", "Diagonals"); GRID -> tr("Cuadrícula", "Grid"); WAVES -> tr("Ondas", "Waves")
+    }
+}
 enum class AppBackground { STRIPES, GRADIENT, IMAGE, WALLPAPER, PLAIN;
     val label get() = when (this) {
-        STRIPES -> tr("Consola", "Console")
+        STRIPES -> tr("Tapiz", "Pattern")
         GRADIENT -> tr("Degradado", "Gradient"); IMAGE -> tr("Imagen o GIF", "Image or GIF")
         WALLPAPER -> tr("Fondo de pantalla", "Wallpaper"); PLAIN -> tr("Liso", "Plain")
     }
@@ -180,6 +187,7 @@ object ThemeState {
     var stripeBase by androidx.compose.runtime.mutableLongStateOf(0xFFEEF2F6)
     var stripeLine by androidx.compose.runtime.mutableLongStateOf(0xFFE3E9F0)
     val consoleLook get() = background == AppBackground.STRIPES
+    var pattern by androidx.compose.runtime.mutableStateOf(Pattern.STRIPES)
     var backgroundUri by androidx.compose.runtime.mutableStateOf<String?>(null)
     var backgroundBlur by androidx.compose.runtime.mutableIntStateOf(24)
     var backgroundLoop by androidx.compose.runtime.mutableStateOf(true)
@@ -253,7 +261,7 @@ object ThemeState {
         theme = Prefs.theme(ctx); background = Prefs.background(ctx); backgroundUri = Prefs.backgroundUri(ctx)
         backgroundBlur = Prefs.backgroundBlur(ctx); backgroundLoop = Prefs.backgroundLoop(ctx); surfaces = Prefs.surfaces(ctx); liquidParams = Prefs.liquidParams(ctx); backgroundDim = Prefs.backgroundDim(ctx)
         panelBackground = Prefs.panelBackground(ctx); panelUri = Prefs.panelUri(ctx); panelBlur = Prefs.panelBlur(ctx); panelLoop = Prefs.panelLoop(ctx); panelFill = Prefs.panelFill(ctx); panelSee = Prefs.panelSee(ctx)
-        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); stripeBase = Prefs.stripeBase(ctx); stripeLine = Prefs.stripeLine(ctx); backdropText = Prefs.backdropText(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
+        panelShape = Prefs.panelShape(ctx); panelScale = Prefs.panelScale(ctx); panelTone = Prefs.panelTone(ctx); panelStyle = Prefs.panelStyle(ctx); panelFit = Prefs.panelFit(ctx); appAccent = Prefs.accent(ctx, "app"); panelClassic = Prefs.panelClassic(ctx); panelPauseDim = Prefs.panelPauseDim(ctx); panelFreeze = Prefs.panelFreeze(ctx); panelHidden = Prefs.panelHidden(ctx); cardTone = Prefs.cardTone(ctx); cardCustom = Prefs.cardCustom(ctx); halo = Prefs.halo(ctx); stripeBase = Prefs.stripeBase(ctx); stripeLine = Prefs.stripeLine(ctx); pattern = Prefs.pattern(ctx); backdropText = Prefs.backdropText(ctx); panelSections = Prefs.panelSections(ctx); panelTileOrder = Prefs.panelTileOrder(ctx); panelStatItems = Prefs.panelStatItems(ctx); panelLiquid = Prefs.panelLiquid(ctx); panelStats = Prefs.panelStats(ctx); previewUri = Prefs.previewUri(ctx); panelAccent = Prefs.accent(ctx, "panel"); panelHeader = Prefs.panelHeader(ctx); panelHeaderH = Prefs.panelHeaderH(ctx); panelSeeImage = Prefs.panelSeeImage(ctx); panelFade = Prefs.panelFade(ctx); panelFocus = Prefs.panelFocus(ctx)
         // La imagen del panel ya decodificada: al abrirlo no aparece primero el fondo liso.
         panelUri?.takeIf { panelBackground == PanelBackground.IMAGE }?.let { ImageCache.preload(ctx, "panel", it) }
     }

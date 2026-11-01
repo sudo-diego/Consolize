@@ -1,5 +1,9 @@
 package io.github.sudodiego.g9control
 
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+
+import androidx.compose.foundation.border
+
 import androidx.compose.ui.graphics.luminance
 
 import androidx.compose.foundation.clickable
@@ -80,6 +84,8 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                     }
                     // Consola: el color del fondo y el de las rayitas, cada uno con la rueda.
                     if (ThemeState.background == AppBackground.STRIPES) {
+                        // El dibujo, con una muestra de cada uno (se ve antes de elegirlo).
+                        PatternPicker(ThemeState.pattern) { ThemeState.pattern = it; Prefs.setPattern(a, it) }
                         ColorRow(tr("Color del fondo", "Background color"), ThemeState.stripeBase) { ThemeState.stripeBase = it; Prefs.setStripeBase(a, it) }
                         ColorRow(tr("Color de las rayas", "Stripe color"), ThemeState.stripeLine) { ThemeState.stripeLine = it; Prefs.setStripeLine(a, it) }
                     }
@@ -825,6 +831,31 @@ private fun CardSample(col: androidx.compose.ui.graphics.Color) {
         Column {
             Text(tr("Mosaico", "Tile"), color = on, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Text(tr("Así se ve", "How it looks"), color = on.copy(alpha = 0.66f), fontSize = 12.sp)
+        }
+    }
+}
+
+/** Los tapices como muestras chicas (cada una dibujada con los colores elegidos); la elegida, con borde de acento. */
+@Composable
+private fun PatternPicker(current: Pattern, onPick: (Pattern) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    @OptIn(ExperimentalLayoutApi::class)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Pattern.entries.forEach { p ->
+            val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            val focused by src.collectIsFocusedAsState()
+            val shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(width = 96.dp, height = 64.dp).focusLift(focused, src, 1.06f).clip(shape)
+                    .border(if (p == current || focused) 3.dp else 1.dp, if (p == current || focused) c.primary else c.outline, shape)
+                    .clickable(interactionSource = src, indication = null) { onPick(p) }) {
+                    PatternBackdrop(p, androidx.compose.ui.graphics.Color(ThemeState.stripeBase), androidx.compose.ui.graphics.Color(ThemeState.stripeLine).let {
+                        // En la muestra, un poco más marcado (si no, en chico casi no se ve).
+                        androidx.compose.ui.graphics.lerp(it, androidx.compose.ui.graphics.Color.Black, 0.1f) }, Modifier.matchParentSize())
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(p.label, fontSize = 12.sp, color = if (p == current) c.primary else c.onSurfaceVariant)
+            }
         }
     }
 }

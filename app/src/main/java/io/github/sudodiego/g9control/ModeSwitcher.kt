@@ -53,6 +53,8 @@ object Prefs {
     fun setCardTone(ctx: Context, v: CardTone) = sp(ctx).edit().putString("card_tone", v.name).apply()
     fun cardCustom(ctx: Context) = sp(ctx).getLong("card_custom", 0xFF2A3B4F)
     fun setCardCustom(ctx: Context, v: Long) = sp(ctx).edit().putLong("card_custom", v).apply()
+    fun pattern(ctx: Context) = runCatching { Pattern.valueOf(sp(ctx).getString("pattern", null)!!) }.getOrDefault(Pattern.STRIPES)
+    fun setPattern(ctx: Context, v: Pattern) = sp(ctx).edit().putString("pattern", v.name).apply()
     fun stripeBase(ctx: Context) = sp(ctx).getLong("stripe_base", 0xFFEEF2F6)
     fun setStripeBase(ctx: Context, v: Long) = sp(ctx).edit().putLong("stripe_base", v).apply()
     fun stripeLine(ctx: Context) = sp(ctx).getLong("stripe_line", 0xFFE3E9F0)

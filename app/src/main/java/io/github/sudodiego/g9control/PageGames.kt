@@ -1,4 +1,20 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package io.github.sudodiego.g9control
+
+import androidx.compose.ui.draw.clip
+
+import androidx.compose.foundation.background
+
+import androidx.compose.foundation.clickable
+
+import androidx.compose.foundation.border
+
+import androidx.compose.animation.core.animateFloat
+
+import androidx.compose.ui.focus.focusRequester
+
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 
 import androidx.compose.animation.togetherWith
 
@@ -72,14 +88,21 @@ fun GamesPage(s: AppState, a: MainActivity) {
     val shown = list.firstOrNull { it.pkg == pkg }
     Centered {
         if (shown != null) GameDetail(s, a, shown)
-        else Panel {
-            ChoiceChips(listOf(false to tr("Juegos", "Games"), true to tr("Todas las apps", "All apps")), all) { all = it }
-            if (apps == null) Text(tr("Cargando…", "Loading…"), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            else if (list.isEmpty()) Text(tr("No hay juegos instalados.", "No games installed."), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            list.chunked(5).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { g -> GameTile(a, s, g, g.pkg == lastPkg, Modifier.weight(1f)) { lastPkg = g.pkg; selected = g.pkg } }
-                    repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
+        else Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+            Segmented(listOf(false to tr("Juegos", "Games"), true to tr("Todas las apps", "All apps")), all) { all = it }
+            when {
+                // Cargando: esqueletos que laten (la forma de lo que viene, en vez de un "Cargando…").
+                apps == null -> SkeletonGrid(12, pulse = true)
+                // Sin juegos: la forma de la biblioteca, tenue, y qué hacer.
+                list.isEmpty() -> Box(contentAlignment = Alignment.Center) {
+                    SkeletonGrid(6, pulse = false)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(tr("No hay juegos instalados", "No games installed"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = backdropOn())
+                        TextButton(onClick = { all = true }) { Text(tr("Ver todas las apps", "Show all apps")) }
+                    }
+                }
+                else -> FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    list.forEach { g -> GameTile(a, s, g, g.pkg == lastPkg, Modifier) { lastPkg = g.pkg; selected = g.pkg } }
                 }
             }
         }
@@ -115,8 +138,7 @@ private fun loadGames(ctx: Context): List<GameEntry> {
         .sortedBy { it.label.lowercase() }
 }
 
-/** Un juego de la biblioteca: ícono y nombre; lo que tiene propio, en una línea chica (Hz, proporción, modo). */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Un juego de la biblioteca, como los accesos de Inicio: su ícono en un cuadrado redondeado, el nombre y lo que tiene propio. */
 @Composable
 private fun GameTile(a: MainActivity, s: AppState, g: GameEntry, sel: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val c = MaterialTheme.colorScheme
@@ -125,17 +147,59 @@ private fun GameTile(a: MainActivity, s: AppState, g: GameEntry, sel: Boolean, m
         GameAspect.get(a, g.pkg).takeIf { it != GameAspect.Ratio.FULL }?.label,
         s.autoRules[g.pkg]?.let { if (it == AutoTarget.XINPUT) "X-Input" else "DS5" }.takeIf { s.g9Known },
     ).joinToString(" · ")
-    Surface(
-        onClick = onClick, modifier = modifier, shape = RoundedCornerShape(18.dp),
-        color = if (sel) c.primaryContainer else c.onSurface.copy(alpha = 0.05f),
-        border = if (sel) BorderStroke(2.dp, c.primary) else null
-    ) {
-        Column(Modifier.padding(vertical = 12.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(g.icon, null, Modifier.size(52.dp))
-            Spacer(Modifier.height(8.dp))
-            Text(g.label, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal)
-            Text(tags.ifEmpty { " " }, fontSize = 11.sp, maxLines = 1, color = c.primary)
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(26.dp)
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    // Al volver de su ficha, el foco vuelve a este juego.
+    LaunchedEffect(Unit) { if (sel) { kotlinx.coroutines.delay(120); runCatching { focus.requestFocus() } } }
+    Column(modifier.width(120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Surface(onClick = onClick, interactionSource = src, shape = shape, color = cardColor(),
+            modifier = Modifier.size(96.dp).focusRequester(focus).focusLift(focused, src, 1.08f).bump(shape).focusHalo(focused, shape)) {
+            Box(contentAlignment = Alignment.Center) { Image(g.icon, null, Modifier.size(64.dp).clip(RoundedCornerShape(16.dp))) }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(g.label, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = backdropOn(),
+            fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal)
+        Text(tags.ifEmpty { " " }, fontSize = 11.sp, maxLines = 1, color = c.primary)
+    }
+}
+
+/** Esqueletos de la biblioteca: cuadrados y rayas con la forma de los juegos; [pulse] los hace latir (cargando). */
+@Composable
+private fun SkeletonGrid(n: Int, pulse: Boolean) {
+    val alpha = if (pulse) {
+        val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "esqueleto")
+        t.animateFloat(0.35f, 0.75f, androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(800), androidx.compose.animation.core.RepeatMode.Reverse), label = "late").value
+    } else 0.25f
+    val col = cardColor()
+    FlowRow(Modifier.graphicsLayer { this.alpha = alpha }, horizontalArrangement = Arrangement.spacedBy(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        repeat(n) {
+            Column(Modifier.width(120.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(96.dp).bump(RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(col))
+                Spacer(Modifier.height(10.dp))
+                Box(Modifier.size(width = 72.dp, height = 10.dp).clip(RoundedCornerShape(5.dp)).background(col))
+            }
+        }
+    }
+}
+
+/** Dos o más opciones en una sola píldora (como un interruptor de varias posiciones); la elegida, del color de acento. */
+@Composable
+private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, onPick: (T) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    Row(Modifier.bump(RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(cardColor()).padding(4.dp)) {
+        options.forEach { (v, label) ->
+            val on = v == selected
+            val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            val focused by src.collectIsFocusedAsState()
+            val bg by androidx.compose.animation.animateColorAsState(if (on) c.primary else androidx.compose.ui.graphics.Color.Transparent, label = "seg")
+            Text(label, Modifier.clip(RoundedCornerShape(18.dp)).background(bg)
+                .then(if (focused) Modifier.border(2.dp, cardOn(), RoundedCornerShape(18.dp)) else Modifier)
+                .clickable(interactionSource = src, indication = null) { onPick(v) }
+                .padding(horizontal = 18.dp, vertical = 9.dp), fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                color = if (on) c.onPrimary else cardOn())
         }
     }
 }
