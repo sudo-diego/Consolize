@@ -1540,3 +1540,12 @@ fun roomyBringIntoView(density: androidx.compose.ui.unit.Density) = object : and
         }
     }
 }
+
+/** Toda la app con [roomyBringIntoView]. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun RoomyScroll(content: @Composable () -> Unit) {
+    val d = androidx.compose.ui.platform.LocalDensity.current
+    val spec = remember(d) { roomyBringIntoView(d) }
+    CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides spec, content = content)
+}

@@ -86,9 +86,7 @@ class MainActivity : ComponentActivity() {
                     else androidx.activity.SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides roomyBringIntoView(androidx.compose.ui.platform.LocalDensity.current)) {
-                    App(state, this)
-                }
+                RoomyScroll { App(state, this) }
             }
         }
         handleIntent(intent)
