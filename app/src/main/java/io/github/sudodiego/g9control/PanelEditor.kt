@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package io.github.sudodiego.g9control
 
 import androidx.compose.animation.core.animateFloatAsState
