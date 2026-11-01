@@ -228,5 +228,5 @@ private fun sampleUi() = PanelUi().apply {
         PanelItem(tr("Inicio", "Home"), Icons.Outlined.Home, PanelRow.SYSTEM, tile = PanelTile.HOME),
         PanelItem(tr("Ajustes", "Settings"), Icons.Outlined.Settings, PanelRow.SYSTEM, tile = PanelTile.SETTINGS),
     )
-    sel = 4
+    sel = 0
 }

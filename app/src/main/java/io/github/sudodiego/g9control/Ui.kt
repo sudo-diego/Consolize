@@ -600,7 +600,10 @@ private fun PageHost(s: AppState, a: MainActivity, modifier: Modifier) {
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // Lo abierto desde el dock no lleva título: el dock ya dice dónde se está. Lo abierto desde Más sí.
-            if (!s.rootPage) PageTitle(s, section, sub)
+            // Lo de esta pantalla al aparecer (no el estado actual): al irse al dock, rootPage cambia y la página que se
+            // desvanece ganaba su título y saltaba hacia abajo.
+            val root = remember { s.rootPage }
+            if (!root) PageTitle(s, section, sub)
             // Páginas que no hacen nada sin el servicio de accesibilidad (dibujar sobre los juegos, leer el control en
             // cualquier app, pedir la frecuencia): lo dicen arriba, con el botón para activarlo.
             if (page in SERVICE_PAGES && !s.autoServiceOn) NeedsBanner(
@@ -1429,7 +1432,11 @@ fun AppsRow(title: String, chosen: Set<String>, onChange: (Set<String>) -> Unit)
     }
     val apps = InstalledApps.list
     val names = apps?.associate { it } ?: emptyMap()
-    val value = when (chosen.size) { 0 -> tr("Ninguna", "None"); 1 -> names[chosen.first()] ?: tr("1 app", "1 app"); else -> tr("${chosen.size} apps", "${chosen.size} apps") }
+    // Solo cuentan las instaladas (la lista de fábrica trae varias de transmisión que quizás no están: decía "10 apps"
+    // con una sola). Se cargan al entrar, no solo al abrir.
+    LaunchedEffect(Unit) { InstalledApps.load(ctx) }
+    val shown = if (apps == null) chosen else chosen.filter { it in names }.toSet()
+    val value = when (shown.size) { 0 -> tr("Ninguna", "None"); 1 -> names[shown.first()] ?: tr("1 app", "1 app"); else -> tr("${shown.size} apps", "${shown.size} apps") }
     Column {
         Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).focusRequester(head).clickable { open = !open }
             .padding(vertical = 10.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1474,7 +1481,7 @@ fun ColorRow(title: String, argb: Long, onPick: (Long) -> Unit) {
  */
 @Composable
 fun SwitchTile(icon: ImageVector, label: String, checked: Boolean, modifier: Modifier = Modifier, enabled: Boolean = true,
-    onChange: (Boolean) -> Unit) {
+    sub: String? = null, onChange: (Boolean) -> Unit) {
     val c = MaterialTheme.colorScheme
     val ok = enabled && LocalEditable.current
     val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
@@ -1482,11 +1489,11 @@ fun SwitchTile(icon: ImageVector, label: String, checked: Boolean, modifier: Mod
     val shape = RoundedCornerShape(20.dp)
     val bg by androidx.compose.animation.animateColorAsState(if (checked) c.primary.copy(alpha = 0.16f) else c.onSurface.copy(alpha = 0.05f), label = "fondo")
     val badge by androidx.compose.animation.animateColorAsState(if (checked) c.primary else c.onSurface.copy(alpha = 0.1f), label = "insignia")
-    Column(modifier.width(148.dp).height(112.dp).alpha(if (ok) 1f else 0.45f)
+    Column(modifier.width(168.dp).heightIn(min = 112.dp).alpha(if (ok) 1f else 0.45f)
         .focusLift(focused, src, 1.05f).clip(shape).background(bg)
         .focusHalo(focused, shape)
         .clickable(interactionSource = src, indication = null, enabled = ok) { onChange(!checked) }
-        .padding(14.dp), verticalArrangement = Arrangement.SpaceBetween) {
+        .padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(badge), contentAlignment = Alignment.Center) {
                 Icon(icon, null, Modifier.size(22.dp), tint = if (checked) c.onPrimary else c.onSurface.copy(alpha = 0.8f))
@@ -1495,8 +1502,13 @@ fun SwitchTile(icon: ImageVector, label: String, checked: Boolean, modifier: Mod
             // El estado en chico: una pastilla que se llena (como la luz de un botón).
             Box(Modifier.size(width = 22.dp, height = 8.dp).clip(CircleShape).background(if (checked) c.primary else c.onSurface.copy(alpha = 0.15f)))
         }
-        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp, maxLines = 2,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Column {
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, lineHeight = 17.sp, maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            // Qué hace, en corto, cuando el nombre solo no alcanza.
+            if (sub != null) Text(sub, fontSize = 11.sp, lineHeight = 14.sp, color = c.onSurfaceVariant, maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
     }
 }
 

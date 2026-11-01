@@ -93,7 +93,7 @@ class AutoModeService : AccessibilityService() {
                 AutoRules.ACTION_PREVIEW -> when (val kind = i.getStringExtra("kind") ?: "banner") {
                     "shot" -> panel.previewShot()
                     "battery" -> panel.lowBattery(15, ZuiBattery.dischargeTimeLeft(this@AutoModeService, PowerLog.recentAvg)?.let { ZuiBattery.formatTime(it) })
-                    "charge" -> panel.chargeNotice(42, ZuiBattery.chargeTarget(this@AutoModeService), "1 h 5 min")
+                    "charge" -> { panel.chargeNotice(42, ZuiBattery.chargeTarget(this@AutoModeService), "1 h 5 min"); if (AutoRules.chargeSound(this@AutoModeService)) panel.chargeJingle() }
                     "unplug" -> panel.unplugNotice(78, "5 h 20 min")
                     else -> guide.preview(kind)
                 }

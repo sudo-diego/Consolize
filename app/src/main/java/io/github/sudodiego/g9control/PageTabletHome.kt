@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.outlined.Memory
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.DisplaySettings
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -369,14 +371,19 @@ private fun android.graphics.drawable.Drawable.toBitmapSafe(): android.graphics.
 fun HomeSummary(s: AppState, a: MainActivity) {
     // Todo centrado y en filas, como el menú de una consola: arriba la tablet de un vistazo (una barra), luego volver a
     // lo último, los interruptores redondos y tus accesos. Antes iba en dos columnas y quedaba un hueco en medio.
-    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(36.dp)) {
+    // En pantallas más bajas (la Y700 con escala grande) más juntos, y si igual no cabe se desplaza: antes se cortaban
+    // los accesos de abajo.
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    val gap = if (maxHeight < 720.dp) 18.dp else if (maxHeight < 860.dp) 26.dp else 36.dp
+    Column(Modifier.widthIn(max = 1200.dp).fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(gap)) {
         ServiceWarning(s, a)
         ShizukuWarning(a)
         HomeHero(a)
         HomeRecents(a)
         QuickTiles(s, a)
         HomeAccess(s)
+    }
     }
 }
 
@@ -451,10 +458,51 @@ private fun HomeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, valu
 private fun HomeAccess(s: AppState) {
     val entries = allEntries(s).associateBy { it.id }
     val pins = s.homePins.mapNotNull { entries[it] }
+    var picking by remember { mutableStateOf(false) }
     @OptIn(ExperimentalLayoutApi::class)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         pins.forEach { e -> AccessIcon(e.icon, e.label()) { s.goDest(e.id) } }
-        AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true) { s.goDest(Dest.MORE) }
+        AccessIcon(Icons.Outlined.Add, tr("Editar", "Edit"), ghost = true) { picking = true }
+    }
+    if (picking) AccessPicker(s) { picking = false }
+}
+
+/**
+ * Elegir los accesos ahí mismo (antes "+" llevaba a Más y había que saber que Y fijaba): todo lo que hay, por tema y
+ * en íconos; tocar uno lo fija o lo quita (el fijado lleva un visto del acento). B o tocar fuera cierra.
+ */
+@Composable
+private fun AccessPicker(s: AppState, onClose: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val c = MaterialTheme.colorScheme
+    androidx.compose.ui.window.Dialog(onDismissRequest = onClose,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(shape = RoundedCornerShape(28.dp), color = cardBase(), contentColor = cardOn(),
+            modifier = Modifier.widthIn(max = 1000.dp).fillMaxWidth(0.85f).fillMaxHeight(0.85f)) {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                moreGroups(s).forEach { (name, items) ->
+                    Text(name.uppercase(), fontSize = 12.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold, color = c.primary)
+                    @OptIn(ExperimentalLayoutApi::class)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        items.forEach { e ->
+                            val on = e.id in s.homePins
+                            Box {
+                                AccessIcon(e.icon, e.label(), ghost = !on) { s.toggleHomePin(ctx, e.id) }
+                                if (on) Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 10.dp).size(24.dp)
+                                    .clip(androidx.compose.foundation.shape.CircleShape).background(c.primary), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Outlined.Check, null, Modifier.size(16.dp), tint = c.onPrimary)
+                                }
+                            }
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    PadBadge("A", round = true); Spacer(Modifier.width(6.dp)); Text(tr("Fijar o quitar", "Pin or unpin"), fontSize = 13.sp, color = cardMuted())
+                    Spacer(Modifier.width(16.dp)); PadBadge("B", round = true); Spacer(Modifier.width(6.dp)); Text(tr("Listo", "Done"), fontSize = 13.sp, color = cardMuted())
+                }
+            }
+        }
     }
 }
 

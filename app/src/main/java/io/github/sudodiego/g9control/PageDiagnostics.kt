@@ -90,8 +90,11 @@ fun DiagnosticsPage(s: AppState, a: MainActivity) {
                         ColorRow(tr("Color de las rayas", "Stripe color"), ThemeState.stripeLine) { ThemeState.stripeLine = it; Prefs.setStripeLine(a, it) }
                     }
                     // Fondo de pantalla o imagen: encima, el tapiz (o ninguno).
-                    if (ThemeState.background == AppBackground.IMAGE || ThemeState.background == AppBackground.WALLPAPER)
+                    if (ThemeState.background == AppBackground.IMAGE || ThemeState.background == AppBackground.WALLPAPER) {
                         PatternPicker(ThemeState.overlay, overlay = true) { ThemeState.overlay = it; Prefs.setOverlay(a, it) }
+                        if (ThemeState.overlay != null)
+                            ColorRow(tr("Color de las líneas", "Line color"), ThemeState.overlayLine) { ThemeState.overlayLine = it; Prefs.setOverlayLine(a, it) }
+                    }
                     if (ThemeState.background == AppBackground.IMAGE) {
                         ImageButtons(a) { a.pickBackground() }
                         SliderRow(tr("Desenfoque", "Blur"), ThemeState.backgroundBlur, 0..100) {
@@ -284,7 +287,31 @@ private fun GamesHzPanel(a: MainActivity) {
             ChoiceChips(listOf(0 to tr("Sistema", "System")) + RefreshRate.supported(a).map { it to "$it Hz" }, hz) {
                 hz = it; RefreshRate.setForGames(a, it.takeIf { v -> v > 0 })
             }
+            // Cómo se ve: una pelota que avanza solo [hz] veces por segundo (a 30 se nota a saltos; a 120, fluida).
+            HzDemo(if (hz > 0) hz else (RefreshRate.current(a) ?: 60))
         }
+    }
+}
+
+/** Una pelota que cruza de lado a lado moviéndose a [hz] cuadros por segundo, con la estela de sus últimos cuadros. */
+@Composable
+private fun HzDemo(hz: Int) {
+    val c = MaterialTheme.colorScheme
+    var t by remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val start = withFrameNanos { it }
+        while (true) withFrameNanos { n -> t = (n - start) / 1e9f }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(72.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+            .background(c.onSurface.copy(alpha = 0.05f))) {
+            val r = 14.dp.toPx(); val w = size.width - 4 * r
+            // Ida y vuelta en 1,6 s, pero solo cambia de lugar en cada cuadro de [hz].
+            fun xAt(time: Float): Float { val q = kotlin.math.floor(time * hz) / hz; val ph = (q / 1.6f) % 2f; return 2 * r + w * (if (ph < 1f) ph else 2f - ph) }
+            for (k in 4 downTo 1) drawCircle(c.primary.copy(alpha = 0.08f * (5 - k)), r, androidx.compose.ui.geometry.Offset(xAt(t - k / hz.toFloat()), size.height / 2))
+            drawCircle(c.primary, r, androidx.compose.ui.geometry.Offset(xAt(t), size.height / 2))
+        }
+        Text("$hz Hz · " + "%.1f ms".format(1000f / hz) + tr(" por cuadro", " per frame"), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -354,8 +381,8 @@ private fun GamePanelSettings(s: AppState, a: MainActivity) {
             var overToast by remember { mutableStateOf(AutoRules.shotOverToast(a)) }
             TileFlow {
                 // "Cualquier captura": también las de Android (pide el permiso de fotos).
-                SwitchTile(Icons.Outlined.Screenshot, tr("Con cualquier captura", "Any screenshot"), s.anyShot) { a.setAnyShot(it) }
-                SwitchTile(Icons.Outlined.Layers, tr("Tapar el de Android", "Cover Android's"), overToast) { overToast = it; AutoRules.setShotOverToast(a, it) }
+                SwitchTile(Icons.Outlined.Screenshot, tr("Con cualquier captura", "Any screenshot"), s.anyShot, sub = tr("También las de Android", "Android's too")) { a.setAnyShot(it) }
+                SwitchTile(Icons.Outlined.Layers, tr("Encima del de Android", "Over Android's"), overToast, sub = tr("Tapa el aviso de captura del sistema", "Covers the system's screenshot notice")) { overToast = it; AutoRules.setShotOverToast(a, it) }
             }
             // Grabación: los atajos dibujados (los maneja el panel) y la calidad de Shadow Rec, en una línea.
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -864,7 +891,7 @@ private fun PatternPicker(current: Pattern?, overlay: Boolean = false, onPick: (
     val c = MaterialTheme.colorScheme
     // Sobre el fondo de pantalla: las muestras en oscuro con líneas claras, y la primera es "Ninguno".
     val bg = if (overlay) androidx.compose.ui.graphics.Color(0xFF3A4458) else androidx.compose.ui.graphics.Color(ThemeState.stripeBase)
-    val line = if (overlay) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.3f)
+    val line = if (overlay) androidx.compose.ui.graphics.Color(ThemeState.overlayLine).copy(alpha = 0.4f)
         else androidx.compose.ui.graphics.lerp(androidx.compose.ui.graphics.Color(ThemeState.stripeLine), androidx.compose.ui.graphics.Color.Black, 0.1f)
     @OptIn(ExperimentalLayoutApi::class)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

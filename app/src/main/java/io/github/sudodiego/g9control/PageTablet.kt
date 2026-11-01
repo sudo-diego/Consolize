@@ -177,9 +177,9 @@ private fun LowBatteryPanel(a: MainActivity) {
             SwitchTile(Icons.Outlined.Power, tr("Al enchufar", "Plugged in"), charge) { charge = it; AutoRules.setChargeNotice(a, it) }
             SwitchTile(Icons.Outlined.PowerOff, tr("Al desenchufar", "Unplugged"), unplug) { unplug = it; AutoRules.setUnplugNotice(a, it) }
             SwitchTile(Icons.Outlined.MusicNote, tr("Sonido al enchufar", "Plug-in sound"), chargeSound) { chargeSound = it; AutoRules.setChargeSound(a, it) }
-            SwitchTile(Icons.Outlined.BatteryAlert, tr("Batería baja · 15, 10, 5 %", "Low battery · 15, 10, 5 %"), low) { low = it; AutoRules.setLowBattery(a, it) }
+            SwitchTile(Icons.Outlined.BatteryAlert, tr("Batería baja", "Low battery"), low, sub = tr("Avisa al 15, 10 y 5 %", "At 15, 10 and 5 %")) { low = it; AutoRules.setLowBattery(a, it) }
             SwitchTile(Icons.Outlined.NotificationsActive, tr("Sonido batería baja", "Low battery sound"), lowSound) { lowSound = it; AutoRules.setLowBatterySound(a, it) }
-            SwitchTile(Icons.Outlined.Layers, tr("Tapar el de Android", "Cover Android's"), overToast) { overToast = it; AutoRules.setLowBatteryOverToast(a, it) }
+            SwitchTile(Icons.Outlined.Layers, tr("Encima del de Android", "Over Android's"), overToast, sub = tr("Tapa el aviso de carga del sistema", "Covers the system's charging notice")) { overToast = it; AutoRules.setLowBatteryOverToast(a, it) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { AutoRules.preview(a, "charge") }) { Icon(Icons.Outlined.PlayArrow, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Al enchufar", "Plugged in")) }

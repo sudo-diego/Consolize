@@ -70,7 +70,7 @@ fun Backdrop() {
     // detrás, pero con la textura de consola.
     val ov = ThemeState.overlay
     if (ov != null && (ThemeState.background == AppBackground.WALLPAPER || ThemeState.background == AppBackground.IMAGE))
-        PatternBackdrop(ov, Color.Transparent, backdropOn().copy(alpha = 0.12f))
+        PatternBackdrop(ov, Color.Transparent, Color(ThemeState.overlayLine).copy(alpha = 0.16f))
 }
 
 /**
@@ -402,8 +402,23 @@ fun PatternBackdrop(p: Pattern, bg: Color, line: Color, modifier: Modifier = Mod
                 while (y < h) { drawRect(line, Offset(0f, y), androidx.compose.ui.geometry.Size(w, t)); y += step } }
             Pattern.DOTS -> { val step = 18.dp.toPx(); val r = 2.5.dp.toPx(); var y = step / 2; var row = 0
                 while (y < h) { var x = if (row % 2 == 0) step / 2 else step; while (x < w) { drawCircle(line, r, Offset(x, y)); x += step }; y += step * 0.866f; row++ } }
-            Pattern.CIRCLES -> { val rnd = java.util.Random(7); val st = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx())
-                repeat(26) { val r = (24 + rnd.nextInt(90)).dp.toPx(); drawCircle(line, r, Offset(rnd.nextFloat() * w, rnd.nextFloat() * h), style = st) } }
+            Pattern.CIRCLES -> {
+                // Uno por celda (tamaño y lugar variados dentro de ella): parecen sueltos pero no se tocan. Antes eran
+                // 26 al azar y se superponían. La semilla es fija: siempre el mismo dibujo.
+                val rnd = java.util.Random(7); val st = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx())
+                val cell = 150.dp.toPx(); var row = 0; var y = 0f
+                while (y < h) {
+                    var x = if (row % 2 == 0) 0f else -cell / 2
+                    while (x < w) {
+                        if (rnd.nextFloat() < 0.75f) {
+                            val r = cell * (0.12f + rnd.nextFloat() * 0.3f)
+                            val m = r + 4.dp.toPx()
+                            drawCircle(line, r, Offset(x + m + rnd.nextFloat() * (cell - 2 * m), y + m + rnd.nextFloat() * (cell - 2 * m)), style = st)
+                        }
+                        x += cell
+                    }
+                    y += cell; row++
+                } }
             Pattern.DIAGONAL -> { val step = 12.dp.toPx(); val t = 3.dp.toPx(); var x = -h
                 while (x < w) { drawLine(line, Offset(x, h), Offset(x + h, 0f), t); x += step } }
             Pattern.GRID -> { val step = 28.dp.toPx(); val t = 1.5.dp.toPx(); var x = step

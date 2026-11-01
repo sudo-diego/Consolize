@@ -115,10 +115,17 @@ fun PanelEditor(onDone: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     // Detrás, lo mismo que el panel de verdad: su fondo (liso, degradado, imagen o transparente sobre el juego de muestra).
     Box(Modifier.clip(RoundedCornerShape(24.dp))) {
+    // Con cabecera (la imagen arriba y el resto liso) o liso: el fondo liso del panel. Degradado o imagen de fondo: solo
+    // eso, sin la imagen de muestra debajo (antes se veían las dos encimadas). Transparente o el juego: la muestra.
     Box(Modifier.matchParentSize()) {
-        GameScene(Modifier.fillMaxSize())
-        androidx.compose.runtime.CompositionLocalProvider(LocalPreviewScene provides { GameScene(Modifier.fillMaxSize()) }) {
-            if (ThemeState.panelBackground == PanelBackground.PLAIN) Box(Modifier.fillMaxSize().background(PANEL_BG)) else PanelBackdrop()
+        val bg = ThemeState.panelBackground
+        when {
+            bg == PanelBackground.PLAIN || ThemeState.sideBanner -> Box(Modifier.fillMaxSize().background(PANEL_BG.copy(alpha = 1f)))
+            bg == PanelBackground.CLEAR || bg == PanelBackground.GAME -> {
+                GameScene(Modifier.fillMaxSize())
+                androidx.compose.runtime.CompositionLocalProvider(LocalPreviewScene provides { GameScene(Modifier.fillMaxSize()) }) { PanelBackdrop() }
+            }
+            else -> PanelBackdrop(opaque = true)
         }
         if (glassPanel) Box(Modifier.fillMaxSize().background(PANEL_VEIL))
     }

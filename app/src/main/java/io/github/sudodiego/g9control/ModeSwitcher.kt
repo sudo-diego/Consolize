@@ -61,6 +61,9 @@ object Prefs {
     fun setStripeBase(ctx: Context, v: Long) = sp(ctx).edit().putLong("stripe_base", v).apply()
     fun stripeLine(ctx: Context) = sp(ctx).getLong("stripe_line", 0xFFE3E9F0)
     fun setStripeLine(ctx: Context, v: Long) = sp(ctx).edit().putLong("stripe_line", v).apply()
+    /** Color de las líneas del tapiz sobre el fondo de pantalla (se dibuja suave, con transparencia). */
+    fun overlayLine(ctx: Context) = sp(ctx).getLong("overlay_line", 0xFFFFFFFF)
+    fun setOverlayLine(ctx: Context, v: Long) = sp(ctx).edit().putLong("overlay_line", v).apply()
     fun backdropText(ctx: Context) = runCatching { BackdropText.valueOf(sp(ctx).getString("backdrop_text", null)!!) }.getOrDefault(BackdropText.AUTO)
     fun setBackdropText(ctx: Context, v: BackdropText) = sp(ctx).edit().putString("backdrop_text", v.name).apply()
     fun halo(ctx: Context) = runCatching { Halo.valueOf(sp(ctx).getString("halo", null)!!) }.getOrDefault(Halo.SLOW)

@@ -1,6 +1,7 @@
 package io.github.sudodiego.g9control
 
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -10,6 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -126,7 +128,8 @@ private fun GuidePanel(a: MainActivity) {
                     }
                 }
             }
-            SwitchTile(Icons.Outlined.Cast, tr("Aviso al transmitir", "Streaming notice"), streamTip) { streamTip = it; AutoRules.setStreamTip(a, it) }
+            SwitchTile(Icons.Outlined.Cast, tr("Recordatorio al transmitir", "Streaming reminder"), streamTip,
+                sub = tr("En Moonlight o Artemis, qué botones abren el panel", "In Moonlight or Artemis, which buttons open the panel")) { streamTip = it; AutoRules.setStreamTip(a, it) }
         }
     }
 }
@@ -196,11 +199,15 @@ private fun ComboChip(key: String, icon: ImageVector, note: String?, on: Boolean
             Text(key, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = cardOn())
         }
         Spacer(Modifier.width(10.dp))
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, Modifier.size(22.dp), tint = c.primary)
-            if (note != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Schedule, null, Modifier.size(10.dp), tint = cardMuted())
-                Text(note, fontSize = 9.sp, color = cardMuted())
+        Icon(icon, null, Modifier.size(22.dp), tint = c.primary)
+        // "Mantener 0,5 s": el reloj al lado, en la misma línea (debajo hacía esta combinación más alta que las demás).
+        if (note != null) {
+            Spacer(Modifier.width(6.dp))
+            Row(Modifier.clip(RoundedCornerShape(8.dp)).background(cardOn().copy(alpha = 0.08f)).padding(horizontal = 5.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Schedule, null, Modifier.size(12.dp), tint = cardMuted())
+                Spacer(Modifier.width(3.dp))
+                Text(note, fontSize = 11.sp, color = cardMuted())
             }
         }
     }
@@ -240,7 +247,14 @@ private fun <T> OptionStrip(options: List<Triple<T, ImageVector, String>>, selec
 @Composable
 private fun OtherShortcutsPanel(a: MainActivity) {
     CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Combinaciones", "Button combos")) {
+        val st = LocalAppState.current
+        Panel(tr("Combinaciones", "Button combos"), trailing = {
+            // Las del botón guía (Guía + RB captura, etc.) están en su página: un acceso directo para no buscarlas.
+            TextButton(onClick = { st?.goDest("guide") }) {
+                Icon(Icons.Outlined.Home, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Con el botón guía", "With the guide button"))
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, Modifier.size(16.dp))
+            }
+        }) {
             AutoRules.Chord.entries.forEach { c -> ChordEditor(a, c) }
         }
     }
@@ -260,51 +274,74 @@ private fun ChordEditor(a: MainActivity, c: AutoRules.Chord) {
     val clash = AutoRules.Chord.entries.firstOrNull { o ->
         o != c && AutoRules.chordOn(a, o) && AutoRules.chordKeys(a, o).let { setOf(it.first, it.second) } == setOf(keys.first, keys.second)
     }
-    Column(Modifier.padding(start = 14.dp)) {
+    // Todo con botones e íconos (antes, cinco filas de texto con menús): los dos botones se tocan para cambiarlos, y
+    // dónde funciona son tres chips.
+    var slot by remember { mutableStateOf<Int?>(null) }
+    Column(Modifier.padding(start = 14.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (clash != null) Text(tr("Mismos botones que ${clash.short}", "Same buttons as ${clash.short}"), fontSize = 13.sp, color = col.error)
-        ChoiceRow(tr("Primer botón", "First button"), AutoRules.PadKey.entries.map { it to it.label }, keys.first) { k ->
-            val second = if (k == keys.second) AutoRules.PadKey.entries.first { it != k } else keys.second
-            keys = k to second; AutoRules.setChordKeys(a, c, k, second)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            KeyPick(keys.first.label, slot == 0) { slot = if (slot == 0) null else 0 }
+            Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = cardMuted())
+            KeyPick(keys.second.label, slot == 1) { slot = if (slot == 1) null else 1 }
+            if (c == AutoRules.Chord.PANEL) {
+                Spacer(Modifier.width(12.dp))
+                IconChips(listOf(Triple(AutoRules.Press.TAP, Icons.Outlined.TouchApp, tr("Tocar", "Tap")),
+                    Triple(AutoRules.Press.HOLD, Icons.Outlined.Schedule, tr("Mantener", "Hold"))), press) { press = it; AutoRules.setChordPress(a, it) }
+            }
         }
-        ChoiceRow(tr("Segundo botón", "Second button"), AutoRules.PadKey.entries.filter { it != keys.first }.map { it to it.label }, keys.second) { k ->
-            keys = keys.first to k; AutoRules.setChordKeys(a, c, keys.first, k)
+        slot?.let { i ->
+            val other = if (i == 0) keys.second else keys.first
+            IconChips(AutoRules.PadKey.entries.filter { it != other }.map { Triple(it, null, it.label) }, if (i == 0) keys.first else keys.second) { k ->
+                keys = if (i == 0) k to keys.second else keys.first to k
+                AutoRules.setChordKeys(a, c, keys.first, keys.second); slot = null
+            }
         }
-        if (c == AutoRules.Chord.PANEL) ChoiceRow(tr("Se activa al", "Triggers on"),
-            listOf(AutoRules.Press.TAP to tr("Tocar", "Tap"), AutoRules.Press.HOLD to tr("Mantener (llega al juego)", "Hold (reaches the game)")), press) {
-            press = it; AutoRules.setChordPress(a, it)
-        }
-        ChoiceRow(tr("Funciona en", "Works in"), AutoRules.Where.entries.map { it to it.label }, where) { where = it; AutoRules.setChordWhere(a, c, it) }
+        IconChips(listOf(Triple(AutoRules.Where.ALL, Icons.Outlined.Public, tr("En todas", "Everywhere")),
+            Triple(AutoRules.Where.ONLY, Icons.Outlined.CheckCircle, tr("Solo en…", "Only in…")),
+            Triple(AutoRules.Where.EXCEPT, Icons.Outlined.Block, tr("Menos en…", "Except in…"))), where) { where = it; AutoRules.setChordWhere(a, c, it) }
         if (where != AutoRules.Where.ALL) AppsRow(if (where == AutoRules.Where.ONLY) tr("Apps", "Apps") else tr("Menos en", "Except in"), apps) {
             apps = it; AutoRules.setChordApps(a, c, it)
         }
     }
 }
 
+/** Un botón del control para elegir (tocarlo despliega los demás); el que se está cambiando, del color de acento. */
 @Composable
-private fun TabletButtonsPanel(a: MainActivity) {
-    var swap by remember { mutableStateOf(AutoRules.swapVolume(a)) }
-    CompositionLocalProvider(LocalEditable provides LocalGateOk.current) {
-        Panel(tr("Botones de volumen", "Volume buttons")) {
-            SwitchTile(Icons.Outlined.SwapVert, tr("Invertir el volumen", "Swap volume"), swap) {
-                swap = it; AutoRules.setSwapVolume(a, it)
-            }
-            if (swap) {
-                var rotations by remember { mutableStateOf(AutoRules.swapRotations(a)) }
-                Text(tr("Solo en", "Only in"), fontSize = 14.sp)
-                MultiChips(listOf(1 to tr("Horizontal", "Landscape"), 3 to tr("Horizontal invertido", "Reverse landscape"),
-                    0 to tr("Vertical", "Portrait"), 2 to tr("Vertical invertido", "Reverse portrait")), rotations) { r, on ->
-                    rotations = if (on) rotations + r else rotations - r
-                    AutoRules.setSwapRotations(a, rotations)
-                }
+private fun KeyPick(label: String, picking: Boolean, onClick: () -> Unit) {
+    val c = MaterialTheme.colorScheme
+    val src = remember { MutableInteractionSource() }
+    val focused by src.collectIsFocusedAsState()
+    val shape = RoundedCornerShape(10.dp)
+    Box(Modifier.focusLift(focused, src, 1.08f).focusHalo(focused, shape).height(36.dp).widthIn(min = 44.dp).clip(shape)
+        .background(if (picking) c.primary else Color.Transparent).border(2.dp, if (picking) c.primary else cardOn(), shape)
+        .clickable(interactionSource = src, indication = null, enabled = LocalEditable.current, onClick = onClick).padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center) {
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (picking) c.onPrimary else cardOn())
+    }
+}
+
+/** Opciones en chips con ícono (o solo texto); la elegida, del color de acento. Sin tomar el foco solas. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> IconChips(options: List<Triple<T, ImageVector?, String>>, selected: T, onPick: (T) -> Unit) {
+    val c = MaterialTheme.colorScheme
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { (v, icon, label) ->
+            val sel = v == selected
+            val src = remember { MutableInteractionSource() }
+            val focused by src.collectIsFocusedAsState()
+            val shape = RoundedCornerShape(12.dp)
+            Row(Modifier.focusLift(focused, src, 1.05f).focusHalo(focused, shape).clip(shape)
+                .background(if (sel) c.primary else cardOn().copy(alpha = 0.06f))
+                .clickable(interactionSource = src, indication = null, enabled = LocalEditable.current) { onPick(v) }
+                .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) { Icon(icon, null, Modifier.size(18.dp), tint = if (sel) c.onPrimary else cardOn()); Spacer(Modifier.width(6.dp)) }
+                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if (sel) c.onPrimary else cardOn())
             }
         }
     }
 }
 
-/**
- * Un atajo: los botones dibujados (Guía + RB…), cómo se usan (tocar, mantener) y qué hacen, con su interruptor. Sin
- * botones: variante del atajo de arriba (↳).
- */
 @Composable
 private fun ShortcutRow(keys: List<String>, how: String?, action: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = MaterialTheme.colorScheme

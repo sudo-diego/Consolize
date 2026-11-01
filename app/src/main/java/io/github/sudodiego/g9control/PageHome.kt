@@ -115,8 +115,7 @@ fun ServiceWarning(s: AppState, a: MainActivity) {
         AutoRules.smartBypass(a) || Monitor.all169(a) || Monitor.screen(a) != Monitor.Screen.NORMAL
     if (!on || s.autoServiceOn || !used) return
     WarningStrip(
-        tr("El servicio de accesibilidad está apagado: el panel y los atajos no funcionan.",
-            "The accessibility service is off: the panel and shortcuts don't work."),
+        tr("Accesibilidad apagada: sin panel ni atajos", "Accessibility off: no panel or shortcuts"),
         tr("Activar", "Turn on"), { AutoRules.openServiceSettings(a) },
         onDismiss = { on = false; AutoRules.setWarnService(a, false) }
     )
@@ -147,13 +146,17 @@ fun ShizukuWarning(a: MainActivity) {
 private fun WarningStrip(text: String, action: String, onAction: () -> Unit, onDismiss: () -> Unit) {
     val c = MaterialTheme.colorScheme
     // Discreto: una línea con el ícono en rojo, no un bloque rojo que tapa la página.
-    Surface(color = c.surfaceContainerHigh, shape = CircleShape, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(start = 18.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    // Una pastilla chica (no una franja de lado a lado): en Inicio empujaba todo hacia abajo y se cortaban los accesos.
+    Surface(color = c.surfaceContainerHigh, shape = CircleShape) {
+        Row(Modifier.padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.WarningAmber, null, Modifier.size(20.dp), tint = c.error)
             Spacer(Modifier.width(10.dp))
-            Text(text, Modifier.weight(1f), fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            TextButton(onClick = onDismiss) { Text(tr("No avisar", "Don't warn"), color = c.onSurfaceVariant) }
-            FilledTonalButton(onClick = onAction) { Text(action) }
+            Text(text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.width(10.dp))
+            FilledTonalButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 16.dp)) { Text(action) }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Outlined.Close, tr("No avisar", "Don't warn"), Modifier.size(18.dp), tint = c.onSurfaceVariant)
+            }
         }
     }
 }

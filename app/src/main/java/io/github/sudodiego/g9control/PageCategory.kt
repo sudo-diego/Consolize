@@ -223,7 +223,8 @@ fun PadLineArt(modifier: Modifier) {
     val paths = remember {
         fun p(d: String) = androidx.compose.ui.graphics.vector.PathParser().parsePathString(d).toPath()
         listOf(
-            p("M84 46 C120 38 200 38 236 46 C262 52 276 66 286 96 C298 134 302 166 284 176 C268 185 252 176 240 158 C232 146 224 140 210 140 L110 140 C96 140 88 146 80 158 C68 176 52 185 36 176 C18 166 22 134 34 96 C44 66 58 52 84 46Z"),
+            // Cuerpo más lleno al centro (antes el borde de abajo subía hasta casi los sticks y los mangos se veían enormes).
+            p("M88 44 C124 36 196 36 232 44 C262 50 280 66 290 100 C300 136 302 166 287 178 C272 189 254 182 242 167 C232 155 222 152 208 154 C188 158 132 158 112 154 C98 152 88 155 78 167 C66 182 48 189 33 178 C18 166 20 136 30 100 C40 66 58 50 88 44Z"),
             p("M128 112v18M119 121h18"), p("M146 84h8M166 84h8"),
         ) to listOf(
             p("M60 51 C68 36 84 29 102 27 C113 26 121 28 127 32"), p("M260 51 C252 36 236 29 218 27 C207 26 199 28 193 32"),

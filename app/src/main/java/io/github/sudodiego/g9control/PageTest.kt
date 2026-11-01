@@ -108,19 +108,46 @@ private fun SticksReadout(s: AppState) {
     val on = s.testMode
     fun v(x: Float) = if (on) x else 0f
     val c = MaterialTheme.colorScheme
-    Panel(tr("Sticks", "Sticks"), tr("En reposo deberían marcar cerca de 0", "At rest they should read near 0")) {
+    Panel(tr("Sticks", "Sticks")) {
+        // Cada stick dibujado: el punto donde está y la estela de todo lo que recorrió (al girarlo, se ve si llega a todo
+        // el borde, como en Sticks del G9). Los números, chicos debajo.
         Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             listOf(tr("Izquierdo", "Left") to (v(s.lx) to v(s.ly)), tr("Derecho", "Right") to (v(s.rx) to v(s.ry))).forEach { (name, xy) ->
-                Column(Modifier.weight(1f)) {
-                    Text(name, fontSize = 14.sp, color = c.onSurfaceVariant)
-                    // Una línea por eje: en una sola, con la columna angosta, se partía en cualquier parte.
-                    for ((axis, value) in listOf("x" to xy.first, "y" to xy.second)) Text("$axis %+.2f".format(value), fontSize = 15.sp,
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    StickTrace(xy.first, xy.second, on, Modifier.size(150.dp))
+                    Text(name, fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    Text("%+.2f  %+.2f".format(xy.first, xy.second), fontSize = 12.sp, color = c.onSurfaceVariant,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 1)
                 }
             }
         }
-        Hint(if (on) tr("Suelto, si marca más de 0,10 tiene deriva: sube su zona muerta (en el G9, Sticks).", "Released, over 0.10 means drift: raise its dead zone (on the G9, Sticks).")
-            else tr("Toca «Probar botones» para ver los valores.", "Tap “Test buttons” to see the values."))
+        if (!on) Hint(tr("Toca «Probar botones» y gira los sticks.", "Tap “Test buttons” and rotate the sticks."))
+    }
+}
+
+/** Un stick: el círculo, la estela de por dónde pasó (se borra al dejar de probar) y el punto actual. */
+@Composable
+private fun StickTrace(x: Float, y: Float, on: Boolean, modifier: Modifier) {
+    val c = MaterialTheme.colorScheme
+    val trail = remember { androidx.compose.runtime.mutableStateListOf<androidx.compose.ui.geometry.Offset>() }
+    LaunchedEffect(on) { if (!on) trail.clear() }
+    LaunchedEffect(x, y) {
+        val p = androidx.compose.ui.geometry.Offset(x, y)
+        if (on && (trail.isEmpty() || (trail.last() - p).getDistance() > 0.02f)) { trail.add(p); if (trail.size > 900) trail.removeAt(0) }
+    }
+    androidx.compose.foundation.Canvas(modifier) {
+        val r = size.minDimension / 2f - 6.dp.toPx()
+        fun at(o: androidx.compose.ui.geometry.Offset) = androidx.compose.ui.geometry.Offset(center.x + o.x.coerceIn(-1f, 1f) * r, center.y + o.y.coerceIn(-1f, 1f) * r)
+        drawCircle(c.onSurface.copy(alpha = 0.06f), r, center)
+        drawCircle(c.outline.copy(alpha = 0.5f), r, center, style = androidx.compose.ui.graphics.drawscope.Stroke(2f))
+        drawLine(c.outlineVariant, androidx.compose.ui.geometry.Offset(center.x - r, center.y), androidx.compose.ui.geometry.Offset(center.x + r, center.y), 1.5f)
+        drawLine(c.outlineVariant, androidx.compose.ui.geometry.Offset(center.x, center.y - r), androidx.compose.ui.geometry.Offset(center.x, center.y + r), 1.5f)
+        // La estela: trazos gruesos y suaves que, al girar el stick, van llenando el borde.
+        for (i in 1 until trail.size) drawLine(c.primary.copy(alpha = 0.25f), at(trail[i - 1]), at(trail[i]), 6.dp.toPx(),
+            cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        val p = at(androidx.compose.ui.geometry.Offset(x, y))
+        drawCircle(c.primary, 9.dp.toPx(), p)
+        drawCircle(c.onPrimary, 9.dp.toPx(), p, style = androidx.compose.ui.graphics.drawscope.Stroke(2.5f))
     }
 }
 
