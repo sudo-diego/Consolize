@@ -29,13 +29,15 @@ adb shell am start -n $PKG/.MainActivity; sleep 12
 # Por si igual salió el aviso de Android: tocar "Entendido" no hace falta, se cierra con Atrás del sistema sin salir.
 shot() { sleep "${2:-2}"; adb exec-out screencap -p > "shots/$1.png"; }
 key() { adb shell input keyevent "$1"; }
+tap() { adb shell input tap "$1" "$2"; }
+# Toques en el dock (coordenadas de la Pixel Tablet en horizontal, 2560 × 1600).
+DOCK_Y=1517
 shot 1-inicio 1
-key KEYCODE_BUTTON_R1; shot 2-biblioteca
-key KEYCODE_BUTTON_R1; shot 3-panel 3
-key KEYCODE_BUTTON_R1; shot 4-control
-key KEYCODE_DPAD_CENTER; shot 5-boton-guia 3
-key KEYCODE_BUTTON_B;  sleep 1
-key KEYCODE_BUTTON_R1; shot 6-mas
-key KEYCODE_DPAD_CENTER; shot 7-mas-menu
-key KEYCODE_BUTTON_B;  sleep 1
+tap 1075 $DOCK_Y; shot 2-biblioteca
+tap 1307 $DOCK_Y; shot 3-panel 3
+tap 1033 305;     shot 3b-editar-mosaicos 3
+tap 1522 $DOCK_Y; shot 4-control
+tap 1349 680;     shot 5-boton-guia 3
+tap 1728 $DOCK_Y; shot 6-mas
+tap 420 800;      shot 7-mas-menu
 ls -la shots
